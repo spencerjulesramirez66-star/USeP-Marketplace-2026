@@ -507,4 +507,12 @@ def upload_profile_picture(request):
 
 @login_required
 def setup_profile_view(request):
-    return render(request, 'accounts/profile.html')
+    student_profile = getattr(request.user, 'student_profile', None)
+    return render(
+        request,
+        'accounts/profile.html',
+        {
+            'program': student_profile.program if student_profile and student_profile.program else (student_profile.major.program if student_profile else None),
+            'major': student_profile.major if student_profile else None,
+        },
+    )

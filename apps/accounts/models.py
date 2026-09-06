@@ -185,6 +185,14 @@ class StudentProfile(models.Model):
         related_name='student_profile'
     )
 
+    program = models.ForeignKey(
+        Program,
+        on_delete=models.PROTECT,
+        related_name='enrolled_students',
+        blank=True,
+        null=True,
+    )
+
     student_id = models.CharField(
         max_length=10,
         unique=True
@@ -201,6 +209,8 @@ class StudentProfile(models.Model):
         Major,
         on_delete=models.PROTECT,
         related_name='students'
+        , blank=True,
+        null=True,
     )
 
     def __str__(self):

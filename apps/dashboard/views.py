@@ -470,7 +470,8 @@ def _seller_profile(user):
         campus = str(user.staff_profile.campus)
     elif hasattr(user, 'student_profile'):
         role = 'Student seller'
-        program = str(user.student_profile.major.program)
+        student_profile = user.student_profile
+        program = str(student_profile.program or student_profile.major.program)
     return {
         'id': user.pk,
         'name': f'{user.first_name} {user.last_name}'.strip() or user.email,
@@ -516,7 +517,7 @@ def create_listing(request):
         listing.seller = request.user
         listing.status = listing.status or Listing.Status.ACTIVE
         listing.save()
-        uploaded_images = request.FILES.getlist('images')
+        uploaded_images = request.FILES.getlist('images')[:8]
         if uploaded_images:
             listing.image = uploaded_images[0]
             listing.save(update_fields=['image', 'updated_at'])

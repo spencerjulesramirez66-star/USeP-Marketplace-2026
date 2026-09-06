@@ -54,7 +54,7 @@
                 {% if request.user.is_authenticated and can_edit %}
                 <span class="btn btn-outline detail-action detail-action-disabled"><i class="bi bi-person-check"></i> Your listing</span>
                 {% elif request.user.is_authenticated and item.status == 'SOLD' %}
-                <span class="btn btn-outline detail-action detail-action-disabled"><i class="bi bi-check-circle"></i> Sold</span>
+                <span class="btn btn-outline detail-action detail-action-disabled">Sold</span>
                 {% elif request.user.is_authenticated %}
                 <button class="btn btn-primary detail-action chat-coming-soon" type="button">Message seller</button>
                 <form method="post" action="{% url 'dashboard:toggle_saved_item' item.slug %}">

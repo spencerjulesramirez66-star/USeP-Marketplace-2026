@@ -38,7 +38,10 @@ const listingImageInput = document.querySelector('#listing-image');
 const listingPhotoPreview = document.querySelector('#listing-photo-preview');
 const listingMainImage = document.querySelector('#listing-main-image');
 const listingGallery = document.querySelector('#listing-gallery');
-const listingUploadBox = document.querySelector('#add-listing-modal .upload-box');
+const listingUploadBox = document.querySelector('#listing-upload-box');
+const listingAddOverlay = document.querySelector('.photo-add-overlay');
+const listingPhotoHint = document.querySelector('#listing-photo-hint');
+const LISTING_IMAGE_LIMIT = 8;
 let listingSelectedFiles = [];
 function setFiles(input, files) {
     const dataTransfer = new DataTransfer();
@@ -51,7 +54,7 @@ function renderListingPhotoPreview() {
     listingGallery.replaceChildren(...files.map((file, index) => {
         const item = document.createElement('div');
         item.className = 'manage-gallery-item';
-        item.innerHTML = `<img alt="Selected listing photo ${index + 1}"><button type="button" class="remove-gallery-image" aria-label="Remove selected photo" title="Remove selected photo"><i class="bi bi-trash3" aria-hidden="true"></i></button>`;
+        item.innerHTML = `<img alt="Selected listing photo ${index + 1}"><span class="photo-tile-label">${index === 0 ? 'Main photo' : `Photo ${index + 1}`}</span><button type="button" class="remove-gallery-image" aria-label="Remove selected photo" title="Remove selected photo"><i class="bi bi-trash3" aria-hidden="true"></i></button>`;
         const image = item.querySelector('img');
         const url = URL.createObjectURL(file);
         image.src = url;
@@ -71,14 +74,34 @@ function renderListingPhotoPreview() {
     const hasFiles = files.length > 0;
     listingPhotoPreview.hidden = !hasFiles;
     listingUploadBox.hidden = hasFiles;
+    if (listingPhotoHint) listingPhotoHint.textContent = files.length >= LISTING_IMAGE_LIMIT
+        ? 'Photo limit reached. Remove a photo to add another.'
+        : `${LISTING_IMAGE_LIMIT - files.length} photo${LISTING_IMAGE_LIMIT - files.length === 1 ? '' : 's'} remaining. The first photo is your listing thumbnail.`;
     if (hasFiles) listingMainImage.src = URL.createObjectURL(files[0]);
 }
 
 if (listingImageInput && listingPhotoPreview && listingGallery && listingUploadBox) {
     listingImageInput.addEventListener('change', () => {
-        listingSelectedFiles = [...listingSelectedFiles, ...listingImageInput.files];
+        const availableFiles = [...listingImageInput.files].slice(0, LISTING_IMAGE_LIMIT - listingSelectedFiles.length);
+        listingSelectedFiles = [...listingSelectedFiles, ...availableFiles];
         setFiles(listingImageInput, listingSelectedFiles);
         renderListingPhotoPreview();
+    });
+    [listingUploadBox, listingAddOverlay].filter(Boolean).forEach((dropTarget) => {
+        ['dragenter', 'dragover'].forEach((eventName) => dropTarget.addEventListener(eventName, (event) => {
+            event.preventDefault();
+            dropTarget.classList.add('drag-over');
+        }));
+        ['dragleave', 'drop'].forEach((eventName) => dropTarget.addEventListener(eventName, (event) => {
+            event.preventDefault();
+            dropTarget.classList.remove('drag-over');
+        }));
+        dropTarget.addEventListener('drop', (event) => {
+            const availableFiles = [...event.dataTransfer.files].filter((file) => file.type.startsWith('image/')).slice(0, LISTING_IMAGE_LIMIT - listingSelectedFiles.length);
+            listingSelectedFiles = [...listingSelectedFiles, ...availableFiles];
+            setFiles(listingImageInput, listingSelectedFiles);
+            renderListingPhotoPreview();
+        });
     });
 }
 

@@ -80,10 +80,15 @@
             </section>
             <section class="upload-panel">
                 <div class="listing-photo-preview" id="listing-photo-preview" hidden>
-                    <img class="photo-preview-main" id="listing-main-image" src="" alt="Selected listing photo">
+                    <div class="photo-preview-main-wrap">
+                        <img class="photo-preview-main" id="listing-main-image" src="" alt="Selected listing photo">
+                        <span class="main-photo-badge">Main photo</span>
+                        <label class="photo-add-overlay" for="listing-image"><i class="bi bi-plus-lg"></i> Add more photos</label>
+                    </div>
                     <div class="manage-gallery" id="listing-gallery" aria-label="Selected listing photos"></div>
+                    <small class="photo-upload-hint" id="listing-photo-hint">Up to 8 photos. The first photo is your listing thumbnail.</small>
                 </div>
-                <label class="upload-box" for="listing-image"><span class="upload-icon">+</span><strong>Upload product photos</strong><small>JPG, PNG, or WEBP, with no photo limit</small><span class="upload-action">Choose photos</span></label>
+                <label class="upload-box" id="listing-upload-box" for="listing-image"><span class="upload-icon">+</span><strong>Upload product photos</strong><small>JPG, PNG, or WEBP, up to 8 photos</small><span class="upload-action">Choose photos</span></label>
                 <input class="image-input" name="images" id="listing-image" type="file" accept="image/*" multiple>
             </section>
         </form>
