@@ -26,7 +26,7 @@
             </form>
             <div class="profile-hero-info">
                 <span class="profile-hero-role">{{ request.user.get_role_display }}</span>
-                <h1>{{ request.user.first_name }} {{ request.user.last_name }}</h1>
+                <h1>{{ request.user.first_name }} {{ request.user.middle_name }} {{ request.user.last_name }}</h1>
                 <p>{{ request.user.email }}</p>
             </div>
         </section>
@@ -34,15 +34,79 @@
         <section class="profile-grid">
             <div class="panel profile-panel">
                 <h2>Personal information</h2>
-                <dl class="profile-fields">
-                    <div class="profile-field"><dt>First name</dt><dd>{{ request.user.first_name }}</dd></div>
+                <dl class="profile-fields" id="editable-fields" data-update-url="{% url 'update_profile_field' %}">
+
+                    <div class="profile-field" data-field="first_name">
+                        <div class="edit-container">
+                            <dt>First name</dt>
+                            <i class="bi bi-pen button-toggle-icon"></i>
+                        </div>
+                        <dd>
+                            <div class="input-container">
+                                <span class="field-value">{{ request.user.first_name }}</span>
+                                <input type="text" class="field-input" name="first_name"
+                                       value="{{ request.user.first_name }}" hidden maxlength="150">
+                                <small class="field-error" hidden></small>
+                            </div>
+                        </dd>
+                    </div>
+
                     {% if request.user.middle_name %}
-                    <div class="profile-field"><dt>Middle name</dt><dd>{{ request.user.middle_name }}</dd></div>
+                    <div class="profile-field" data-field="middle_name">
+                        <div class="edit-container">
+                            <dt>Middle name</dt>
+                            <i class="bi bi-pen button-toggle-icon"></i>
+                        </div>
+                        <dd>
+                            <div class="input-container">
+                                <span class="field-value">{{ request.user.middle_name }}</span>
+                                <input type="text" class="field-input" name="middle_name"
+                                       value="{{ request.user.middle_name }}" hidden maxlength="150">
+                                <small class="field-error" hidden></small>
+                            </div>
+                        </dd>
+                    </div>
                     {% endif %}
-                    <div class="profile-field"><dt>Last name</dt><dd>{{ request.user.last_name }}</dd></div>
-                    <div class="profile-field"><dt>Email</dt><dd>{{ request.user.email }}</dd></div>
-                    <div class="profile-field"><dt>Contact number</dt><dd>{{ request.user.contact_num }}</dd></div>
-                    <div class="profile-field"><dt>Member since</dt><dd>{{ request.user.date_joined|date:"F Y" }}</dd></div>
+
+                    <div class="profile-field" data-field="last_name">
+                        <div class="edit-container">
+                            <dt>Last name</dt>
+                            <i class="bi bi-pen button-toggle-icon"></i>
+                        </div>
+                        <dd>
+                            <div class="input-container">
+                                <span class="field-value">{{ request.user.last_name }}</span>
+                                <input type="text" class="field-input" name="last_name"
+                                       value="{{ request.user.last_name }}" hidden maxlength="150">
+                                <small class="field-error" hidden></small>
+                            </div>
+                        </dd>
+                    </div>
+
+                    <div class="profile-field" data-field="contact_num">
+                        <div class="edit-container">
+                            <dt>Contact Number</dt>
+                            <i class="bi bi-pen button-toggle-icon"></i>
+                        </div>
+                        <dd>
+                            <div class="input-container">
+                                <span class="field-value">{{ request.user.contact_num }}</span>
+                                <input type="text" class="field-input" name="contact_num"
+                                       value="{{ request.user.contact_num }}" hidden maxlength="20">
+                                <small class="field-error" hidden></small>
+                            </div>
+                        </dd>
+                    </div>
+
+                    <div class="profile-field">
+                        <dt>Email</dt>
+                        <dd>{{ request.user.email }}</dd>
+                    </div>
+
+                    <div class="profile-field">
+                        <dt>Member since</dt>
+                        <dd>{{ request.user.date_joined|date:"F Y" }}</dd>
+                    </div>
                 </dl>
             </div>
 
@@ -50,14 +114,35 @@
                 <h2>Account details</h2>
                 <dl class="profile-fields">
                     {% if request.user.student_profile %}
-                    <div class="profile-field"><dt>Student ID</dt><dd>{{ request.user.student_profile.student_id }}</dd></div>
-                    <div class="profile-field"><dt>Program</dt><dd>{{ request.user.student_profile.major.program }}</dd></div>
-                    <div class="profile-field"><dt>Major</dt><dd>{{ request.user.student_profile.major }}</dd></div>
-                    <div class="profile-field"><dt>Year level</dt><dd>{{ request.user.student_profile.get_year_level_display }}</dd></div>
+                    <div class="profile-field">
+                        <dt>Student ID</dt>
+                        <dd>{{ request.user.student_profile.student_id }}</dd>
+                    </div>
+                    <div class="profile-field">
+                        <dt>Program</dt>
+                        <dd>{{ request.user.student_profile.major.program }}</dd>
+                    </div>
+                    <div class="profile-field">
+                        <dt>Major</dt>
+                        <dd>{{ request.user.student_profile.major }}</dd>
+                    </div>
+                    <div class="profile-field">
+                        <dt>Year level</dt>
+                        <dd>{{ request.user.student_profile.get_year_level_display }}</dd>
+                    </div>
                     {% elif request.user.staff_profile %}
-                    <div class="profile-field"><dt>Staff ID</dt><dd>{{ request.user.staff_profile.staff_id }}</dd></div>
-                    <div class="profile-field"><dt>Staff type</dt><dd>{{ request.user.staff_profile.get_staff_type_display }}</dd></div>
-                    <div class="profile-field"><dt>Campus</dt><dd>{{ request.user.staff_profile.campus }}</dd></div>
+                    <div class="profile-field">
+                        <dt>Staff ID</dt>
+                        <dd>{{ request.user.staff_profile.staff_id }}</dd>
+                    </div>
+                    <div class="profile-field">
+                        <dt>Staff type</dt>
+                        <dd>{{ request.user.staff_profile.get_staff_type_display }}</dd>
+                    </div>
+                    <div class="profile-field">
+                        <dt>Campus</dt>
+                        <dd>{{ request.user.staff_profile.campus }}</dd>
+                    </div>
                     {% else %}
                     <p class="profile-empty">No additional account details on file.</p>
                     {% endif %}

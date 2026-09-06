@@ -2,6 +2,7 @@ from django.urls import path
 from . import views
 
 urlpatterns=[
+    path("profile/update-field/", views.update_profile_field, name="update_profile_field"),
     path('profile/', views.setup_profile_view, name='profile'),
     path('upload-profile-picture/', views.upload_profile_picture, name='upload_profile_picture'),
     path('logout/', views.logout_view, name='logout'),

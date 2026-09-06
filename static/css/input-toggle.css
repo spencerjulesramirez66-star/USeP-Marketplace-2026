@@ -1,0 +1,48 @@
+
+.toggle-container {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.edit-container {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.5rem;
+}
+
+
+.toggle-input {
+    flex: 1;
+    min-width: 0;
+
+    padding: 0;
+    margin: 0;
+
+    background: transparent;
+    outline: none;
+    border: none;
+
+    font: inherit;
+    color: inherit;
+}
+
+.toggle-input:focus {
+    outline: none;
+    border: none;
+}
+
+
+.button-toggle-icon {
+    flex-shrink: 0;
+
+    cursor: pointer;
+    font-size: 0.8rem;
+    line-height: 1;
+
+    font-family: var(--font-secondary);
+    color: var(--color-primary);
+}

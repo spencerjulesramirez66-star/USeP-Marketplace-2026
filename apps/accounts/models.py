@@ -128,12 +128,10 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     objects = AccountManager()
 
-    # Authentication
     email = models.EmailField(unique=True)
     email_verified = models.BooleanField(default=False)
     is_first_login = models.BooleanField(default=True)
 
-    # Personal Information
     first_name = models.CharField(max_length=100)
     middle_name = models.CharField(
         max_length=100,
@@ -141,24 +139,20 @@ class User(AbstractBaseUser, PermissionsMixin):
     )
     last_name = models.CharField(max_length=100)
 
-    # Contact
     contact_num = models.CharField(
         max_length=11,
         unique=True
     )
 
-    # System Role
     role = models.CharField(
         max_length=10,
         choices=Roles.choices,
         default=Roles.USER
     )
 
-    # Django permissions
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
 
-    # Account Information
     profile_picture = models.ImageField(
         upload_to='uploads/',
         blank=True,

@@ -84,6 +84,13 @@
     font-weight: 500;
 }
 
+.profile-field dd {
+    margin-top: 0.2rem;
+    color: var(--color-text);
+    font-weight: 500;
+}
+
+
 .profile-empty {
     color: var(--color-text-muted);
     font-size: 0.9rem;
@@ -140,6 +147,40 @@
     margin-top: 0.2rem;
     color: var(--color-text-muted);
     font-size: 0.9rem;
+}
+
+.input-container {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.field-input {
+    display: none;
+    flex: 1;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font: inherit;
+}
+
+.profile-field.is-editing .field-value {
+    display: none;
+}
+
+.profile-field.is-editing .field-input {
+    display: inline-block;
+}
+
+.field-error {
+    display: block;
+    color: #c0392b;
+    font-size: 0.8rem;
+    margin-top: 0.25rem;
+}
+
+.button-toggle-icon {
+    cursor: pointer;
 }
 
 @media (max-width: 768px) {

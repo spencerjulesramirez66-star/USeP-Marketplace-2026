@@ -10,7 +10,7 @@ from django.utils import timezone
 from .models import EmailOTP, OTPPurpose
 
 OTP_LENGTH = 6
-OTP_TTL_MINUTES = 10
+OTP_TTL_MINUTES = 5
 OTP_RESEND_COOLDOWN_SECONDS = 60
 
 

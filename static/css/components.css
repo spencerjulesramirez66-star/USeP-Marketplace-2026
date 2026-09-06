@@ -8,7 +8,9 @@
     height: auto;
 }
 
-/* Buttons */
+/* ============================== 
+    Buttons 
+================================= */
 
 .btn {
     display: inline-flex;
@@ -67,17 +69,10 @@
 }
 
 
-/* Cards */
 
-.card {
-    background-color: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: 0.75rem;
-    padding: 1rem;
-}
-
-
-/* Forms */
+/* ============================== 
+    Forms 
+================================= */
 
 .form {
     display: flex;
@@ -119,7 +114,11 @@
     font-size: 1rem;
 }
 
-/* Alerts */
+
+/* ============================== 
+    Alerts 
+================================= */
+
 .messages-container {
     position: fixed;
     top: 2rem;
@@ -187,7 +186,6 @@
 }
 
 
-/* Progress bar */
 .alert-progress {
     position: absolute;
     bottom: 0;
@@ -213,7 +211,6 @@
 }
 
 
-/* Fade out */
 .alert.fade-out {
     opacity: 0;
     transform: translateY(-10px);
@@ -228,7 +225,6 @@
 }
 
 
-/* Error */
 .alert-error {
     color: #991b1b;
     background-color: #fee2e2;
@@ -236,7 +232,6 @@
 }
 
 
-/* Warning */
 .alert-warning {
     color: #854d0e;
     background-color: #fef3c7;
@@ -244,7 +239,6 @@
 }
 
 
-/* Info */
 .alert-info {
     color: #1e40af;
     background-color: #dbeafe;
@@ -252,16 +246,15 @@
 }
 
 
-/* Debug */
 .alert-debug {
     color: #374151;
     background-color: #f3f4f6;
     border-color: #d1d5db;
 }
 
-/* =========================
-   NAVBAR
-   ========================= */
+/* ============================== 
+    Navbar 
+================================= */
 
 #navbar {
     display: flex;
@@ -305,10 +298,6 @@
     letter-spacing: -0.01em;
     white-space: nowrap;
 }
-
-/* =========================
-   SEARCH
-   ========================= */
 
 .navbar-search {
     display: flex;
@@ -377,9 +366,6 @@
     color: var(--color-primary);
 }
 
-/* =========================
-   ACTIONS (messaging + profile/login)
-   ========================= */
 
 .navbar-actions {
     display: flex;
@@ -620,106 +606,6 @@
 #profile-picture-form {
     width: 100%;
 }
-
-/*
-    PASSWORD STRENGTH
-*/
-
-
-/* Password Requirements */
-
-#password-requirements {
-    display: flex;
-    flex-direction: column;
-
-    gap: 0.25rem;
-
-    margin-top: 0.25rem;
-}
-
-#password-requirements small {
-    color: var(--color-text-muted);
-
-    font-size: 0.8rem;
-
-    transition:
-        color 0.2s ease,
-        transform 0.2s ease;
-}
-
-#password-requirements small::before {
-    content: "○";
-
-    margin-right: 0.4rem;
-}
-
-#password-requirements small.valid {
-    color: #198754;
-}
-
-#password-requirements small.valid::before {
-    content: "✓";
-}
-
-#password-requirements small.invalid {
-    color: var(--color-text-muted);
-}
-
-
-/* Password Strength */
-
-#password-strength {
-    margin-top: 0.5rem;
-
-    color: var(--color-text-secondary);
-
-    font-size: 0.85rem;
-}
-
-#strength-text {
-    font-weight: 600;
-}
-
-#strength-text.weak {
-    color: #dc3545;
-}
-
-#strength-text.moderate {
-    color: #d39e00;
-}
-
-#strength-text.strong {
-    color: #198754;
-}
-
-
-/* Password Confirmation */
-
-#password-match {
-    display: block;
-
-    min-height: 1.2rem;
-
-    font-size: 0.8rem;
-
-    transition:
-        color 0.2s ease;
-}
-
-.password-valid {
-    border-color: #198754 !important;
-
-    box-shadow:
-        0 0 0 3px rgba(25, 135, 84, 0.1);
-}
-
-.password-invalid {
-    border-color: #dc3545 !important;
-
-    box-shadow:
-        0 0 0 3px rgba(220, 53, 69, 0.1);
-}
-
 
 
 @media (max-width: 768px) {
