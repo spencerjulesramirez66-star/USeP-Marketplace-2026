@@ -1,37 +1,83 @@
 const profileToggle = document.getElementById("profile-toggle");
 const profileDropdown = document.getElementById("profile-dropdown");
 
-function closeDropdown() {
-    profileDropdown.classList.remove("open");
-    profileToggle.setAttribute("aria-expanded", "false");
+if (profileToggle && profileDropdown) {
+    function closeDropdown() {
+        profileDropdown.classList.remove("open");
+        profileToggle.setAttribute("aria-expanded", "false");
+    }
+
+    function openDropdown() {
+        profileDropdown.classList.add("open");
+        profileToggle.setAttribute("aria-expanded", "true");
+    }
+
+    profileToggle.addEventListener("click", (event) => {
+        event.stopPropagation();
+
+        if (profileDropdown.classList.contains("open")) {
+            closeDropdown();
+        } else {
+            openDropdown();
+        }
+    });
+
+    document.addEventListener("click", (event) => {
+        if (!profileDropdown.contains(event.target)) {
+            closeDropdown();
+        }
+    });
+
+    document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+            closeDropdown();
+        }
+    });
 }
 
-function openDropdown() {
-    profileDropdown.classList.add("open");
-    profileToggle.setAttribute("aria-expanded", "true");
+// CATEGORIES MENU (HAMBURGER)
+const categoriesMenuBtn = document.getElementById("categories-menu-btn");
+const categoriesMenu = document.getElementById("categories-menu");
+const categoriesMenuContent = document.querySelector(".categories-menu-content");
+
+if (categoriesMenuBtn && categoriesMenu) {
+    categoriesMenuBtn.addEventListener("click", (event) => {
+        event.stopPropagation();
+        const isExpanded = categoriesMenuBtn.getAttribute("aria-expanded") === "true";
+        categoriesMenuBtn.setAttribute("aria-expanded", !isExpanded);
+        categoriesMenu.classList.toggle("open");
+        categoriesMenu.setAttribute("aria-hidden", isExpanded);
+    });
+
+    document.addEventListener("click", (event) => {
+        const isClickInsideContent = categoriesMenuContent && categoriesMenuContent.contains(event.target);
+        const isClickOnButton = categoriesMenuBtn.contains(event.target);
+        
+        if (!isClickInsideContent && !isClickOnButton) {
+            categoriesMenuBtn.setAttribute("aria-expanded", "false");
+            categoriesMenu.classList.remove("open");
+            categoriesMenu.setAttribute("aria-hidden", "true");
+        }
+    });
+
+    document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+            categoriesMenuBtn.setAttribute("aria-expanded", "false");
+            categoriesMenu.classList.remove("open");
+            categoriesMenu.setAttribute("aria-hidden", "true");
+        }
+    });
+
+    // Close menu when a category link is clicked
+    const categoryLinks = categoriesMenu.querySelectorAll(".categories-menu-list a");
+    categoryLinks.forEach((link) => {
+        link.addEventListener("click", () => {
+            categoriesMenuBtn.setAttribute("aria-expanded", "false");
+            categoriesMenu.classList.remove("open");
+            categoriesMenu.setAttribute("aria-hidden", "true");
+        });
+    });
 }
-
-profileToggle.addEventListener("click", (event) => {
-    event.stopPropagation();
-
-    if (profileDropdown.classList.contains("open")) {
-        closeDropdown();
-    } else {
-        openDropdown();
-    }
-});
-
-document.addEventListener("click", (event) => {
-    if (!profileDropdown.contains(event.target)) {
-        closeDropdown();
-    }
-});
-
-document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") {
-        closeDropdown();
-    }
-});
 
 
 // PROFILE PICTURE UPLOAD

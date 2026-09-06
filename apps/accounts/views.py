@@ -303,7 +303,7 @@ def setup_change_password_view(request):
         messages.success(request, "Your password has been changed successfully.")
 
         if was_first_login:
-            return redirect("dashboard:seller")
+            return redirect_user(request.user)
         return redirect("profile")
 
     return render(request, "password/change-password.html")
@@ -319,11 +319,7 @@ def redirect_user(user):
     if user.is_first_login:
         return redirect("change_password")
 
-    if user.role == 'USER':
-        return redirect("dashboard:seller")
-    
-    else:
-        return redirect('admin')
+    return redirect("dashboard:buyer")
 
 def setup_forgot_password_view(request):
 
@@ -487,64 +483,12 @@ def upload_profile_picture(request):
 
 @login_required
 def setup_profile_view(request):
-    return render(request, 'accounts/profile.html')
-
-
-ALLOWED_PROFILE_FIELDS = {
-    "first_name": {"max_length": 150, "required": True},
-    "middle_name": {"max_length": 150, "required": False},
-    "last_name": {"max_length": 150, "required": True},
-    "contact_num": {"max_length": 20, "required": True},
-}
-
-
-@login_required
-@require_POST
-def update_profile_field(request):
-    throttle_key = f"update_profile_field_throttle:{request.user.pk}"
-
-    try:
-        check_and_hit(
-            throttle_key,
-            limit=UPDATE_PROFILE_FIELD_RATE_LIMIT,
-            window_seconds=UPDATE_PROFILE_FIELD_RATE_WINDOW,
-        )
-    except RateLimitExceeded:
-        return JsonResponse(
-            {"success": False, "error": "Too many attempts. Please try again later."},
-            status=429,
-        )
-
-    field = request.POST.get("field", "")
-    value = request.POST.get("value", "").strip()
-
-    if field not in ALLOWED_PROFILE_FIELDS:
-        return JsonResponse({"success": False, "error": "Invalid field."}, status=400)
-
-    rules = ALLOWED_PROFILE_FIELDS[field]
-
-    if rules["required"] and not value:
-        return JsonResponse(
-            {"success": False, "error": "This field cannot be empty."}, status=400
-        )
-
-    if len(value) > rules["max_length"]:
-        return JsonResponse(
-            {"success": False, "error": "That value is too long."}, status=400
-        )
-
-    if field == "contact_num":
-        cleaned = value.replace(" ", "").replace("-", "")
-        if not cleaned.isdigit():
-            return JsonResponse(
-                {"success": False, "error": "Contact number must contain digits only."},
-                status=400,
-            )
-        value = cleaned
-
-    setattr(request.user, field, value)
-    request.user.save(update_fields=[field])
-
-    reset(throttle_key)
-
-    return JsonResponse({"success": True, "value": value})
+    student_profile = getattr(request.user, 'student_profile', None)
+    return render(
+        request,
+        'accounts/profile.html',
+        {
+            'program': student_profile.program if student_profile and student_profile.program else (student_profile.major.program if student_profile else None),
+            'major': student_profile.major if student_profile else None,
+        },
+    )

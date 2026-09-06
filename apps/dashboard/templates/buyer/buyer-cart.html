@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Cart | USeP Marketplace{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/buyer-dashboard.css' %}?v=20260905-5">
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/buyer-dashboard.js' %}?v=20260905-3"></script>
+{% endblock %}
+
+{% block content %}
+<div class="buyer-shell dashboard-shell">
+    {% include 'components/navbar.html' %}
+
+    <main class="container cart-page">
+        <div class="cart-page-header">
+            <h1>Cart</h1>
+            <a href="{% url 'dashboard:buyer' %}" class="btn btn-outline">Continue shopping</a>
+        </div>
+
+        <section class="cart-section">
+            <div class="cart-section-heading"><div><p class="eyebrow">Ready to review</p><h2>Available products</h2></div><span class="cart-section-count">{{ active_saved_items|length }}</span></div>
+            <div class="cart-page-list" id="cart-page-items">
+            {% for saved_item in active_saved_items %}
+            <article class="cart-listing">
+                <a class="cart-listing-image" href="{{ saved_item.listing.get_absolute_url }}">
+                    <img src="{{ saved_item.listing.image_url }}" alt="{{ saved_item.listing.title }}">
+                </a>
+                <div class="cart-listing-info">
+                    <span class="status-pill status-pill-active">In cart</span>
+                    <h2><a href="{{ saved_item.listing.get_absolute_url }}">{{ saved_item.listing.title }}</a></h2>
+                    <p class="cart-listing-category">{{ saved_item.listing.category.name }}</p>
+                    <p class="cart-listing-seller">Seller: {{ saved_item.listing.seller.first_name }} {{ saved_item.listing.seller.last_name }}</p>
+                </div>
+                <div class="cart-listing-price"><span>Price</span><strong>{{ saved_item.listing.price_label }}</strong></div>
+                <div class="cart-listing-actions">
+                    <button class="cart-message-button chat-coming-soon" type="button"><i class="bi bi-chat-dots"></i><span>Message seller</span></button>
+                    <form method="post" action="{% url 'dashboard:toggle_saved_item' saved_item.listing.slug %}">
+                        {% csrf_token %}<input type="hidden" name="next" value="{% url 'dashboard:buyer_cart' %}">
+                        <button class="cart-remove-button" type="submit"><i class="bi bi-trash3"></i><span>Remove</span></button>
+                    </form>
+                </div>
+            </article>
+            {% empty %}
+            <div class="empty-cart-state">
+                <h3>Your saved list is empty.</h3>
+                <p>Add listings here while you browse. Seller chat will be available soon.</p>
+            </div>
+            {% endfor %}
+            </div>
+        </section>
+
+        {% if sold_saved_items %}
+        <section class="cart-section cart-section-sold">
+            <div class="cart-section-heading"><div><p class="eyebrow">No longer available</p><h2>Sold products</h2></div><span class="cart-section-count cart-section-count-sold">{{ sold_saved_items|length }}</span></div>
+            <div class="cart-page-list">
+            {% for saved_item in sold_saved_items %}
+            <article class="cart-listing cart-listing-sold">
+                <a class="cart-listing-image" href="{{ saved_item.listing.get_absolute_url }}"><img src="{{ saved_item.listing.image_url }}" alt="{{ saved_item.listing.title }}"></a>
+                <div class="cart-listing-info"><span class="status-pill status-pill-sold">Sold</span><h2><a href="{{ saved_item.listing.get_absolute_url }}">{{ saved_item.listing.title }}</a></h2><p class="cart-listing-category">{{ saved_item.listing.category.name }}</p><p class="cart-listing-seller">Seller: {{ saved_item.listing.seller.first_name }} {{ saved_item.listing.seller.last_name }}</p></div>
+                <div class="cart-listing-price"><span>Price</span><strong>{{ saved_item.listing.price_label }}</strong></div>
+                <form method="post" action="{% url 'dashboard:toggle_saved_item' saved_item.listing.slug %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'dashboard:buyer_cart' %}"><button class="cart-remove-button" type="submit"><i class="bi bi-trash3"></i><span>Remove</span></button></form>
+            </article>
+            {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+    </main>
+</div>
+{% endblock %}

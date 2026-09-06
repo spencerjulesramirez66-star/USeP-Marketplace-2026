@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Edit {{ listing.title }} | USeP Marketplace{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/seller-dashboard.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="seller-shell dashboard-shell">
+    {% include 'components/navbar.html' %}
+    <main class="seller-main dashboard-main container">
+        <a class="detail-back-link" href="{% url 'dashboard:seller' %}"><i class="bi bi-arrow-left"></i> Back to seller dashboard</a>
+        <section class="dashboard-banner">
+            <p class="eyebrow">Manage inventory</p>
+            <h1>Edit listing</h1>
+            <p>Update the details buyers see for this listing.</p>
+        </section>
+
+        <form class="add-form-panel" method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <section class="edit-listing-gallery">
+                <h2>Listing photos</h2>
+                <div class="manage-gallery edit-gallery" aria-label="Uploaded listing photos">
+                    {% for image in listing.listing_images.all %}<div class="manage-gallery-item"><img src="{{ image.image.url }}" alt="{{ listing.title }} photo {{ forloop.counter }}"><button type="button" class="remove-gallery-image" data-image-id="{{ image.id }}" aria-label="Remove photo">&times;</button></div>{% empty %}<p class="empty-gallery">No photos uploaded yet.</p>{% endfor %}
+                </div>
+                <label class="change-photo" for="edit-listing-images">Add more photos</label>
+                <input class="image-input" name="images" id="edit-listing-images" type="file" accept="image/*" multiple>
+                <div id="edit-removed-images"></div>
+            </section>
+            {% for field in listing_form %}
+                <div class="form-group">
+                    <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {% for error in field.errors %}<small class="form-error">{{ error }}</small>{% endfor %}
+                </div>
+            {% endfor %}
+            <div class="form-actions">
+                <a class="btn btn-outline" href="{% url 'dashboard:seller' %}">Cancel</a>
+                <button class="btn btn-primary" type="submit">Save changes</button>
+            </div>
+        </form>
+    </main>
+</div>
+{% endblock %}
+
+{% block extra_js %}<script src="{% static 'js/edit-listing-gallery.js' %}?v=20260906-2"></script>{% endblock %}

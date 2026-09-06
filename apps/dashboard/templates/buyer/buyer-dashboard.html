@@ -1,0 +1,153 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Buy on USeP Marketplace{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/buyer-dashboard.css' %}?v=20260905-6">
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/buyer-dashboard.js' %}?v=20260905-2"></script>
+{% endblock %}
+
+{% block content %}
+<div class="buyer-shell dashboard-shell">
+    {% include 'components/navbar.html' %}
+
+    <main class="buyer-main dashboard-main container">
+        {% if not seller_filter %}
+        <section class="buyer-hero dashboard-banner">
+            <div class="hero-copy">
+                <p class="eyebrow">USeP marketplace</p>
+                <h1>Find what you need around campus</h1>
+                <p>Browse trusted listings for study essentials, dorm items, services, and local deals.</p>
+                <div class="hero-actions">
+                    <a href="#products" class="btn btn-primary">Shop now</a>
+                    {% if request.user.is_authenticated %}
+                    <a href="{% url 'dashboard:seller' %}" class="btn btn-secondary">Sell something</a>
+                    {% else %}
+                    <a href="{% url 'login' %}?next={% url 'dashboard:become_seller' %}" class="btn btn-secondary">Sell something</a>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+        {% endif %}
+
+        <section class="buyer-layout">
+            <div class="buyer-feed" id="products">
+                {% if seller_filter and seller_profile %}
+                <section class="seller-profile panel">
+                    <div class="seller-profile-content">
+                        <div class="seller-avatar"><img src="{{ seller_profile.avatar|default:'/static/images/default-avatar.png' }}" alt="{{ seller_profile.name }} profile picture"></div>
+                        <div class="seller-profile-info">
+                            <strong class="seller-name">{{ seller_profile.name }}</strong>
+                            <small class="seller-role">{{ seller_profile.role }}</small>
+                        </div>
+                        <a href="{% url 'dashboard:buyer' %}" class="btn btn-sm btn-outline other-products-btn">
+                            <i class="bi bi-arrow-left"></i> Back to all listings
+                        </a>
+                    </div>
+                </section>
+                {% endif %}
+
+                <div class="feed-header">
+                    <div>
+                        <p class="eyebrow">Fresh listings</p>
+                        <h2>{% if seller_filter and seller_profile %}Products by {{ seller_profile.name }}{% else %}Recommended for you{% endif %}</h2>
+                    </div>
+                </div>
+
+                <div class="product-grid">
+                    {% for item in items %}
+                        <article class="product-card" data-item-slug="{{ item.slug }}" data-item-title="{{ item.title }}" data-item-price="{{ item.price_label }}" data-item-seller="{{ item.seller_name }}">
+                            <a class="product-image-link" href="{% url 'dashboard:buyer_detail' item.slug %}{% if query %}?q={{ query|urlencode }}{% endif %}{% if selected_category and selected_category != 'all' %}{% if query %}&{% else %}?{% endif %}category={{ selected_category }}{% endif %}">
+                                <div class="listing-product-media"><div class="product-image" style="background-image: url('{{ item.image_url }}');"></div></div>
+                            </a>
+                            <div class="product-content">
+                                <div class="product-meta-row">
+                                    <span class="product-price">{{ item.price_label }}</span>
+                                    {% if request.user.id == item.seller_id %}
+                                    <a class="card-action-link" href="{% url 'dashboard:buyer_detail' item.slug %}">Edit listing</a>
+                                    {% else %}
+                                    <form method="post" action="{% url 'dashboard:toggle_saved_item' item.slug %}">
+                                        {% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                        <button class="save-btn" type="submit" aria-label="Add to cart"><i class="bi bi-cart3"></i></button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                                <h3 class="product-title"><a href="{% url 'dashboard:buyer_detail' item.slug %}{% if query %}?q={{ query|urlencode }}{% endif %}{% if selected_category and selected_category != 'all' %}{% if query %}&{% else %}?{% endif %}category={{ selected_category }}{% endif %}" class="product-title-link">{{ item.title }}</a></h3>
+                                <p class="product-subtitle">{{ item.condition }} • {{ item.location }}</p>
+                                <div class="product-footer">
+                                    <div class="seller-info">
+                                        <span class="listing-seller-avatar"><img src="{{ item.seller_avatar_url }}" alt="{{ item.seller_name }} profile picture"></span>
+                                        <div>
+                                        <strong>{{ item.seller_name }}</strong>
+                                        <small>{{ item.seller_role }}</small>
+                                        </div>
+                                    </div>
+                                    <span class="view-count"><i class="bi bi-eye"></i> {{ item.views }}</span>
+                                </div>
+                                <div class="product-side-actions">
+                                    {% if request.user.id != item.seller_id %}
+                                    <button type="button" class="mini-message-btn chat-coming-soon">Message seller</button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </article>
+                    {% empty %}
+                        <div class="no-results panel">
+                            <h3>No listings match your search.</h3>
+                            <p>Try another keyword or switch to a different category.</p>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container footer-inner">
+            <div>
+                <div class="footer-brand">
+                    <img class="site-logo" src="{% static 'images/site-logo.png' %}" alt="USeP Marketplace Logo">
+                    <span>USeP Marketplace</span>
+                </div>
+                <p>Campus essentials, study tools, and local services made easy.</p>
+            </div>
+            <div>
+                <h4>Explore</h4>
+                <ul>
+                    <li><a href="#">Home</a></li>
+                    <li><a href="#">Shop</a></li>
+                    <li><a href="#">Services</a></li>
+                </ul>
+            </div>
+            <div>
+                <h4>Account</h4>
+                <ul>
+                    <li><a href="#">Profile</a></li>
+                    <li><a href="#">Cart</a></li>
+                    <li><a href="#">Orders</a></li>
+                </ul>
+            </div>
+            <div>
+                <h4>Company</h4>
+                <ul>
+                    <li><a href="#">About</a></li>
+                    <li><a href="#">Contact</a></li>
+                    <li><a href="#">Privacy</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <span>© 2026 USeP Marketplace</span>
+        </div>
+    </footer>
+
+    <button id="back-to-top" class="back-to-top" type="button" aria-label="Back to top">
+        <i class="bi bi-arrow-up"></i>
+    </button>
+</div>
+{% endblock %}

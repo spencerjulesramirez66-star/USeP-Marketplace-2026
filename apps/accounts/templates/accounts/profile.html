@@ -28,29 +28,16 @@
                 <span class="profile-hero-role">{{ request.user.get_role_display }}</span>
                 <h1>{{ request.user.first_name }} {{ request.user.middle_name }} {{ request.user.last_name }}</h1>
                 <p>{{ request.user.email }}</p>
+                {% if program %}<span class="profile-hero-program">{{ program }}</span>{% endif %}
+                {% if request.user.staff_profile %}<span class="profile-hero-program">{{ request.user.staff_profile.get_staff_type_display }} · {{ request.user.staff_profile.campus }}</span>{% endif %}
             </div>
         </section>
 
         <section class="profile-grid">
             <div class="panel profile-panel">
-                <h2>Personal information</h2>
-                <dl class="profile-fields" id="editable-fields" data-update-url="{% url 'update_profile_field' %}">
-
-                    <div class="profile-field" data-field="first_name">
-                        <div class="edit-container">
-                            <dt>First name</dt>
-                            <i class="bi bi-pen button-toggle-icon"></i>
-                        </div>
-                        <dd>
-                            <div class="input-container">
-                                <span class="field-value">{{ request.user.first_name }}</span>
-                                <input type="text" class="field-input" name="first_name"
-                                       value="{{ request.user.first_name }}" hidden maxlength="150">
-                                <small class="field-error" hidden></small>
-                            </div>
-                        </dd>
-                    </div>
-
+                <h2><i class="bi bi-person-vcard"></i> Personal information</h2>
+                <dl class="profile-fields">
+                    <div class="profile-field"><dt>First name</dt><dd>{{ request.user.first_name }}</dd></div>
                     {% if request.user.middle_name %}
                     <div class="profile-field" data-field="middle_name">
                         <div class="edit-container">
@@ -111,25 +98,13 @@
             </div>
 
             <div class="panel profile-panel">
-                <h2>Account details</h2>
+                <h2><i class="bi bi-mortarboard"></i> Academic and staff details</h2>
                 <dl class="profile-fields">
                     {% if request.user.student_profile %}
-                    <div class="profile-field">
-                        <dt>Student ID</dt>
-                        <dd>{{ request.user.student_profile.student_id }}</dd>
-                    </div>
-                    <div class="profile-field">
-                        <dt>Program</dt>
-                        <dd>{{ request.user.student_profile.major.program }}</dd>
-                    </div>
-                    <div class="profile-field">
-                        <dt>Major</dt>
-                        <dd>{{ request.user.student_profile.major }}</dd>
-                    </div>
-                    <div class="profile-field">
-                        <dt>Year level</dt>
-                        <dd>{{ request.user.student_profile.get_year_level_display }}</dd>
-                    </div>
+                    <div class="profile-field"><dt>Student ID</dt><dd>{{ request.user.student_profile.student_id }}</dd></div>
+                    <div class="profile-field"><dt>Program</dt><dd>{{ program }}</dd></div>
+                    <div class="profile-field"><dt>Major</dt><dd>{{ major }}</dd></div>
+                    <div class="profile-field"><dt>Year level</dt><dd>{{ request.user.student_profile.get_year_level_display }}</dd></div>
                     {% elif request.user.staff_profile %}
                     <div class="profile-field">
                         <dt>Staff ID</dt>
