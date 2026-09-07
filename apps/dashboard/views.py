@@ -366,8 +366,23 @@ def _filter_listings(query=None, category='all'):
 
 
 # Create your views here.
+@login_required
 def setup_seller_dashboard(request):
-    return render(request, 'seller/seller-dashboard.html')
+    listings = Listing.objects.filter(seller=request.user).exclude(
+        status=Listing.Status.ARCHIVED
+    ).select_related('category')
+
+    active_listings = listings.filter(status=Listing.Status.ACTIVE)
+    context = {
+        'listings': listings,
+        'listing_form': ListingForm(),
+        'categories': _category_context(),
+        'active_count': active_listings.count(),
+        'total_views': sum(listing.views for listing in listings),
+        'sold_count': listings.filter(status=Listing.Status.SOLD).count(),
+        'manage_listing_id': request.GET.get('manage'),
+    }
+    return render(request, 'seller/seller-dashboard.html', context)
 
 
 def setup_buyer_dashboard(request):
@@ -485,22 +500,6 @@ def _seller_profile(user):
 
 
 @login_required
-def setup_seller_dashboard(request):
-    listings = Listing.objects.filter(seller=request.user).select_related('category')
-    active_listings = listings.filter(status=Listing.Status.ACTIVE)
-    context = {
-        'listings': listings,
-        'listing_form': ListingForm(),
-        'categories': _category_context(),
-        'active_count': active_listings.count(),
-        'total_views': sum(listing.views for listing in listings),
-        'sold_count': listings.filter(status=Listing.Status.SOLD).count(),
-        'manage_listing_id': request.GET.get('manage'),
-    }
-    return render(request, 'seller/seller-dashboard.html', context)
-
-
-@login_required
 def become_seller(request):
     messages.success(request, 'Your seller workspace is ready.')
     return redirect('dashboard:seller')
@@ -600,8 +599,9 @@ def _remove_listing_images(listing, image_ids):
 def delete_listing(request, listing_id):
     if request.method == 'POST':
         listing = get_object_or_404(Listing, pk=listing_id, seller=request.user)
-        listing.delete()
-        messages.success(request, 'The listing was deleted.')
+        listing.status = Listing.Status.ARCHIVED
+        listing.save(update_fields=['status', 'updated_at'])
+        messages.success(request, 'The listing was archived.')
     return redirect('dashboard:seller')
 
 
@@ -653,7 +653,7 @@ def setup_buyer_item_detail(request, item_slug):
         buyer=request.user,
         listing=listing,
     ).exists()
-    if listing.status not in (Listing.Status.ACTIVE, Listing.Status.RESERVED, Listing.Status.SOLD) and listing.seller != request.user and not saved_by_request_user:
+    if listing.status not in (Listing.Status.ACTIVE, Listing.Status.RESERVED, Listing.Status.SOLD):
         raise Http404('Listing not found.')
     Listing.objects.filter(pk=listing.pk).update(views=listing.views + 1)
     listing.views += 1
@@ -731,12 +731,11 @@ def setup_buyer_cart(request):
         'buyer/buyer-cart.html',
         {
             'saved_items': saved_items,
-            'active_saved_items': saved_items.exclude(listing__status=Listing.Status.SOLD),
+            'active_saved_items': saved_items.filter(listing__status=Listing.Status.ACTIVE),
             'sold_saved_items': saved_items.filter(listing__status=Listing.Status.SOLD),
             'categories': _category_context(),
         },
     )
-
 
 @login_required
 def start_conversation(request, item_slug):
