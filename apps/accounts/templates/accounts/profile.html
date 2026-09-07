@@ -18,7 +18,7 @@
                 <input type="hidden" name="next" value="{{ request.path }}">
                 <label class="profile-hero-avatar-wrap" for="avatar-input">
                     <img class="profile-hero-avatar"
-                         src="{% if request.user.profile_picture %}{{ request.user.profile_picture.url }}{% else %}{% static 'images/default-avatar.png' %}{% endif %}"
+                         src="{{ request.user.avatar_url }}"
                          alt="{{ request.user.first_name }}'s profile picture">
                     <span class="profile-hero-avatar-edit" aria-hidden="true"><i class="bi bi-camera"></i></span>
                 </label>
@@ -26,7 +26,7 @@
             </form>
             <div class="profile-hero-info">
                 <span class="profile-hero-role">{{ request.user.get_role_display }}</span>
-                <h1>{{ request.user.first_name }} {{ request.user.middle_name }} {{ request.user.last_name }}</h1>
+                <h1>{{ request.user.first_name }} {{ request.user.last_name }}</h1>
                 <p>{{ request.user.email }}</p>
                 {% if program %}<span class="profile-hero-program">{{ program }}</span>{% endif %}
                 {% if request.user.staff_profile %}<span class="profile-hero-program">{{ request.user.staff_profile.get_staff_type_display }} · {{ request.user.staff_profile.campus }}</span>{% endif %}
@@ -36,58 +36,73 @@
         <section class="profile-grid">
             <div class="panel profile-panel">
                 <h2><i class="bi bi-person-vcard"></i> Personal information</h2>
-                <dl class="profile-fields">
-                    <div class="profile-field"><dt>First name</dt><dd>{{ request.user.first_name }}</dd></div>
+                <dl class="profile-fields" id="editable-fields" data-update-url="{% url 'update_profile_field' %}">
+
+                    <div class="profile-field" data-field="first_name">
+                        <dt>First name</dt>
+                        <dd>
+                            <div class="toggle-container">
+                                <div class="edit-container">
+                                    <span class="field-value">{{ request.user.first_name }}</span>
+                                    <input type="text" class="toggle-input field-input" name="first_name"
+                                           value="{{ request.user.first_name }}" maxlength="150" hidden>
+                                </div>
+                                <i class="bi bi-pen button-toggle-icon" role="button" tabindex="0" aria-label="Edit first name"></i>
+                            </div>
+                            <small class="field-error" hidden></small>
+                        </dd>
+                    </div>
+
                     {% if request.user.middle_name %}
                     <div class="profile-field" data-field="middle_name">
-                        <div class="edit-container">
-                            <dt>Middle name</dt>
-                            <i class="bi bi-pen button-toggle-icon"></i>
-                        </div>
+                        <dt>Middle name</dt>
                         <dd>
-                            <div class="input-container">
-                                <span class="field-value">{{ request.user.middle_name }}</span>
-                                <input type="text" class="field-input" name="middle_name"
-                                       value="{{ request.user.middle_name }}" hidden maxlength="150">
-                                <small class="field-error" hidden></small>
+                            <div class="toggle-container">
+                                <div class="edit-container">
+                                    <span class="field-value">{{ request.user.middle_name }}</span>
+                                    <input type="text" class="toggle-input field-input" name="middle_name"
+                                           value="{{ request.user.middle_name }}" maxlength="150" hidden>
+                                </div>
+                                <i class="bi bi-pen button-toggle-icon" role="button" tabindex="0" aria-label="Edit middle name"></i>
                             </div>
+                            <small class="field-error" hidden></small>
                         </dd>
                     </div>
                     {% endif %}
 
                     <div class="profile-field" data-field="last_name">
-                        <div class="edit-container">
-                            <dt>Last name</dt>
-                            <i class="bi bi-pen button-toggle-icon"></i>
-                        </div>
+                        <dt>Last name</dt>
                         <dd>
-                            <div class="input-container">
-                                <span class="field-value">{{ request.user.last_name }}</span>
-                                <input type="text" class="field-input" name="last_name"
-                                       value="{{ request.user.last_name }}" hidden maxlength="150">
-                                <small class="field-error" hidden></small>
+                            <div class="toggle-container">
+                                <div class="edit-container">
+                                    <span class="field-value">{{ request.user.last_name }}</span>
+                                    <input type="text" class="toggle-input field-input" name="last_name"
+                                           value="{{ request.user.last_name }}" maxlength="150" hidden>
+                                </div>
+                                <i class="bi bi-pen button-toggle-icon" role="button" tabindex="0" aria-label="Edit last name"></i>
                             </div>
-                        </dd>
-                    </div>
-
-                    <div class="profile-field" data-field="contact_num">
-                        <div class="edit-container">
-                            <dt>Contact Number</dt>
-                            <i class="bi bi-pen button-toggle-icon"></i>
-                        </div>
-                        <dd>
-                            <div class="input-container">
-                                <span class="field-value">{{ request.user.contact_num }}</span>
-                                <input type="text" class="field-input" name="contact_num"
-                                       value="{{ request.user.contact_num }}" hidden maxlength="20">
-                                <small class="field-error" hidden></small>
-                            </div>
+                            <small class="field-error" hidden></small>
                         </dd>
                     </div>
 
                     <div class="profile-field">
                         <dt>Email</dt>
                         <dd>{{ request.user.email }}</dd>
+                    </div>
+
+                    <div class="profile-field" data-field="contact_num">
+                        <dt>Contact number</dt>
+                        <dd>
+                            <div class="toggle-container">
+                                <div class="edit-container">
+                                    <span class="field-value">{{ request.user.contact_num }}</span>
+                                    <input type="text" class="toggle-input field-input" name="contact_num"
+                                           value="{{ request.user.contact_num }}" maxlength="20" hidden>
+                                </div>
+                                <i class="bi bi-pen button-toggle-icon" role="button" tabindex="0" aria-label="Edit contact number"></i>
+                            </div>
+                            <small class="field-error" hidden></small>
+                        </dd>
                     </div>
 
                     <div class="profile-field">
@@ -106,18 +121,9 @@
                     <div class="profile-field"><dt>Major</dt><dd>{{ major }}</dd></div>
                     <div class="profile-field"><dt>Year level</dt><dd>{{ request.user.student_profile.get_year_level_display }}</dd></div>
                     {% elif request.user.staff_profile %}
-                    <div class="profile-field">
-                        <dt>Staff ID</dt>
-                        <dd>{{ request.user.staff_profile.staff_id }}</dd>
-                    </div>
-                    <div class="profile-field">
-                        <dt>Staff type</dt>
-                        <dd>{{ request.user.staff_profile.get_staff_type_display }}</dd>
-                    </div>
-                    <div class="profile-field">
-                        <dt>Campus</dt>
-                        <dd>{{ request.user.staff_profile.campus }}</dd>
-                    </div>
+                    <div class="profile-field"><dt>Staff ID</dt><dd>{{ request.user.staff_profile.staff_id }}</dd></div>
+                    <div class="profile-field"><dt>Staff type</dt><dd>{{ request.user.staff_profile.get_staff_type_display }}</dd></div>
+                    <div class="profile-field"><dt>Campus</dt><dd>{{ request.user.staff_profile.campus }}</dd></div>
                     {% else %}
                     <p class="profile-empty">No additional account details on file.</p>
                     {% endif %}

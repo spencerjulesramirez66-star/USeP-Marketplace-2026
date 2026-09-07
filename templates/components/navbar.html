@@ -54,7 +54,7 @@
             >
                 <img
                     class="profile-avatar"
-                    src="{% if request.user.profile_picture %}{{ request.user.profile_picture.url }}{% else %}{% static 'images/default-avatar.png' %}{% endif %}"
+                    src="{{ request.user.avatar_url }}"
                     alt="{{ request.user.first_name }}'s profile picture"
                 >
             </button>

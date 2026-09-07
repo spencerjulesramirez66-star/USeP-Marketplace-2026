@@ -67,6 +67,43 @@ footer p{
     left: 2rem;
 }
 
+#password-container {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+}
+
+#password{
+    flex: 1;
+    min-width: 0;
+
+    padding: 0;
+    margin: 0;
+
+    background: transparent;
+    outline: none;
+    border: none;
+
+    font: inherit;
+    color: inherit;
+}
+
+#password:focus {
+    outline: none;
+    border: none;
+}
+
+#show-password {
+    flex-shrink: 0;
+
+    cursor: pointer;
+    font-size: 1rem;
+    line-height: 1;
+
+    font-family: var(--font-secondary);
+    color: var(--color-primary);
+}
 
 @media (max-width: 768px) {
 

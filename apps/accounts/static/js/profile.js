@@ -1,4 +1,4 @@
-// ---------- Avatar upload (existing) ----------
+// ---------- Avatar upload ----------
 const avatarInput = document.getElementById("avatar-input");
 const avatarForm = document.getElementById("avatar-form");
 
@@ -23,12 +23,11 @@ if (fieldsContainer) {
     const csrfToken = getCookie("csrftoken");
 
     function enterEditMode(fieldDiv) {
-        // close any other field currently being edited
         document.querySelectorAll(".profile-field.is-editing").forEach((el) => {
             if (el !== fieldDiv) exitEditMode(el, false);
         });
 
-        const input = fieldDiv.querySelector(".field-input");
+        const input = fieldDiv.querySelector(".toggle-input");
         const valueSpan = fieldDiv.querySelector(".field-value");
 
         input.dataset.originalValue = valueSpan.textContent.trim();
@@ -39,8 +38,7 @@ if (fieldsContainer) {
     }
 
     function exitEditMode(fieldDiv, revert) {
-        const input = fieldDiv.querySelector(".field-input");
-        const valueSpan = fieldDiv.querySelector(".field-value");
+        const input = fieldDiv.querySelector(".toggle-input");
         const errorEl = fieldDiv.querySelector(".field-error");
 
         if (revert) {
@@ -55,7 +53,7 @@ if (fieldsContainer) {
 
     async function saveField(fieldDiv) {
         const fieldName = fieldDiv.dataset.field;
-        const input = fieldDiv.querySelector(".field-input");
+        const input = fieldDiv.querySelector(".toggle-input");
         const valueSpan = fieldDiv.querySelector(".field-value");
         const errorEl = fieldDiv.querySelector(".field-error");
         const newValue = input.value.trim();
@@ -95,7 +93,6 @@ if (fieldsContainer) {
         }
     }
 
-    // Click pencil icon -> enter edit mode
     fieldsContainer.addEventListener("click", (event) => {
         const icon = event.target.closest(".button-toggle-icon");
         if (!icon) return;
@@ -104,15 +101,21 @@ if (fieldsContainer) {
         if (!fieldDiv || !fieldDiv.dataset.field) return;
 
         if (fieldDiv.classList.contains("is-editing")) {
-            exitEditMode(fieldDiv, false);
+            saveField(fieldDiv);
         } else {
             enterEditMode(fieldDiv);
         }
     });
 
-    // Enter = save, Escape = cancel
     fieldsContainer.addEventListener("keydown", (event) => {
-        const input = event.target.closest(".field-input");
+        const icon = event.target.closest(".button-toggle-icon");
+        if (icon && (event.key === "Enter" || event.key === " ")) {
+            event.preventDefault();
+            icon.click();
+            return;
+        }
+
+        const input = event.target.closest(".toggle-input");
         if (!input) return;
 
         const fieldDiv = input.closest(".profile-field");
@@ -126,11 +129,10 @@ if (fieldsContainer) {
         }
     });
 
-    // Blur = save (clicking away)
     fieldsContainer.addEventListener(
         "focusout",
         (event) => {
-            const input = event.target.closest(".field-input");
+            const input = event.target.closest(".toggle-input");
             if (!input) return;
 
             const fieldDiv = input.closest(".profile-field");

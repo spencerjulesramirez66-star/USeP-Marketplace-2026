@@ -30,19 +30,8 @@
     {% block content %}
     {% endblock %}
 
-    <div class="modal-overlay chat-coming-soon-modal" id="chat-coming-soon-modal" hidden>
-        <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="chat-coming-soon-title">
-            <button class="modal-close chat-coming-soon-close" type="button" data-close-chat-modal aria-label="Close">&times;</button>
-            <div class="chat-coming-soon-icon" aria-hidden="true"><i class="bi bi-chat-heart-fill"></i></div>
-            <p class="chat-coming-soon-eyebrow">USeP Marketplace</p>
-            <h2 id="chat-coming-soon-title">Chats coming soon</h2>
-            <p class="chat-coming-soon-copy">Buyer and seller messaging is on its way. You will be able to ask questions and coordinate meetups here.</p>
-            <button class="btn btn-primary chat-coming-soon-action" type="button" data-close-chat-modal>Got it</button>
-        </div>
-    </div>
-
+    <script src="{% static 'js/toggle-password.js' %}"></script>
     <script src="{% static 'js/messages.js' %}"></script>
-    <script src="{% static 'js/chat-coming-soon.js' %}"></script>
     {% block extra_js %}{% endblock %}
 
 </body>

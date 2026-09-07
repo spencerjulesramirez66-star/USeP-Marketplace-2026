@@ -32,9 +32,16 @@ RESET_VERIFY_RATE_WINDOW = 300
 RESET_RESEND_RATE_LIMIT = 5
 RESET_RESEND_RATE_WINDOW = 300
 
+
 UPDATE_PROFILE_FIELD_RATE_LIMIT = 10
 UPDATE_PROFILE_FIELD_RATE_WINDOW = 300
 
+ALLOWED_PROFILE_FIELDS = {
+    "first_name": {"max_length": 150, "required": True},
+    "middle_name": {"max_length": 150, "required": False},
+    "last_name": {"max_length": 150, "required": True},
+    "contact_num": {"max_length": 20, "required": True},
+}
 
 
 def setup_login_view(request):
@@ -71,9 +78,11 @@ def setup_login_view(request):
         if not user.email_verified:
             otp = generate_otp(user, purpose=OTPPurpose.EMAIL_VERIFICATION)
             request.session["pending_user_id"] = user.pk
+            # Starting a fresh email-verification flow — any leftover
+            # password-reset session state from an earlier, abandoned
+            # attempt is now stale and must not take priority.
             request.session.pop("reset_user_id", None)
             request.session.pop("reset_otp_verified", None)
-
             if otp is not None:
                 send_otp_email(user, otp, purpose=OTPPurpose.EMAIL_VERIFICATION)
             else:
@@ -91,6 +100,14 @@ def setup_login_view(request):
 
 
 def get_verification_context(request):
+    """
+    Figures out what the verify page is currently being used for.
+
+    Returns (mode, user) where mode is "reset", "email_verification",
+    or None if there's nothing pending. Checks the reset flow first —
+    if a password reset is in progress, that takes priority.
+    """
+
     reset_user_id = request.session.get("reset_user_id")
 
     if reset_user_id and not request.session.get("reset_otp_verified", False):
@@ -184,6 +201,10 @@ def setup_verify_view(request):
             )
 
             if not otp_record:
+                # Was a code sent at all, or does one exist but it's
+                # already used up (superseded by a resend/re-request)?
+                # This tells the user what actually happened instead
+                # of a flat, unhelpful "no valid code" message.
                 superseded = (
                     EmailOTP.objects
                     .filter(user=user, purpose=otp_purpose)
@@ -316,6 +337,7 @@ def get_user(request, email=None):
 
 
 def redirect_user(user):
+
     if user.is_first_login:
         return redirect("change_password")
 
@@ -349,6 +371,8 @@ def setup_forgot_password_view(request):
         except User.DoesNotExist:
             user = None
 
+        # Unverified accounts go through email verification first, not
+        # password reset — don't send a reset code for them.
         if user is not None and not user.email_verified:
             messages.error(
                 request,
@@ -357,6 +381,8 @@ def setup_forgot_password_view(request):
 
             otp = generate_otp(user, purpose=OTPPurpose.EMAIL_VERIFICATION)
             request.session["pending_user_id"] = user.pk
+            # Same reasoning as the login view — clear any stale
+            # reset-flow state so it can't hijack the verify page.
             request.session.pop("reset_user_id", None)
             request.session.pop("reset_otp_verified", None)
 
@@ -370,6 +396,7 @@ def setup_forgot_password_view(request):
 
             return redirect("verify")
 
+        # Don't reveal whether the email exists
         if user is not None:
 
             existing_otp = (
@@ -387,6 +414,10 @@ def setup_forgot_password_view(request):
             )
 
             if already_pending:
+                # A reset is already in progress for this user — don't
+                # rotate the code just because they resubmitted the
+                # email form. Only the explicit Resend button on the
+                # verify page should invalidate/regenerate it.
                 messages.info(
                     request,
                     "A reset code was already sent to this email. "
@@ -399,6 +430,10 @@ def setup_forgot_password_view(request):
 
                 request.session["reset_user_id"] = user.pk
                 request.session["reset_otp_verified"] = False
+                # Clear any stale email-verification session state so
+                # it can't be picked up instead — get_verification_context
+                # checks reset_user_id first, but this keeps both keys
+                # honest regardless of ordering.
                 request.session.pop("pending_user_id", None)
 
                 messages.success(
@@ -492,3 +527,55 @@ def setup_profile_view(request):
             'major': student_profile.major if student_profile else None,
         },
     )
+
+
+@login_required
+@require_POST
+def update_profile_field(request):
+    throttle_key = f"update_profile_field_throttle:{request.user.pk}"
+
+    try:
+        check_and_hit(
+            throttle_key,
+            limit=UPDATE_PROFILE_FIELD_RATE_LIMIT,
+            window_seconds=UPDATE_PROFILE_FIELD_RATE_WINDOW,
+        )
+    except RateLimitExceeded:
+        return JsonResponse(
+            {"success": False, "error": "Too many attempts. Please try again later."},
+            status=429,
+        )
+
+    field = request.POST.get("field", "")
+    value = request.POST.get("value", "").strip()
+
+    if field not in ALLOWED_PROFILE_FIELDS:
+        return JsonResponse({"success": False, "error": "Invalid field."}, status=400)
+
+    rules = ALLOWED_PROFILE_FIELDS[field]
+
+    if rules["required"] and not value:
+        return JsonResponse(
+            {"success": False, "error": "This field cannot be empty."}, status=400
+        )
+
+    if len(value) > rules["max_length"]:
+        return JsonResponse(
+            {"success": False, "error": "That value is too long."}, status=400
+        )
+
+    if field == "contact_num":
+        cleaned = value.replace(" ", "").replace("-", "")
+        if not cleaned.isdigit():
+            return JsonResponse(
+                {"success": False, "error": "Contact number must contain digits only."},
+                status=400,
+            )
+        value = cleaned
+
+    setattr(request.user, field, value)
+    request.user.save(update_fields=[field])
+
+    reset(throttle_key)
+
+    return JsonResponse({"success": True, "value": value})
