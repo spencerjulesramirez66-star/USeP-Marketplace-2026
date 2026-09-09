@@ -5,7 +5,7 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
-<link rel="stylesheet" href="{% static 'css/seller-dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/seller-dashboard.css' %}?v=20260909-1">
 {% endblock %}
 
 {% block content %}
@@ -45,13 +45,14 @@
                 <article class="seller-listing" data-status="{{ listing.status|lower }}" data-search="{{ listing.title|lower }} {{ listing.category.name|lower }} {{ listing.description|lower }}"
                     data-name="{{ listing.title }}" data-category="{{ listing.category.name }}" data-category-id="{{ listing.category_id }}" data-condition="{{ listing.condition }}"
                     data-price="{{ listing.price }}" data-price-label="{{ listing.price_label }}" data-status-value="{{ listing.status }}" data-status-label="{{ listing.get_status_display }}" data-views="{{ listing.views }}"
-                    data-image="{{ listing.image_url }}" data-gallery="{{ listing.gallery_urls|join:'||' }}" data-gallery-ids="{{ listing.gallery_image_ids|join:'||' }}" data-description="{{ listing.description }}" data-location="{{ listing.location }}"
+                    data-stock="{{ listing.stock_quantity|default:0 }}" data-image="{{ listing.image_url }}" data-gallery="{{ listing.gallery_urls|join:'||' }}" data-gallery-ids="{{ listing.gallery_image_ids|join:'||' }}" data-description="{{ listing.description }}" data-location="{{ listing.location }}"
                     data-edit-url="{% url 'dashboard:edit_listing' listing.id %}" data-delete-url="{% url 'dashboard:delete_listing' listing.id %}">
                     <img src="{{ listing.image_url }}" alt="{{ listing.title }}">
-                    <div class="seller-listing-info"><span class="status-pill status-pill-{{ listing.status|lower }}">{% if listing.status == 'ARCHIVED' %}Unavailable{% else %}{{ listing.get_status_display }}{% endif %}</span><h3>{{ listing.title }}</h3><p>{{ listing.category.name }}</p></div>
+                    <div class="seller-listing-info"><span class="status-pill status-pill-{{ listing.status|lower }}">{% if listing.status == 'ARCHIVED' %}Unavailable{% else %}{{ listing.get_status_display }}{% endif %}</span><h3>{{ listing.title }}</h3><p>{{ listing.category.name }}</p>{% if listing.category.slug != 'services' %}<small class="stock-badge">Stock: {{ listing.stock_quantity }}</small>{% endif %}</div>
                     <div class="seller-listing-stat"><span>Price</span><strong>{{ listing.price_label }}</strong></div>
                     <div class="seller-listing-stat"><span>Views</span><strong>{{ listing.views }}</strong></div>
                     <button class="manage-button" type="button">Manage <span aria-hidden="true">&#8594;</span></button>
+                    <a class="listing-detail-link" href="{{ listing.get_absolute_url }}" aria-label="View {{ listing.title }}"></a>
                 </article>
                 {% empty %}
                 <p class="empty-state no-filter-results">You have not published any listings yet.</p>
@@ -76,6 +77,15 @@
                 <div class="form-group"><label class="form-label" for="listing-condition">Condition or availability</label><select class="form-control" name="condition" id="listing-condition"><option>Like new</option><option>Barely used</option><option>Good condition</option><option>For parts</option></select></div>
                 <div class="form-group"><label class="form-label" for="listing-location">Meetup location</label><input class="form-control" name="location" id="listing-location" placeholder="e.g. USeP campus library"></div>
                 <div class="form-group"><label class="form-label" for="listing-description">Description</label><textarea class="form-control" name="description" id="listing-description" rows="5" placeholder="Tell buyers what they should know..." required></textarea></div>
+                <div class="stock-editor stock-editor-inline form-group" id="add-listing-stock-editor">
+                    <label class="form-label" for="add-listing-stock">Stock quantity</label>
+                    <div class="stepper-control stock-stepper">
+                        <button class="stepper-button" type="button" data-step="-1" aria-label="Decrease stock">-</button>
+                        <input class="form-control" name="stock_quantity" id="add-listing-stock" type="number" min="0" step="1" value="1">
+                        <button class="stepper-button" type="button" data-step="1" aria-label="Increase stock">+</button>
+                    </div>
+                    <small class="stock-help">For service listings, stock stays at 0.</small>
+                </div>
                 <div class="form-actions"><button class="btn btn-outline" type="button" data-close-modal="add-listing-modal">Cancel</button><button class="btn btn-primary" type="submit">Publish listing</button></div>
             </section>
             <section class="upload-panel">
@@ -108,6 +118,15 @@
                 <div class="form-group"><label class="form-label" for="manage-location">Meetup location</label><input class="form-control" name="location" id="manage-location"></div>
                 <div class="form-group"><label class="form-label" for="manage-description">Description</label><textarea class="form-control" name="description" id="manage-description" rows="4" required></textarea></div>
                 <div class="status-actions"><label class="form-label" for="manage-status">Listing status</label><select class="status-select" name="status" id="manage-status"><option value="ACTIVE">Available</option><option value="SOLD">Sold</option><option value="ARCHIVED">Unavailable</option></select></div>
+                <div class="stock-editor stock-editor-inline form-group" id="manage-stock-editor">
+                    <label class="form-label" for="manage-stock-quantity">Stock quantity</label>
+                    <div class="stepper-control stock-stepper">
+                        <button class="stepper-button" type="button" data-step="-1" aria-label="Decrease stock">-</button>
+                        <input class="form-control" name="stock_quantity" id="manage-stock-quantity" type="number" min="0" step="1" value="0">
+                        <button class="stepper-button" type="button" data-step="1" aria-label="Increase stock">+</button>
+                    </div>
+                    <small class="stock-help">For service listings, stock stays at 0.</small>
+                </div>
                 <div class="form-actions"><button class="btn btn-outline" type="button" id="delete-listing">Delete listing</button><button class="btn btn-primary" type="submit">Save changes</button></div>
             </section>
         </form>
@@ -117,4 +136,4 @@
 <div class="modal-overlay" id="delete-confirm-modal" hidden><div class="modal-dialog"><h2>Delete this listing?</h2><p>This can't be undone. The listing will be removed from the marketplace.</p><div class="delete-actions"><button class="btn btn-outline" type="button" id="cancel-delete">Cancel</button><form id="delete-listing-form" method="post">{% csrf_token %}<button class="btn btn-delete" type="submit">Delete</button></form></div></div></div>
 {% endblock %}
 
-{% block extra_js %}<script>window.initialManageListingId = "{{ manage_listing_id|default:'' }}";</script><script src="{% static 'js/seller-dashboard.js' %}?v=20260906-6"></script>{% endblock %}
+{% block extra_js %}<script>window.initialManageListingId = "{{ manage_listing_id|default:'' }}";</script><script src="{% static 'js/seller-dashboard.js' %}?v=20260909-1"></script>{% endblock %}

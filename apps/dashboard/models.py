@@ -51,6 +51,7 @@ class Listing(models.Model):
 		choices=Status.choices,
 		default=Status.ACTIVE,
 	)
+	stock_quantity = models.PositiveIntegerField(default=0)
 	views = models.PositiveIntegerField(default=0)
 	created_at = models.DateTimeField(auto_now_add=True)
 	updated_at = models.DateTimeField(auto_now=True)
@@ -88,6 +89,10 @@ class Listing(models.Model):
 		if self.image:
 			return self.image.url
 		return 'https://placehold.co/640x480?text=USeP+Marketplace'
+
+	@property
+	def is_service_listing(self):
+		return self.category and self.category.slug.lower() == 'services'
 
 	@property
 	def seller_role(self):

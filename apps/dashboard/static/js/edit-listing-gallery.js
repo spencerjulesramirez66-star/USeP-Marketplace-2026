@@ -2,7 +2,31 @@ document.addEventListener('DOMContentLoaded', () => {
     const gallery = document.querySelector('.edit-gallery');
     const removedImages = document.querySelector('#edit-removed-images');
     const imageInput = document.querySelector('#edit-listing-images');
+    const categoryInput = document.querySelector('#id_category');
+    const stockEditor = document.querySelector('#edit-listing-stock-editor');
+    const stockInput = document.querySelector('#id_stock_quantity');
     let selectedFiles = [];
+
+    const syncStockVisibility = () => {
+        if (!categoryInput || !stockEditor || !stockInput) return;
+        const isService = categoryInput.options[categoryInput.selectedIndex]?.text === 'Services';
+        stockEditor.hidden = isService;
+        if (isService) stockInput.value = '0';
+    };
+
+    document.querySelectorAll('#edit-listing-stock-editor .stepper-button').forEach((button) => {
+        button.addEventListener('click', () => {
+            const input = button.closest('.stepper-control')?.querySelector('input[type="number"]');
+            if (!input) return;
+            const currentValue = Number(input.value || 0);
+            input.value = Math.max(0, currentValue + Number(button.dataset.step || 1));
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+    });
+    if (categoryInput) {
+        categoryInput.addEventListener('change', syncStockVisibility);
+        syncStockVisibility();
+    }
     if (!gallery || !removedImages || !imageInput) return;
 
     const setFiles = (files) => {

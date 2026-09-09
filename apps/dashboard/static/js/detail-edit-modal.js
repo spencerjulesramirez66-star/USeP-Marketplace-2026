@@ -31,6 +31,21 @@ document.addEventListener('DOMContentLoaded', () => {
         gallery.querySelectorAll('img').forEach((entry) => entry.classList.remove('active'));
         image.classList.add('active');
     };
+    const bindDetailStockSteppers = () => {
+        document.querySelectorAll('#detail-edit-stock-editor .stepper-button').forEach((button) => {
+            button.addEventListener('click', () => {
+                const input = button.closest('.stepper-control')?.querySelector('input[type="number"]');
+                if (!input) return;
+                const currentValue = Number(input.value || 0);
+                const nextValue = Math.max(0, currentValue + Number(button.dataset.step || 1));
+                input.value = nextValue;
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+            });
+        });
+    };
+
+    bindDetailStockSteppers();
+
     if (gallery && mainImage) {
         gallery.querySelectorAll('.manage-gallery-item img').forEach((image) => {
             image.addEventListener('click', () => showImage(image.src, image));

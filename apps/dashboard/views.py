@@ -365,10 +365,6 @@ def _filter_listings(query=None, category='all'):
     return filtered
 
 
-# Create your views here.
-def setup_seller_dashboard(request):
-    return render(request, 'seller/seller-dashboard.html')
-
 
 def setup_buyer_dashboard(request):
     query = request.GET.get('q', '')
@@ -516,6 +512,10 @@ def create_listing(request):
         listing = form.save(commit=False)
         listing.seller = request.user
         listing.status = listing.status or Listing.Status.ACTIVE
+        if getattr(listing.category, 'slug', '').lower() == 'services':
+            listing.stock_quantity = 0
+        elif listing.stock_quantity is None:
+            listing.stock_quantity = 0
         listing.save()
         uploaded_images = request.FILES.getlist('images')[:8]
         if uploaded_images:
@@ -544,7 +544,12 @@ def edit_listing(request, listing_id):
 
     form = ListingForm(request.POST, instance=listing)
     if form.is_valid():
-        form.save()
+        updated_listing = form.save(commit=False)
+        if updated_listing.category and updated_listing.category.slug.lower() == 'services':
+            updated_listing.stock_quantity = 0
+        elif updated_listing.stock_quantity is None:
+            updated_listing.stock_quantity = 0
+        updated_listing.save()
         remove_ids = [value for value in request.POST.getlist('remove_image_ids') if value.isdigit()]
         remove_urls = request.POST.getlist('remove_image_urls')
         if remove_urls:
@@ -653,7 +658,12 @@ def setup_buyer_item_detail(request, item_slug):
         buyer=request.user,
         listing=listing,
     ).exists()
-    if listing.status not in (Listing.Status.ACTIVE, Listing.Status.RESERVED, Listing.Status.SOLD) and listing.seller != request.user and not saved_by_request_user:
+    if listing.status not in (
+        Listing.Status.ACTIVE,
+        Listing.Status.RESERVED,
+        Listing.Status.SOLD,
+        Listing.Status.ARCHIVED,
+    ):
         raise Http404('Listing not found.')
     Listing.objects.filter(pk=listing.pk).update(views=listing.views + 1)
     listing.views += 1
@@ -676,6 +686,7 @@ def setup_buyer_item_detail(request, item_slug):
         'price_label': listing.price_label,
         'condition': listing.condition,
         'location': listing.location,
+        'stock_quantity': listing.stock_quantity,
         'seller_id': listing.seller_id,
         'seller': listing.seller_name,
 		'seller_avatar': listing.seller_avatar_url,

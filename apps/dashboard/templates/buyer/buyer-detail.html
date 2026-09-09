@@ -6,7 +6,7 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
 <link rel="stylesheet" href="{% static 'css/buyer-dashboard.css' %}?v=20260907-1">
-<link rel="stylesheet" href="{% static 'css/seller-dashboard.css' %}?v=20260905-3">
+<link rel="stylesheet" href="{% static 'css/seller-dashboard.css' %}?v=20260907-2">
 {% endblock %}
 
 {% block content %}
@@ -24,6 +24,11 @@
         <div class="detail-sold-warning" role="status">
             <i class="bi bi-exclamation-circle" aria-hidden="true"></i>
             <div><strong>This listing has been sold.</strong><span>It is no longer available and cannot be added to your cart.</span></div>
+        </div>
+        {% elif item.status == 'ARCHIVED' %}
+        <div class="detail-sold-warning" role="status">
+            <i class="bi bi-exclamation-circle" aria-hidden="true"></i>
+            <div><strong>This listing is unavailable.</strong><span>It is no longer available and cannot be added to your cart.</span></div>
         </div>
         {% endif %}
 
@@ -49,12 +54,15 @@
                 <div class="detail-meta-box">
                     <div><span>Condition</span><strong>{{ item.condition }}</strong></div>
                     <div><span>Location</span><strong>{{ item.location }}</strong></div>
+                    {% if item.category != 'Services' %}<div><span>Stock available</span><strong>{{ item.stock_quantity|default:0 }}</strong></div>{% endif %}
                 </div>
 
                 {% if request.user.is_authenticated and can_edit %}
                 <span class="btn btn-outline detail-action detail-action-disabled"><i class="bi bi-person-check"></i> Your listing</span>
                 {% elif request.user.is_authenticated and item.status == 'SOLD' %}
                 <span class="btn btn-outline detail-action detail-action-disabled">Sold</span>
+                {% elif request.user.is_authenticated and item.status == 'ARCHIVED' %}
+                <span class="btn btn-outline detail-action detail-action-disabled">Unavailable</span>
                 {% elif request.user.is_authenticated %}
                 <button class="btn btn-primary detail-action chat-coming-soon" type="button">Message seller</button>
                 <form method="post" action="{% url 'dashboard:toggle_saved_item' item.slug %}">
@@ -140,6 +148,17 @@
                 <div class="form-group"><label class="form-label" for="detail-edit-location">Meetup location</label><input class="form-control" name="location" id="detail-edit-location" value="{{ item.location }}"></div>
                 <div class="form-group"><label class="form-label" for="detail-edit-description">Description</label><textarea class="form-control" name="description" id="detail-edit-description" rows="4" required>{{ item.description }}</textarea></div>
                 <div class="status-actions"><label class="form-label" for="detail-edit-status">Listing status</label><select class="status-select" name="status" id="detail-edit-status"><option value="ACTIVE" {% if item.status == 'ACTIVE' %}selected{% endif %}>Available</option><option value="SOLD" {% if item.status == 'SOLD' %}selected{% endif %}>Sold</option><option value="ARCHIVED" {% if item.status == 'ARCHIVED' %}selected{% endif %}>Unavailable</option></select></div>
+                {% if item.category != 'Services' %}
+                <div class="stock-editor stock-editor-inline form-group" id="detail-edit-stock-editor">
+                    <label class="form-label" for="detail-edit-stock">Stock quantity</label>
+                    <div class="stepper-control stock-stepper">
+                        <button class="stepper-button" type="button" data-step="-1" aria-label="Decrease stock">-</button>
+                        <input class="form-control" name="stock_quantity" id="detail-edit-stock" type="number" min="0" step="1" value="{{ item.stock_quantity|default:0 }}">
+                        <button class="stepper-button" type="button" data-step="1" aria-label="Increase stock">+</button>
+                    </div>
+                    <small class="stock-help">For service listings, stock stays at 0.</small>
+                </div>
+                {% endif %}
                 <div class="form-actions"><button class="btn btn-outline" type="button" id="cancel-detail-edit">Cancel</button><button class="btn btn-primary" type="submit">Save changes</button></div>
             </section>
         </form>
@@ -150,5 +169,5 @@
 
 {% block extra_js %}
 <script src="{% static 'js/buyer-dashboard.js' %}?v=20260905-4"></script>
-{% if can_edit %}<script src="{% static 'js/detail-edit-modal.js' %}?v=20260906-5"></script>{% endif %}
+{% if can_edit %}<script src="{% static 'js/detail-edit-modal.js' %}?v=20260907-2"></script>{% endif %}
 {% endblock %}

@@ -49,6 +49,7 @@
 
 .seller-list { display: flex; flex-direction: column; gap: 0.8rem; }
 .seller-listing {
+    position: relative;
     display: grid;
     grid-template-columns: 84px minmax(190px, 1fr) 100px 80px 100px;
     align-items: center;
@@ -64,6 +65,8 @@
     border-color: rgba(185, 28, 28, 0.3);
     box-shadow: 0 8px 18px rgba(23, 23, 23, 0.08);
 }
+.listing-detail-link { position: absolute; inset: 0; border-radius: inherit; }
+.listing-detail-link:focus-visible { outline: 3px solid rgba(185, 28, 28, 0.4); outline-offset: 3px; }
 .seller-listing[hidden] { display: none; }
 .seller-listing img { width: 84px; height: 70px; border-radius: 0.45rem; object-fit: cover; }
 .seller-listing-info h3 { margin: 0.3rem 0 0.15rem; font-size: 1rem; }
@@ -78,6 +81,8 @@
 .seller-listing-stat strong { display: block; margin-top: 0.25rem; color: var(--color-text); }
 
 .manage-button {
+    position: relative;
+    z-index: 1;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -303,6 +308,72 @@
 }
 .status-select-sold { border-color: #fecaca; background: #fee2e2; color: #991b1b; }
 .status-select-unavailable { border-color: #fed7aa; background: #ffedd5; color: #9a3412; }
+
+.stock-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.9rem;
+    border: 1px solid var(--color-border);
+    border-radius: 0.7rem;
+    background: linear-gradient(180deg, #fff7ed 0%, #ffffff 100%);
+}
+.stock-editor-inline {
+    padding: 0.85rem 0.95rem;
+}
+.stock-editor .form-label {
+    margin: 0;
+    font-weight: 700;
+    color: var(--color-text);
+}
+.stock-stepper {
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr) 42px;
+    align-items: center;
+    gap: 0.55rem;
+    width: min(260px, 100%);
+}
+.stepper-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border: 1px solid rgba(185, 28, 28, 0.25);
+    border-radius: 0.6rem;
+    background: var(--color-surface);
+    color: var(--color-primary);
+    cursor: pointer;
+    font-size: 1.2rem;
+    font-weight: 700;
+    transition: all 0.2s ease;
+}
+.stepper-button:hover, .stepper-button:focus-visible {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: var(--color-surface);
+    outline: none;
+}
+.stock-stepper input {
+    text-align: center;
+    font-weight: 700;
+}
+.stock-help {
+    color: var(--color-text-muted);
+    font-size: 0.76rem;
+}
+.stock-badge {
+    display: inline-flex;
+    align-items: center;
+    margin-top: 0.38rem;
+    padding: 0.18rem 0.5rem;
+    border-radius: 999px;
+    background: #ecfdf5;
+    border: 1px solid #bbf7d0;
+    color: #166534;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
 
 .form-actions {
     display: flex;
