@@ -365,25 +365,6 @@ def _filter_listings(query=None, category='all'):
     return filtered
 
 
-# Create your views here.
-@login_required
-def setup_seller_dashboard(request):
-    listings = Listing.objects.filter(seller=request.user).exclude(
-        status=Listing.Status.ARCHIVED
-    ).select_related('category')
-
-    active_listings = listings.filter(status=Listing.Status.ACTIVE)
-    context = {
-        'listings': listings,
-        'listing_form': ListingForm(),
-        'categories': _category_context(),
-        'active_count': active_listings.count(),
-        'total_views': sum(listing.views for listing in listings),
-        'sold_count': listings.filter(status=Listing.Status.SOLD).count(),
-        'manage_listing_id': request.GET.get('manage'),
-    }
-    return render(request, 'seller/seller-dashboard.html', context)
-
 
 def setup_buyer_dashboard(request):
     query = request.GET.get('q', '')
@@ -500,6 +481,22 @@ def _seller_profile(user):
 
 
 @login_required
+def setup_seller_dashboard(request):
+    listings = Listing.objects.filter(seller=request.user).select_related('category')
+    active_listings = listings.filter(status=Listing.Status.ACTIVE)
+    context = {
+        'listings': listings,
+        'listing_form': ListingForm(),
+        'categories': _category_context(),
+        'active_count': active_listings.count(),
+        'total_views': sum(listing.views for listing in listings),
+        'sold_count': listings.filter(status=Listing.Status.SOLD).count(),
+        'manage_listing_id': request.GET.get('manage'),
+    }
+    return render(request, 'seller/seller-dashboard.html', context)
+
+
+@login_required
 def become_seller(request):
     messages.success(request, 'Your seller workspace is ready.')
     return redirect('dashboard:seller')
@@ -515,6 +512,10 @@ def create_listing(request):
         listing = form.save(commit=False)
         listing.seller = request.user
         listing.status = listing.status or Listing.Status.ACTIVE
+        if getattr(listing.category, 'slug', '').lower() == 'services':
+            listing.stock_quantity = 0
+        elif listing.stock_quantity is None:
+            listing.stock_quantity = 0
         listing.save()
         uploaded_images = request.FILES.getlist('images')[:8]
         if uploaded_images:
@@ -543,7 +544,12 @@ def edit_listing(request, listing_id):
 
     form = ListingForm(request.POST, instance=listing)
     if form.is_valid():
-        form.save()
+        updated_listing = form.save(commit=False)
+        if updated_listing.category and updated_listing.category.slug.lower() == 'services':
+            updated_listing.stock_quantity = 0
+        elif updated_listing.stock_quantity is None:
+            updated_listing.stock_quantity = 0
+        updated_listing.save()
         remove_ids = [value for value in request.POST.getlist('remove_image_ids') if value.isdigit()]
         remove_urls = request.POST.getlist('remove_image_urls')
         if remove_urls:
@@ -599,9 +605,8 @@ def _remove_listing_images(listing, image_ids):
 def delete_listing(request, listing_id):
     if request.method == 'POST':
         listing = get_object_or_404(Listing, pk=listing_id, seller=request.user)
-        listing.status = Listing.Status.ARCHIVED
-        listing.save(update_fields=['status', 'updated_at'])
-        messages.success(request, 'The listing was archived.')
+        listing.delete()
+        messages.success(request, 'The listing was deleted.')
     return redirect('dashboard:seller')
 
 
@@ -653,7 +658,12 @@ def setup_buyer_item_detail(request, item_slug):
         buyer=request.user,
         listing=listing,
     ).exists()
-    if listing.status not in (Listing.Status.ACTIVE, Listing.Status.RESERVED, Listing.Status.SOLD):
+    if listing.status not in (
+        Listing.Status.ACTIVE,
+        Listing.Status.RESERVED,
+        Listing.Status.SOLD,
+        Listing.Status.ARCHIVED,
+    ):
         raise Http404('Listing not found.')
     Listing.objects.filter(pk=listing.pk).update(views=listing.views + 1)
     listing.views += 1
@@ -676,6 +686,7 @@ def setup_buyer_item_detail(request, item_slug):
         'price_label': listing.price_label,
         'condition': listing.condition,
         'location': listing.location,
+        'stock_quantity': listing.stock_quantity,
         'seller_id': listing.seller_id,
         'seller': listing.seller_name,
 		'seller_avatar': listing.seller_avatar_url,
@@ -731,11 +742,12 @@ def setup_buyer_cart(request):
         'buyer/buyer-cart.html',
         {
             'saved_items': saved_items,
-            'active_saved_items': saved_items.filter(listing__status=Listing.Status.ACTIVE),
+            'active_saved_items': saved_items.exclude(listing__status=Listing.Status.SOLD),
             'sold_saved_items': saved_items.filter(listing__status=Listing.Status.SOLD),
             'categories': _category_context(),
         },
     )
+
 
 @login_required
 def start_conversation(request, item_slug):

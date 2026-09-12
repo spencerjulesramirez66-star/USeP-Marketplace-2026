@@ -14,10 +14,20 @@ class ListingForm(forms.ModelForm):
             'pattern': r'^[0-9]+(?:\.[0-9]{1,2})?$',
         }),
     )
+    stock_quantity = forms.IntegerField(
+        min_value=0,
+        required=False,
+        widget=forms.NumberInput(attrs={
+            'min': 0,
+            'step': 1,
+            'inputmode': 'numeric',
+            'pattern': r'^[0-9]+$',
+        }),
+    )
 
     class Meta:
         model = Listing
-        fields = ['title', 'category', 'price', 'condition', 'location', 'description', 'status']
+        fields = ['title', 'category', 'price', 'condition', 'location', 'description', 'status', 'stock_quantity']
         widgets = {
             'description': forms.Textarea(attrs={'rows': 5}),
             'status': forms.Select(),
@@ -33,6 +43,10 @@ class ListingForm(forms.ModelForm):
             (Listing.Status.SOLD, 'Sold'),
             (Listing.Status.ARCHIVED, 'Archived'),
         ]
+        if self.instance and self.instance.pk and self.instance.is_service_listing:
+            self.fields['stock_quantity'].required = False
+            self.fields['stock_quantity'].widget.attrs['readonly'] = 'readonly'
+        self.fields['stock_quantity'].initial = self.instance.stock_quantity if self.instance and self.instance.pk else 0
 
     def clean_price(self):
         raw_price = str(self.cleaned_data.get('price', '')).strip().replace(',', '')
@@ -45,6 +59,24 @@ class ListingForm(forms.ModelForm):
         if price < 0:
             raise forms.ValidationError('Price cannot be negative.')
         return price
+
+    def clean_stock_quantity(self):
+        value = self.cleaned_data.get('stock_quantity')
+        category = self.cleaned_data.get('category')
+        if category and getattr(category, 'slug', '').lower() == 'services':
+            return 0
+        if value is None:
+            return 0
+        if value < 0:
+            raise forms.ValidationError('Stock cannot be negative.')
+        return int(value)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        category = cleaned_data.get('category')
+        if category and getattr(category, 'slug', '').lower() == 'services':
+            cleaned_data['stock_quantity'] = 0
+        return cleaned_data
 
 
 class MessageForm(forms.ModelForm):

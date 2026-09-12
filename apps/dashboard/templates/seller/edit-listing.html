@@ -5,7 +5,7 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
-<link rel="stylesheet" href="{% static 'css/seller-dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/seller-dashboard.css' %}?v=20260907-2">
 {% endblock %}
 
 {% block content %}
@@ -31,11 +31,30 @@
                 <div id="edit-removed-images"></div>
             </section>
             {% for field in listing_form %}
-                <div class="form-group">
-                    <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
-                    {{ field }}
-                    {% for error in field.errors %}<small class="form-error">{{ error }}</small>{% endfor %}
-                </div>
+                {% if field.name == 'stock_quantity' %}
+                    <div class="stock-editor stock-editor-inline form-group" id="edit-listing-stock-editor">
+                        <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        <div class="stepper-control stock-stepper">
+                            <button class="stepper-button" type="button" data-step="-1" aria-label="Decrease stock">-</button>
+                            {{ field }}
+                            <button class="stepper-button" type="button" data-step="1" aria-label="Increase stock">+</button>
+                        </div>
+                        <small class="stock-help">For service listings, stock stays at 0.</small>
+                        {% for error in field.errors %}<small class="form-error">{{ error }}</small>{% endfor %}
+                    </div>
+                {% elif field.name == 'status' %}
+                    <div class="status-actions">
+                        <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        {{ field }}
+                        {% for error in field.errors %}<small class="form-error">{{ error }}</small>{% endfor %}
+                    </div>
+                {% else %}
+                    <div class="form-group">
+                        <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        {{ field }}
+                        {% for error in field.errors %}<small class="form-error">{{ error }}</small>{% endfor %}
+                    </div>
+                {% endif %}
             {% endfor %}
             <div class="form-actions">
                 <a class="btn btn-outline" href="{% url 'dashboard:seller' %}">Cancel</a>
@@ -46,4 +65,4 @@
 </div>
 {% endblock %}
 
-{% block extra_js %}<script src="{% static 'js/edit-listing-gallery.js' %}?v=20260906-2"></script>{% endblock %}
+{% block extra_js %}<script src="{% static 'js/edit-listing-gallery.js' %}?v=20260907-1"></script>{% endblock %}

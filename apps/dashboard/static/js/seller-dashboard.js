@@ -27,12 +27,38 @@ if (openAddListing) openAddListing.addEventListener('click', () => openModal(add
 
 const listingCategory = document.querySelector('#listing-category');
 const listingCondition = document.querySelector('#listing-condition');
+const addListingStockEditor = document.querySelector('#add-listing-stock-editor');
+const addListingStockInput = document.querySelector('#add-listing-stock');
+
+function syncAddListingStockVisibility() {
+    if (!listingCategory || !addListingStockEditor || !addListingStockInput) return;
+    const isService = listingCategory.options[listingCategory.selectedIndex]?.text === 'Services';
+    addListingStockEditor.hidden = isService;
+    if (isService) {
+        addListingStockInput.value = '0';
+    } else if (addListingStockInput.value === '0' && addListingStockInput.dataset.lastProductValue) {
+        addListingStockInput.value = addListingStockInput.dataset.lastProductValue;
+    }
+    if (!isService) {
+        addListingStockInput.dataset.lastProductValue = addListingStockInput.value || '1';
+    }
+}
+
 if (listingCategory && listingCondition) {
     listingCategory.addEventListener('change', () => {
         const conditions = listingCategory.options[listingCategory.selectedIndex].text === 'Services' ? SERVICE_CONDITIONS : PRODUCT_CONDITIONS;
         listingCondition.replaceChildren(...conditions.map((condition) => new Option(condition, condition)));
+        syncAddListingStockVisibility();
     });
 }
+if (addListingStockInput) {
+    addListingStockInput.addEventListener('input', () => {
+        if (listingCategory && listingCategory.options[listingCategory.selectedIndex]?.text !== 'Services') {
+            addListingStockInput.dataset.lastProductValue = addListingStockInput.value || '1';
+        }
+    });
+}
+syncAddListingStockVisibility();
 
 const listingImageInput = document.querySelector('#listing-image');
 const listingPhotoPreview = document.querySelector('#listing-photo-preview');
@@ -112,6 +138,20 @@ const manageImage = document.querySelector('#manage-image');
 const manageGallery = document.querySelector('#manage-gallery');
 const manageRemovedImages = document.querySelector('#manage-removed-images');
 const manageViews = document.querySelector('#manage-views');
+
+function bindStockSteppers(root = document) {
+    root.querySelectorAll('.stepper-button').forEach((button) => {
+        button.addEventListener('click', () => {
+            const input = button.closest('.stepper-control')?.querySelector('input[type="number"]');
+            if (!input) return;
+            const currentValue = Number(input.value || 0);
+            const stepValue = Number(button.dataset.step || 1);
+            const nextValue = Math.max(0, currentValue + stepValue);
+            input.value = nextValue;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+    });
+}
 const manageName = document.querySelector('#manage-name');
 const manageCategory = document.querySelector('#manage-category');
 const managePrice = document.querySelector('#manage-price');
@@ -119,6 +159,8 @@ const manageCondition = document.querySelector('#manage-condition');
 const manageLocation = document.querySelector('#manage-location');
 const manageDescription = document.querySelector('#manage-description');
 const manageStatus = document.querySelector('#manage-status');
+const manageStockEditor = document.querySelector('#manage-stock-editor');
+const manageStockInput = document.querySelector('#manage-stock-quantity');
 const manageImageInput = document.querySelector('#manage-item-image');
 let manageSelectedFiles = [];
 let activeListingCard = null;
@@ -207,9 +249,11 @@ document.querySelectorAll('.manage-button').forEach((button) => {
         manageLocation.value = card.dataset.location;
         manageDescription.value = card.dataset.description;
         manageStatus.value = card.dataset.statusValue;
+        manageStockInput.value = card.dataset.stock || '0';
         const conditions = card.dataset.category === 'Services' ? SERVICE_CONDITIONS : PRODUCT_CONDITIONS;
         manageCondition.replaceChildren(...conditions.map((condition) => new Option(condition, condition)));
         manageCondition.value = card.dataset.condition;
+        manageStockEditor.hidden = card.dataset.category === 'Services';
         refreshStatusAppearance();
         openModal(manageModal);
     });
@@ -269,3 +313,5 @@ if (listingSearch) listingSearch.addEventListener('input', applyFilters);
 if (listingStatusFilter) listingStatusFilter.addEventListener('change', applyFilters);
 const listingFiltersForm = document.querySelector('#listing-filters');
 if (listingFiltersForm) listingFiltersForm.addEventListener('submit', (event) => event.preventDefault());
+
+bindStockSteppers();

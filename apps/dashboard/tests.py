@@ -16,6 +16,7 @@ class BuyerDashboardViewsTests(TestCase):
     def test_buyer_detail_page_loads(self):
         response = self.client.get(reverse('dashboard:buyer_detail', args=['engineering-mechanics-textbook']))
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Stock available')
 
     def test_buyer_search_and_category_filter_routes(self):
         response = self.client.get(reverse('dashboard:buyer') + '?q=calculator')
@@ -136,6 +137,34 @@ class BuyerDashboardViewsTests(TestCase):
         created_listing = Listing.objects.get(seller=seller, title='Database Systems')
         self.assertEqual(created_listing.status, Listing.Status.ACTIVE)
 
+    def test_seller_can_create_listing_with_stock_quantity(self):
+        seller = User.objects.create_user(
+            email='stock-seller@example.com',
+            password='StrongPassword123!',
+            first_name='Stock',
+            last_name='Seller',
+            contact_num='09123456780',
+            email_verified=True,
+            is_first_login=False,
+            is_seller=True,
+        )
+        category = Category.objects.get(slug='textbooks')
+        self.client.force_login(seller)
+
+        response = self.client.post(reverse('dashboard:create_listing'), {
+            'title': 'Inventory testing book',
+            'category': category.pk,
+            'price': '250',
+            'condition': 'Good condition',
+            'location': 'Library',
+            'description': 'Fresh copy.',
+            'stock_quantity': '15',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        created_listing = Listing.objects.get(seller=seller, title='Inventory testing book')
+        self.assertEqual(created_listing.stock_quantity, 15)
+
     def test_seller_can_open_and_update_listing(self):
         seller = User.objects.create_user(
             email='editor@example.com',
@@ -173,6 +202,68 @@ class BuyerDashboardViewsTests(TestCase):
         self.assertEqual(listing.title, 'Updated listing title')
         self.assertEqual(listing.status, Listing.Status.SOLD)
         self.assertEqual(listing.listing_images.count(), 2)
+
+    def test_seller_can_update_listing_stock(self):
+        seller = User.objects.create_user(
+            email='stock-editor@example.com', password='StrongPassword123!',
+            first_name='Stock', last_name='Editor', contact_num='09123456999',
+            email_verified=True, is_first_login=False, is_seller=True,
+        )
+        listing = Listing.objects.filter(seller_id__isnull=False).first()
+        listing.seller = seller
+        listing.stock_quantity = 2
+        listing.save(update_fields=['seller', 'stock_quantity'])
+        self.client.force_login(seller)
+
+        response = self.client.post(reverse('dashboard:edit_listing', args=[listing.id]), {
+            'title': listing.title,
+            'category': listing.category_id,
+            'price': str(listing.price),
+            'condition': listing.condition,
+            'location': listing.location,
+            'description': listing.description,
+            'status': listing.status,
+            'stock_quantity': '9',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        listing.refresh_from_db()
+        self.assertEqual(listing.stock_quantity, 9)
+
+    def test_seller_can_mark_a_listing_sold_when_stock_is_recorded(self):
+        seller = User.objects.create_user(
+            email='sold-stock-editor@example.com', password='StrongPassword123!',
+            first_name='Sold', last_name='Editor', contact_num='09123456888',
+            email_verified=True, is_first_login=False, is_seller=True,
+        )
+        category = Category.objects.get(slug='textbooks')
+        listing = Listing.objects.create(
+            seller=seller,
+            category=category,
+            title='Available inventory item',
+            description='A test listing.',
+            price='200.00',
+            condition='Good condition',
+            location='Library',
+            stock_quantity=4,
+        )
+        self.client.force_login(seller)
+
+        response = self.client.post(reverse('dashboard:edit_listing', args=[listing.id]), {
+            'title': listing.title,
+            'category': category.id,
+            'price': str(listing.price),
+            'condition': listing.condition,
+            'location': listing.location,
+            'description': listing.description,
+            'status': Listing.Status.SOLD,
+            'stock_quantity': '4',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        listing.refresh_from_db()
+        self.assertEqual(listing.status, Listing.Status.SOLD)
+        self.assertEqual(listing.stock_quantity, 4)
 
     def test_seller_can_remove_an_uploaded_listing_photo(self):
         seller = User.objects.create_user(
@@ -286,6 +377,15 @@ class BuyerDashboardViewsTests(TestCase):
         self.client.force_login(buyer)
         self.assertEqual(self.client.get(reverse('dashboard:seller')).status_code, 200)
 
+    def test_seller_dashboard_listing_links_to_its_product_view(self):
+        seller = User.objects.get(email='test.seller@usep.edu.ph')
+        listing = Listing.objects.filter(seller=seller).first()
+        self.client.force_login(seller)
+
+        response = self.client.get(reverse('dashboard:seller'))
+
+        self.assertContains(response, f'href="{listing.get_absolute_url()}"')
+
     def test_buyer_can_enable_seller_tools(self):
         buyer = User.objects.create_user(
             email='become-seller@example.com',
@@ -392,6 +492,16 @@ class BuyerDashboardViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'This listing has been sold.')
         self.assertContains(response, '>Sold<')
+
+    def test_unavailable_listing_is_viewable_with_a_warning(self):
+        listing = Listing.objects.filter(status=Listing.Status.ACTIVE).first()
+        listing.status = Listing.Status.ARCHIVED
+        listing.save(update_fields=['status'])
+
+        response = self.client.get(reverse('dashboard:buyer_detail', args=[listing.slug]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'This listing is unavailable.')
 
     def test_available_cart_item_has_message_button_but_sold_item_does_not(self):
         buyer = User.objects.create_user(
