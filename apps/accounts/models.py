@@ -1,7 +1,7 @@
 from django.contrib.auth.base_user import BaseUserManager, AbstractBaseUser
 from django.contrib.auth.models import PermissionsMixin
 from django.templatetags.static import static
-
+from img_compress import compress_to_webp
 from django.db import models
 
 
@@ -134,6 +134,10 @@ class User(AbstractBaseUser, PermissionsMixin):
             return self.profile_picture.url
         return static('images/default-avatar.jpg')
 
+    @property
+    def is_seller(self):
+        return hasattr(self, 'seller_profile')
+
     objects = AccountManager()
 
     # Authentication
@@ -161,7 +165,6 @@ class User(AbstractBaseUser, PermissionsMixin):
         choices=Roles.choices,
         default=Roles.USER
     )
-    is_seller = models.BooleanField(default=False)
 
     # Django permissions
     is_active = models.BooleanField(default=True)
@@ -180,6 +183,18 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
+
+    def save(self, *args, **kwargs):
+        if (
+            self.profile_picture
+            and not self.profile_picture.name.lower().endswith('.webp')
+        ):
+            self.profile_picture = compress_to_webp(
+                self.profile_picture,
+                max_size=(512, 512),
+            )
+
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.email
@@ -216,8 +231,8 @@ class StudentProfile(models.Model):
     major = models.ForeignKey(
         Major,
         on_delete=models.PROTECT,
-        related_name='students'
-        , blank=True,
+        related_name='students',
+        blank=True,
         null=True,
     )
 
@@ -251,6 +266,32 @@ class StaffProfile(models.Model):
 
     def __str__(self):
         return self.staff_id
+
+
+class SellerProfile(models.Model):
+    """Marks a user as a seller and holds seller-only attributes.
+
+    Every user is implicitly a buyer, so there's no buyer flag/table —
+    a row here is what turns an account into a seller (checked via
+    User.is_seller / user.seller_profile).
+    """
+
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name='seller_profile'
+    )
+
+    is_verified = models.BooleanField(
+        default=False
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True
+    )
+
+    def __str__(self):
+        return f'Seller: {self.user.email}'
 
 
 class OTPPurpose(models.TextChoices):

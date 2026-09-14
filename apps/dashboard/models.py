@@ -3,7 +3,7 @@ from django.core.validators import MinValueValidator
 from django.db import models
 from django.urls import reverse
 from django.utils.text import slugify
-
+from img_compress import compress_to_webp
 
 class Category(models.Model):
 	name = models.CharField(max_length=100, unique=True)
@@ -71,10 +71,18 @@ class Listing(models.Model):
 			base_slug = slugify(self.title) or 'listing'
 			candidate = base_slug
 			counter = 2
-			while Listing.objects.filter(slug=candidate).exclude(pk=self.pk).exists():
+
+			while Listing.objects.filter(
+				slug=candidate
+			).exclude(pk=self.pk).exists():
 				candidate = f'{base_slug}-{counter}'
 				counter += 1
+
 			self.slug = candidate
+
+		if self.image and not self.image.name.lower().endswith('.webp'):
+			self.image = compress_to_webp(self.image)
+
 		super().save(*args, **kwargs)
 
 	def get_absolute_url(self):
@@ -96,10 +104,11 @@ class Listing(models.Model):
 
 	@property
 	def seller_role(self):
-		try:
+		if hasattr(self.seller, 'staff_profile'):
 			return self.seller.staff_profile.get_staff_type_display()
-		except Exception:
-			return 'Marketplace seller'
+		if hasattr(self.seller, 'student_profile'):
+			return 'Student seller'
+		return 'Marketplace seller'
 
 	@property
 	def seller_name(self):
@@ -144,6 +153,12 @@ class ListingImage(models.Model):
 
 	class Meta:
 		ordering = ['created_at']
+
+	def save(self, *args, **kwargs):
+		if self.image and not self.image.name.lower().endswith('.webp'):
+			self.image = compress_to_webp(self.image)
+
+		super().save(*args, **kwargs)
 
 
 class SavedItem(models.Model):

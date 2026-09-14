@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const syncStockVisibility = () => {
         if (!categoryInput || !stockEditor || !stockInput) return;
-        const isService = categoryInput.options[categoryInput.selectedIndex]?.text === 'Services';
+        const isService = categoryInput.options[categoryInput.selectedIndex]?.dataset.slug === 'services';
         stockEditor.hidden = isService;
         if (isService) stockInput.value = '0';
     };

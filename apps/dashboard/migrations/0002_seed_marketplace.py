@@ -79,7 +79,7 @@ def remove_marketplace_seed(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('accounts', '0005_emailotp_purpose'),
+        ('accounts', '0005_seller_profile_and_catalog_cleanup'),
         ('dashboard', '0001_initial'),
     ]
 

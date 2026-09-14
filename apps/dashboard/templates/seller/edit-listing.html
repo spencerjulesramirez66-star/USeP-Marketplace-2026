@@ -5,7 +5,11 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
-<link rel="stylesheet" href="{% static 'css/seller-dashboard.css' %}?v=20260907-2">
+<link rel="stylesheet" href="{% static 'css/seller-dashboard.css' %}?v=20260912-1">
+<style>
+    .required-mark { color: #c0392b; }
+    .field-hint { display: block; margin-top: 4px; color: #6b7280; font-size: 0.8rem; }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -48,10 +52,24 @@
                         {{ field }}
                         {% for error in field.errors %}<small class="form-error">{{ error }}</small>{% endfor %}
                     </div>
+                {% elif field.name == 'category' %}
+                    <div class="form-group">
+                        <label class="form-label" for="id_category">{{ field.label }} <span class="required-mark">*</span></label>
+                        <select class="form-control" name="category" id="id_category" required>
+                            {% for category in categories %}
+                                {% if category.id %}
+                                <option value="{{ category.id }}" data-slug="{{ category.slug }}" {% if category.id == listing.category_id %}selected{% endif %}>{{ category.label }}</option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                        <small class="field-hint">Selecting "Services" hides stock quantity below.</small>
+                        {% for error in field.errors %}<small class="form-error">{{ error }}</small>{% endfor %}
+                    </div>
                 {% else %}
                     <div class="form-group">
-                        <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="required-mark">*</span>{% endif %}</label>
                         {{ field }}
+                        {% if field.help_text %}<small class="field-hint">{{ field.help_text }}</small>{% endif %}
                         {% for error in field.errors %}<small class="form-error">{{ error }}</small>{% endfor %}
                     </div>
                 {% endif %}
@@ -65,4 +83,4 @@
 </div>
 {% endblock %}
 
-{% block extra_js %}<script src="{% static 'js/edit-listing-gallery.js' %}?v=20260907-1"></script>{% endblock %}
+{% block extra_js %}<script src="{% static 'js/edit-listing-gallery.js' %}?v=20260907-1"></script><script src="{% static 'js/stock-toggle.js' %}?v=20260912-1"></script>{% endblock %}

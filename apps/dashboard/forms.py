@@ -3,20 +3,70 @@ from decimal import Decimal, InvalidOperation
 
 from django import forms
 
-from .models import Listing, Message
+from .models import Category, Listing, Message
+
+PRODUCT_CONDITIONS = [
+    'Like new',
+    'Barely used',
+    'Good condition',
+    'For parts',
+]
+SERVICE_CONDITIONS = [
+    'Available by appointment',
+    'On-site service',
+]
+CONDITION_CHOICES = [(value, value) for value in PRODUCT_CONDITIONS + SERVICE_CONDITIONS]
 
 
 class ListingForm(forms.ModelForm):
+    title = forms.CharField(
+        max_length=180,
+        label='Item name',
+        widget=forms.TextInput(attrs={
+            'placeholder': 'e.g. Engineering textbook (3rd Edition)',
+        }),
+    )
+    category = forms.ModelChoiceField(
+        queryset=Category.objects.all(),
+        label='Category',
+        empty_label='Choose a category',
+        help_text="Selecting \u201cServices\u201d hides stock, since services aren't sold in units.",
+    )
     price = forms.CharField(
         max_length=20,
+        label='Price (\u20b1)',
+        help_text='Numbers only, e.g. 250 or 250.50.',
         widget=forms.NumberInput(attrs={
             'inputmode': 'decimal',
             'pattern': r'^[0-9]+(?:\.[0-9]{1,2})?$',
+            'placeholder': '0.00',
+        }),
+    )
+    condition = forms.ChoiceField(
+        choices=CONDITION_CHOICES,
+        label='Condition or availability',
+    )
+    location = forms.CharField(
+        max_length=180,
+        required=False,
+        label='Meetup location',
+        widget=forms.TextInput(attrs={
+            'placeholder': 'e.g. USeP campus library',
+        }),
+    )
+    description = forms.CharField(
+        label='Description',
+        help_text='Mention what buyers should know: condition details, inclusions, or how the service works.',
+        widget=forms.Textarea(attrs={
+            'rows': 5,
+            'placeholder': 'Tell buyers what they should know...',
         }),
     )
     stock_quantity = forms.IntegerField(
         min_value=0,
         required=False,
+        label='Stock quantity',
+        help_text='For service listings, stock stays at 0.',
         widget=forms.NumberInput(attrs={
             'min': 0,
             'step': 1,
@@ -28,9 +78,8 @@ class ListingForm(forms.ModelForm):
     class Meta:
         model = Listing
         fields = ['title', 'category', 'price', 'condition', 'location', 'description', 'status', 'stock_quantity']
-        widgets = {
-            'description': forms.Textarea(attrs={'rows': 5}),
-            'status': forms.Select(),
+        labels = {
+            'status': 'Listing status',
         }
 
     def __init__(self, *args, **kwargs):
@@ -46,7 +95,9 @@ class ListingForm(forms.ModelForm):
         if self.instance and self.instance.pk and self.instance.is_service_listing:
             self.fields['stock_quantity'].required = False
             self.fields['stock_quantity'].widget.attrs['readonly'] = 'readonly'
-        self.fields['stock_quantity'].initial = self.instance.stock_quantity if self.instance and self.instance.pk else 0
+        self.fields['stock_quantity'].initial = (
+            self.instance.stock_quantity if self.instance and self.instance.pk else 0
+        )
 
     def clean_price(self):
         raw_price = str(self.cleaned_data.get('price', '')).strip().replace(',', '')
@@ -63,7 +114,7 @@ class ListingForm(forms.ModelForm):
     def clean_stock_quantity(self):
         value = self.cleaned_data.get('stock_quantity')
         category = self.cleaned_data.get('category')
-        if category and getattr(category, 'slug', '').lower() == 'services':
+        if self._is_service_category(category):
             return 0
         if value is None:
             return 0
@@ -73,10 +124,13 @@ class ListingForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
-        category = cleaned_data.get('category')
-        if category and getattr(category, 'slug', '').lower() == 'services':
+        if self._is_service_category(cleaned_data.get('category')):
             cleaned_data['stock_quantity'] = 0
         return cleaned_data
+
+    @staticmethod
+    def _is_service_category(category):
+        return bool(category) and getattr(category, 'slug', '').lower() == 'services'
 
 
 class MessageForm(forms.ModelForm):

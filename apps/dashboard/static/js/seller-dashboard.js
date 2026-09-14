@@ -1,13 +1,8 @@
 const PRODUCT_CONDITIONS = ['Like new', 'Barely used', 'Good condition', 'For parts'];
 const SERVICE_CONDITIONS = ['Available by appointment', 'On-site service', 'Currently unavailable'];
 
-document.querySelectorAll('input[name="price"]').forEach((input) => {
-    input.addEventListener('input', () => {
-        const cleaned = input.value.replace(/[^0-9.]/g, '');
-        const [whole, ...decimalParts] = cleaned.split('.');
-        input.value = decimalParts.length ? `${whole}.${decimalParts.join('').slice(0, 2)}` : whole;
-    });
-});
+// Price and stock-quantity input sanitizing is now handled globally by
+// stock-toggle.js, which is loaded on every page that has these fields.
 
 function openModal(modal) {
     if (modal) modal.hidden = false;
@@ -32,7 +27,7 @@ const addListingStockInput = document.querySelector('#add-listing-stock');
 
 function syncAddListingStockVisibility() {
     if (!listingCategory || !addListingStockEditor || !addListingStockInput) return;
-    const isService = listingCategory.options[listingCategory.selectedIndex]?.text === 'Services';
+    const isService = listingCategory.options[listingCategory.selectedIndex]?.dataset.slug === 'services';
     addListingStockEditor.hidden = isService;
     if (isService) {
         addListingStockInput.value = '0';
@@ -46,7 +41,7 @@ function syncAddListingStockVisibility() {
 
 if (listingCategory && listingCondition) {
     listingCategory.addEventListener('change', () => {
-        const conditions = listingCategory.options[listingCategory.selectedIndex].text === 'Services' ? SERVICE_CONDITIONS : PRODUCT_CONDITIONS;
+        const conditions = listingCategory.options[listingCategory.selectedIndex]?.dataset.slug === 'services' ? SERVICE_CONDITIONS : PRODUCT_CONDITIONS;
         listingCondition.replaceChildren(...conditions.map((condition) => new Option(condition, condition)));
         syncAddListingStockVisibility();
     });
@@ -250,10 +245,11 @@ document.querySelectorAll('.manage-button').forEach((button) => {
         manageDescription.value = card.dataset.description;
         manageStatus.value = card.dataset.statusValue;
         manageStockInput.value = card.dataset.stock || '0';
-        const conditions = card.dataset.category === 'Services' ? SERVICE_CONDITIONS : PRODUCT_CONDITIONS;
+        const isServiceListing = card.dataset.categorySlug === 'services';
+        const conditions = isServiceListing ? SERVICE_CONDITIONS : PRODUCT_CONDITIONS;
         manageCondition.replaceChildren(...conditions.map((condition) => new Option(condition, condition)));
         manageCondition.value = card.dataset.condition;
-        manageStockEditor.hidden = card.dataset.category === 'Services';
+        manageStockEditor.hidden = isServiceListing;
         refreshStatusAppearance();
         openModal(manageModal);
     });

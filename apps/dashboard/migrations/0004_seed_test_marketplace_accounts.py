@@ -12,6 +12,7 @@ TEST_PASSWORD = 'TestPassword123!'
 
 def seed_test_marketplace_accounts(apps, schema_editor):
     User = apps.get_model('accounts', 'User')
+    SellerProfile = apps.get_model('accounts', 'SellerProfile')
     Category = apps.get_model('dashboard', 'Category')
     Listing = apps.get_model('dashboard', 'Listing')
 
@@ -51,6 +52,7 @@ def seed_test_marketplace_accounts(apps, schema_editor):
             'is_superuser': False,
         },
     )
+    SellerProfile.objects.get_or_create(user=seller)
 
     listings = [
         {
@@ -116,7 +118,7 @@ def remove_test_marketplace_accounts(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('accounts', '0005_emailotp_purpose'),
+        ('accounts', '0005_seller_profile_and_catalog_cleanup'),
         ('dashboard', '0003_listing_image_urls'),
     ]
 

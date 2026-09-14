@@ -115,15 +115,51 @@
             <div class="panel profile-panel">
                 <h2><i class="bi bi-mortarboard"></i> Academic and staff details</h2>
                 <dl class="profile-fields">
-                    {% if request.user.student_profile %}
-                    <div class="profile-field"><dt>Student ID</dt><dd>{{ request.user.student_profile.student_id }}</dd></div>
-                    <div class="profile-field"><dt>Program</dt><dd>{{ program }}</dd></div>
-                    <div class="profile-field"><dt>Major</dt><dd>{{ major }}</dd></div>
-                    <div class="profile-field"><dt>Year level</dt><dd>{{ request.user.student_profile.get_year_level_display }}</dd></div>
+                   {% if request.user.student_profile %}
+                        <div class="profile-field">
+                            <dt>Campus</dt>
+                            <dd>{{ request.user.student_profile.campus }}</dd>
+                        </div>
+
+                        <div class="profile-field">
+                            <dt>Student ID</dt>
+                            <dd>{{ request.user.student_profile.student_id }}</dd>
+                        </div>
+
+                        <div class="profile-field">
+                            <dt>College</dt>
+                            <dd>{{ request.user.student_profile.program.college }}</dd>
+                        </div>
+
+                        <div class="profile-field">
+                            <dt>Program</dt>
+                            <dd>{{ request.user.student_profile.program }}</dd>
+                        </div>
+
+                        <div class="profile-field">
+                            <dt>Major</dt>
+                            <dd>{{ request.user.student_profile.major }}</dd>
+                        </div>
+
+                        <div class="profile-field">
+                            <dt>Year level</dt>
+                            <dd>{{ request.user.student_profile.get_year_level_display }}</dd>
+                        </div>
                     {% elif request.user.staff_profile %}
-                    <div class="profile-field"><dt>Staff ID</dt><dd>{{ request.user.staff_profile.staff_id }}</dd></div>
-                    <div class="profile-field"><dt>Staff type</dt><dd>{{ request.user.staff_profile.get_staff_type_display }}</dd></div>
-                    <div class="profile-field"><dt>Campus</dt><dd>{{ request.user.staff_profile.campus }}</dd></div>
+                    <div class="profile-field">
+                        <dt>Staff ID</dt>
+                        <dd>{{ request.user.staff_profile.staff_id }}
+
+                        </dd>
+                    </div>
+                    <div class="profile-field">
+                        <dt>Staff type</dt>
+                        <dd>{{ request.user.staff_profile.get_staff_type_display }}</dd>
+                    </div>
+                    <div class="profile-field">
+                        <dt>Campus</dt>
+                        <dd>{{ request.user.staff_profile.campus }}</dd>
+                    </div>
                     {% else %}
                     <p class="profile-empty">No additional account details on file.</p>
                     {% endif %}

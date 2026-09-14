@@ -112,6 +112,7 @@
     gap: 1.25rem;
     align-items: start;
 }
+.add-listing-layout .listing-type-tabs { grid-column: 1 / -1; }
 .add-form-panel { display: flex; flex-direction: column; gap: 1.1rem; }
 
 .listing-photo-preview {
@@ -318,6 +319,7 @@
     border-radius: 0.7rem;
     background: linear-gradient(180deg, #fff7ed 0%, #ffffff 100%);
 }
+.stock-editor[hidden] { display: none; }
 .stock-editor-inline {
     padding: 0.85rem 0.95rem;
 }

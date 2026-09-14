@@ -57,6 +57,7 @@ SELLERS = [
 
 def seed_named_sellers(apps, schema_editor):
     User = apps.get_model('accounts', 'User')
+    SellerProfile = apps.get_model('accounts', 'SellerProfile')
     Category = apps.get_model('dashboard', 'Category')
     Listing = apps.get_model('dashboard', 'Listing')
 
@@ -64,8 +65,8 @@ def seed_named_sellers(apps, schema_editor):
     if test_seller:
         test_seller.first_name = 'Miguel'
         test_seller.last_name = 'Rivera'
-        test_seller.is_seller = True
-        test_seller.save(update_fields=['first_name', 'last_name', 'is_seller'])
+        test_seller.save(update_fields=['first_name', 'last_name'])
+        SellerProfile.objects.get_or_create(user=test_seller)
 
     categories = {category.slug: category for category in Category.objects.all()}
     created_emails = []
@@ -85,9 +86,9 @@ def seed_named_sellers(apps, schema_editor):
                 'is_active': True,
                 'is_staff': False,
                 'is_superuser': False,
-                'is_seller': True,
             },
         )
+        SellerProfile.objects.get_or_create(user=seller)
         listing_data = seller_data['listing']
         Listing.objects.get_or_create(
             slug=listing_data['slug'],
@@ -109,14 +110,16 @@ def seed_named_sellers(apps, schema_editor):
 
 def remove_named_sellers(apps, schema_editor):
     User = apps.get_model('accounts', 'User')
+    SellerProfile = apps.get_model('accounts', 'SellerProfile')
     Listing = apps.get_model('dashboard', 'Listing')
     Listing.objects.filter(slug__in=[seller['listing']['slug'] for seller in SELLERS]).delete()
     User.objects.filter(email__in=[seller['email'] for seller in SELLERS]).delete()
+    SellerProfile.objects.filter(user__email='test.seller@usep.edu.ph').delete()
 
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('accounts', '0005_emailotp_purpose'),
+        ('accounts', '0005_seller_profile_and_catalog_cleanup'),
         ('dashboard', '0005_listingimage'),
     ]
 
