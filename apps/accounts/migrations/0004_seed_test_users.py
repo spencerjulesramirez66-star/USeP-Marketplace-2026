@@ -9,7 +9,10 @@ def create_test_users(apps, schema_editor):
     Major = apps.get_model("accounts", "Major")
     Campus = apps.get_model("accounts", "Campus")
 
+<<<<<<< HEAD
     # Get existing university data
+=======
+>>>>>>> 6fe02047874f2a41b2024f6c526d69b183b30d75
     major = Major.objects.first()
     campus = Campus.objects.first()
 

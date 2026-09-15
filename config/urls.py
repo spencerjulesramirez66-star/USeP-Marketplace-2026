@@ -22,6 +22,11 @@ from django.conf.urls.static import static
 from django.views.generic import RedirectView
 
 urlpatterns = [
+<<<<<<< HEAD
+=======
+    path('dashboard/', include('apps.dashboard.urls', namespace='dashboard')),
+    path('', RedirectView.as_view(pattern_name='login', permanent=False)),
+>>>>>>> 6fe02047874f2a41b2024f6c526d69b183b30d75
     path('', include('apps.accounts.urls')),
     path('admin/', admin.site.urls),
 ]

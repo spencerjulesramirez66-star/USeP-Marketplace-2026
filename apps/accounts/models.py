@@ -1,5 +1,10 @@
 from django.contrib.auth.base_user import BaseUserManager, AbstractBaseUser
 from django.contrib.auth.models import PermissionsMixin
+<<<<<<< HEAD
+=======
+from django.templatetags.static import static
+from img_compress import compress_to_webp
+>>>>>>> 6fe02047874f2a41b2024f6c526d69b183b30d75
 from django.db import models
 
 
@@ -126,6 +131,19 @@ class Major(models.Model):
 
 class User(AbstractBaseUser, PermissionsMixin):
 
+<<<<<<< HEAD
+=======
+    @property
+    def avatar_url(self):
+        if self.profile_picture:
+            return self.profile_picture.url
+        return static('images/default-avatar.jpg')
+
+    @property
+    def is_seller(self):
+        return hasattr(self, 'seller_profile')
+
+>>>>>>> 6fe02047874f2a41b2024f6c526d69b183b30d75
     objects = AccountManager()
 
     # Authentication
@@ -172,6 +190,21 @@ class User(AbstractBaseUser, PermissionsMixin):
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
 
+<<<<<<< HEAD
+=======
+    def save(self, *args, **kwargs):
+        if (
+            self.profile_picture
+            and not self.profile_picture.name.lower().endswith('.webp')
+        ):
+            self.profile_picture = compress_to_webp(
+                self.profile_picture,
+                max_size=(512, 512),
+            )
+
+        super().save(*args, **kwargs)
+
+>>>>>>> 6fe02047874f2a41b2024f6c526d69b183b30d75
     def __str__(self):
         return self.email
 
@@ -184,6 +217,17 @@ class StudentProfile(models.Model):
         related_name='student_profile'
     )
 
+<<<<<<< HEAD
+=======
+    program = models.ForeignKey(
+        Program,
+        on_delete=models.PROTECT,
+        related_name='enrolled_students',
+        blank=True,
+        null=True,
+    )
+
+>>>>>>> 6fe02047874f2a41b2024f6c526d69b183b30d75
     student_id = models.CharField(
         max_length=10,
         unique=True
@@ -199,7 +243,13 @@ class StudentProfile(models.Model):
     major = models.ForeignKey(
         Major,
         on_delete=models.PROTECT,
+<<<<<<< HEAD
         related_name='students'
+=======
+        related_name='students',
+        blank=True,
+        null=True,
+>>>>>>> 6fe02047874f2a41b2024f6c526d69b183b30d75
     )
 
     def __str__(self):
@@ -234,6 +284,40 @@ class StaffProfile(models.Model):
         return self.staff_id
 
 
+<<<<<<< HEAD
+=======
+class SellerProfile(models.Model):
+    """Marks a user as a seller and holds seller-only attributes.
+
+    Every user is implicitly a buyer, so there's no buyer flag/table —
+    a row here is what turns an account into a seller (checked via
+    User.is_seller / user.seller_profile).
+    """
+
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name='seller_profile'
+    )
+
+    is_verified = models.BooleanField(
+        default=False
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True
+    )
+
+    def __str__(self):
+        return f'Seller: {self.user.email}'
+
+
+class OTPPurpose(models.TextChoices):
+    EMAIL_VERIFICATION = 'EMAIL_VERIFICATION', 'Email Verification'
+    PASSWORD_RESET = 'PASSWORD_RESET', 'Password Reset'
+
+
+>>>>>>> 6fe02047874f2a41b2024f6c526d69b183b30d75
 class EmailOTP(models.Model):
 
     user = models.ForeignKey(
@@ -246,6 +330,15 @@ class EmailOTP(models.Model):
         max_length=128
     )
 
+<<<<<<< HEAD
+=======
+    purpose = models.CharField(
+        max_length=32,
+        choices=OTPPurpose.choices,
+        default=OTPPurpose.EMAIL_VERIFICATION
+    )
+
+>>>>>>> 6fe02047874f2a41b2024f6c526d69b183b30d75
     created_at = models.DateTimeField(
         auto_now_add=True
     )
@@ -261,4 +354,8 @@ class EmailOTP(models.Model):
     )
 
     def __str__(self):
+<<<<<<< HEAD
         return f'OTP for {self.user.email}'
+=======
+        return f'{self.get_purpose_display()} OTP for {self.user.email}'
+>>>>>>> 6fe02047874f2a41b2024f6c526d69b183b30d75

@@ -64,6 +64,7 @@
                         <span class="required" aria-hidden="true">*</span>
                     </label>
 
+<<<<<<< HEAD
                     <input
                         class="form-control"
                         id="password"
@@ -73,6 +74,20 @@
                         placeholder="Enter password"
                         required
                     >
+=======
+                    <div class="form-control" id="password-container">
+                        <input
+                            id="password"
+                            type="password"
+                            name="password"
+                            autocomplete="current-password"
+                            placeholder="Enter password"
+                            required
+                        >
+                        <i class="bi bi-eye-slash" id="show-password"></i>
+                    </div>
+                    
+>>>>>>> 6fe02047874f2a41b2024f6c526d69b183b30d75
                 </div>
 
                 <div class="form-group">
@@ -83,6 +98,13 @@
 
             </form>
 
+<<<<<<< HEAD
+=======
+            <div class="form-group">
+                <a href="{% url 'forgot_password' %}" class="btn btn-outline">Forgot Password?</a>
+            </div>
+
+>>>>>>> 6fe02047874f2a41b2024f6c526d69b183b30d75
         </section>
 
         <footer>

@@ -1,0 +1,263 @@
+.profile-shell {
+    min-height: 100dvh;
+    background: linear-gradient(135deg, #fffaf4 0%, var(--color-background) 52%, #eef5ff 100%);
+}
+
+.profile-main {
+    padding-top: 2.5rem;
+    padding-bottom: 4rem;
+}
+
+.profile-hero {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 1.75rem 2rem;
+    margin-bottom: 2rem;
+    background: linear-gradient(135deg, var(--color-primary-dark) 0%, var(--color-primary) 100%);
+    border-radius: 0.75rem;
+    color: var(--color-surface);
+    box-shadow: 0 10px 24px rgba(127, 29, 29, 0.16);
+}
+
+.profile-hero-avatar {
+    width: 88px;
+    height: 88px;
+    flex-shrink: 0;
+    object-fit: cover;
+    border-radius: 50%;
+    max-width: none;
+    object-position: center;
+    clip-path: circle(50%);
+    border: 3px solid rgba(255, 255, 255, 0.6);
+}
+
+.profile-hero-role {
+    display: inline-block;
+    margin-bottom: 0.35rem;
+    padding: 0.2rem 0.6rem;
+    background: rgba(255, 255, 255, 0.18);
+    border-radius: 999px;
+    font-family: var(--secondary-font);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.profile-hero-info h1 {
+    color: var(--color-surface);
+    font-size: 1.7rem;
+}
+
+.profile-hero-info p {
+    margin-top: 0.2rem;
+    color: #fee2e2;
+}
+
+.profile-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    margin-bottom: 1.5rem;
+}
+
+.profile-panel h2 {
+    margin-bottom: 1rem;
+    font-size: 1.05rem;
+}
+
+.profile-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.profile-field {
+    min-width: 0;
+    padding: 0.85rem;
+    border: 1px solid var(--color-border);
+    border-radius: 0.65rem;
+    background: rgba(248, 250, 252, 0.72);
+}
+
+.profile-field dt {
+    color: var(--color-text-muted);
+    font-family: var(--secondary-font);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.profile-field dd {
+    margin-top: 0.2rem;
+    color: var(--color-text);
+    font-weight: 500;
+}
+
+.profile-empty {
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+}
+
+.profile-hero-avatar-wrap {
+    position: relative;
+    display: block;
+    width: 88px;
+    height: 88px;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.profile-hero-avatar {
+    width: 88px;
+    height: 88px;
+    object-fit: cover;
+    border-radius: 50%;
+    max-width: none;
+    object-position: center;
+    clip-path: circle(50%);
+    border: 3px solid rgba(255, 255, 255, 0.6);
+}
+
+.profile-hero-avatar-edit {
+    position: absolute;
+    right: -2px;
+    bottom: -2px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+
+    background: var(--color-secondary);
+    border: 2px solid var(--color-primary-dark);
+    border-radius: 50%;
+
+    color: var(--color-primary-dark);
+    font-size: 0.75rem;
+}
+
+.profile-hero-avatar-wrap:hover .profile-hero-avatar-edit {
+    background: var(--color-secondary-light);
+}
+
+.profile-security {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+}
+
+.profile-security p {
+    margin-top: 0.2rem;
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+}
+
+/* Main container padding */
+.profile-main {
+    padding: 2.5rem 1.5rem 4rem;
+}
+
+/* Editable field toggle behavior */
+.toggle-container {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.edit-container {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.5rem;
+    flex: 1;
+    min-width: 0;
+}
+
+.toggle-input {
+    flex: 1;
+    min-width: 0;
+
+    padding: 0;
+    margin: 0;
+
+    background: transparent;
+    outline: none;
+    border: none;
+    border-bottom: 1px dashed var(--color-primary);
+
+    font: inherit;
+    color: inherit;
+}
+
+.toggle-input:focus {
+    outline: none;
+    border-bottom: 1px solid var(--color-primary);
+}
+
+.button-toggle-icon {
+    flex-shrink: 0;
+
+    cursor: pointer;
+    font-size: 0.8rem;
+    line-height: 1;
+
+    font-family: var(--font-secondary);
+    color: var(--color-primary);
+}
+
+.button-toggle-icon:hover {
+    color: var(--color-primary-dark);
+}
+
+/* Show/hide span vs input depending on edit state */
+.profile-field .field-value {
+    display: inline;
+}
+
+.profile-field.is-editing .field-value {
+    display: none;
+}
+
+.profile-field .toggle-input {
+    display: none;
+}
+
+.profile-field.is-editing .toggle-input {
+    display: inline-block;
+}
+
+.profile-field.is-editing .bi-pen::before {
+    content: "\F633"; /* bi-check-lg glyph, swaps pencil to check while editing */
+}
+
+.field-error {
+    display: block;
+    margin-top: 0.3rem;
+    color: #b91c1c;
+    font-size: 0.75rem;
+}
+
+
+@media (max-width: 768px) {
+    .profile-hero { flex-direction: column; text-align: center; }
+    .profile-grid { grid-template-columns: 1fr; }
+    .profile-fields { grid-template-columns: 1fr; }
+    .profile-security { flex-direction: column; align-items: stretch; text-align: center; }
+    .profile-security .btn { width: 100%; }
+}
+
+.profile-hero-program {
+    display: inline-block;
+    margin-top: 0.6rem;
+    color: #fee2e2;
+    font-size: 0.88rem;
+}
+
+.profile-panel h2 i { margin-right: 0.35rem; color: var(--color-primary); }

@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Buy on USeP Marketplace{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/buyer-dashboard.css' %}?v=20260905-6">
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/buyer-dashboard.js' %}?v=20260905-2"></script>
+{% endblock %}
+
+{% block content %}
+<div class="buyer-shell dashboard-shell">
+    {% include 'components/navbar.html' %}
+
+    <main class="buyer-main dashboard-main container">
+        {% if not seller_filter %}
+        <section class="buyer-hero dashboard-banner">
+            <div class="hero-copy">
+                <p class="eyebrow">USeP marketplace</p>
+                <h1>Find what you need around campus</h1>
+                <p>Browse trusted listings for study essentials, dorm items, services, and local deals.</p>
+                <div class="hero-actions">
+                    <a href="#products" class="btn btn-primary">Shop now</a>
+                    {% if request.user.is_authenticated %}
+                    <a href="{% url 'dashboard:seller' %}" class="btn btn-secondary">Sell something</a>
+                    {% else %}
+                    <a href="{% url 'login' %}?next={% url 'dashboard:become_seller' %}" class="btn btn-secondary">Sell something</a>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+        {% endif %}
+
+        <section class="buyer-layout">
+            <div class="buyer-feed" id="products">
+                {% if seller_filter and seller_profile %}
+                <section class="seller-profile panel">
+                    <div class="seller-profile-content">
+                        <div class="seller-avatar"><img src="{{ seller_profile.avatar|default:'/static/images/default-avatar.png' }}" alt="{{ seller_profile.name }} profile picture"></div>
+                        <div class="seller-profile-info">
+                            <strong class="seller-name">{{ seller_profile.name }}</strong>
+                            <small class="seller-role">{{ seller_profile.role }}</small>
+                        </div>
+                        <a href="{% url 'dashboard:buyer' %}" class="btn btn-sm btn-outline other-products-btn">
+                            <i class="bi bi-arrow-left"></i> Back to all listings
+                        </a>
+                    </div>
+                </section>
+                {% endif %}
+
+                <div id="feed-results">
+                    {% include 'buyer/product-feed.html' %}
+                </div>
+            </div>
+        </section>
+    </main>
+
+
+    {% include 'components/footer.html' %}
+    
+{% endblock %}

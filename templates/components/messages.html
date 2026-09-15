@@ -2,7 +2,21 @@
     <div class="messages-container">
         {% for message in messages %}
             <div class="alert alert-{{ message.tags }}" role="alert">
+<<<<<<< HEAD
                 {{ message }}
+=======
+
+                <div class="alert-content">
+                    <span class="alert-message">{{ message }}</span>
+
+                    <button type="button" class="alert-dismiss">
+                        Dismiss
+                    </button>
+                </div>
+
+                <div class="alert-progress"></div>
+
+>>>>>>> 6fe02047874f2a41b2024f6c526d69b183b30d75
             </div>
         {% endfor %}
     </div>

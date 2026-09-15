@@ -1,0 +1,168 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Seller workspace | USeP Marketplace{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/seller-dashboard.css' %}?v=20260912-1">
+<style>
+    .required-mark { color: #c0392b; }
+    .field-hint { display: block; margin-top: 4px; color: #6b7280; font-size: 0.8rem; }
+    .listing-type-tabs { display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid #e5e7eb; }
+    .type-tab {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 10px 12px;
+        border: none;
+        background: none;
+        border-bottom: 3px solid transparent;
+        color: #6b7280;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    .type-tab.active { color: #8a1538; border-bottom-color: #8a1538; }
+    .type-tab:hover { color: #8a1538; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="seller-shell dashboard-shell">
+    {% include 'components/navbar.html' %}
+    <main class="seller-main dashboard-main container">
+        <section class="seller-heading dashboard-banner">
+            <div>
+                <p class="eyebrow">Your marketplace workspace</p>
+                <h1>Seller dashboard</h1>
+                <p class="seller-intro">Keep track of your listings and connect with buyers around campus.</p>
+            </div>
+            <button class="btn btn-primary" type="button" id="open-add-listing">+ Add listing</button>
+        </section>
+
+        <section class="stat-grid" aria-label="Seller statistics">
+            <article class="stat-card"><span class="stat-kicker">Marketplace activity</span><span class="stat-label">Active listings</span><strong>{{ active_count }}</strong><small>Visible to campus</small></article>
+            <article class="stat-card stat-card-accent"><span class="stat-kicker">Marketplace activity</span><span class="stat-label">Total views</span><strong>{{ total_views }}</strong><small>Across your listings</small></article>
+            <article class="stat-card stat-card-gold"><span class="stat-kicker">Marketplace activity</span><span class="stat-label">Items sold</span><strong>{{ sold_count }}</strong><small>Completed exchanges</small></article>
+        </section>
+
+        <section class="note-banner"><span class="note-banner-mark">i</span><div><h2>Meet buyers safely</h2><p>Use a public campus location for meetups and keep conversations inside the marketplace.</p></div></section>
+
+        <section class="seller-listings">
+            <form class="listing-filters" id="listing-filters">
+                <label class="filter-search"><span aria-hidden="true">&#9906;</span><input type="search" id="listing-search" placeholder="Search your listings" aria-label="Search your listings"></label>
+                <select class="filter-button" id="listing-status-filter" aria-label="Filter by listing status">
+                    <option value="all" selected>All statuses</option>
+                    <option value="active">Active</option>
+                    <option value="sold">Sold</option>
+                    <option value="archived">Unavailable</option>
+                </select>
+            </form>
+
+            <div class="seller-list" id="seller-list">
+                {% for listing in listings %}
+                <article class="seller-listing" data-status="{{ listing.status|lower }}" data-search="{{ listing.title|lower }} {{ listing.category.name|lower }} {{ listing.description|lower }}"
+                    data-name="{{ listing.title }}" data-category="{{ listing.category.name }}" data-category-id="{{ listing.category_id }}" data-category-slug="{{ listing.category.slug }}" data-condition="{{ listing.condition }}"
+                    data-price="{{ listing.price }}" data-price-label="{{ listing.price_label }}" data-status-value="{{ listing.status }}" data-status-label="{{ listing.get_status_display }}" data-views="{{ listing.views }}"
+                    data-stock="{{ listing.stock_quantity|default:0 }}" data-image="{{ listing.image_url }}" data-gallery="{{ listing.gallery_urls|join:'||' }}" data-gallery-ids="{{ listing.gallery_image_ids|join:'||' }}" data-description="{{ listing.description }}" data-location="{{ listing.location }}"
+                    data-edit-url="{% url 'dashboard:edit_listing' listing.id %}" data-delete-url="{% url 'dashboard:delete_listing' listing.id %}">
+                    <img src="{{ listing.image_url }}" alt="{{ listing.title }}">
+                    <div class="seller-listing-info"><span class="status-pill status-pill-{{ listing.status|lower }}">{% if listing.status == 'ARCHIVED' %}Unavailable{% else %}{{ listing.get_status_display }}{% endif %}</span><h3>{{ listing.title }}</h3><p>{{ listing.category.name }}</p>{% if listing.category.slug != 'services' %}<small class="stock-badge">Stock: {{ listing.stock_quantity }}</small>{% endif %}</div>
+                    <div class="seller-listing-stat"><span>Price</span><strong>{{ listing.price_label }}</strong></div>
+                    <div class="seller-listing-stat"><span>Views</span><strong>{{ listing.views }}</strong></div>
+                    <button class="manage-button" type="button">Manage <span aria-hidden="true">&#8594;</span></button>
+                    <a class="listing-detail-link" href="{{ listing.get_absolute_url }}" aria-label="View {{ listing.title }}"></a>
+                </article>
+                {% empty %}
+                <p class="empty-state no-filter-results">You have not published any listings yet.</p>
+                {% endfor %}
+                <p class="empty-state no-filter-results" hidden>No listings match your filters.</p>
+            </div>
+        </section>
+    </main>
+</div>
+
+<div class="modal-overlay" id="add-listing-modal" hidden>
+    <div class="modal-dialog modal-dialog-wide">
+        <div class="modal-header"><h2>Add a new listing</h2><button class="modal-close" type="button" data-close-modal="add-listing-modal" aria-label="Close">&times;</button></div>
+        <form class="add-listing-layout" id="add-listing-form" method="post" action="{% url 'dashboard:create_listing' %}" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="listing-type-tabs" role="tablist" aria-label="Listing type">
+                <button type="button" class="type-tab active" data-type="product" role="tab" aria-selected="true">
+                    <i class="bi bi-box-seam" aria-hidden="true"></i> Sell a product
+                </button>
+                <button type="button" class="type-tab" data-type="service" role="tab" aria-selected="false">
+                    <i class="bi bi-tools" aria-hidden="true"></i> Offer a service
+                </button>
+            </div>
+            <section class="add-form-panel">
+                <div class="form-group"><label class="form-label" for="listing-name">Item name <span class="required-mark">*</span></label><input class="form-control" name="title" id="listing-name" placeholder="e.g. Engineering textbook (3rd Edition)" required></div>
+                <div class="field-row">
+                    <div class="form-group"><label class="form-label" for="listing-category">Category <span class="required-mark">*</span></label><select class="form-control" name="category" id="listing-category" required><option value="" selected disabled>Choose a category</option>{% for category in categories %}{% if category.id %}<option value="{{ category.id }}" data-slug="{{ category.slug }}">{{ category.label }}</option>{% endif %}{% endfor %}</select><small class="field-hint">Selecting "Services" hides stock quantity below.</small></div>
+                    <div class="form-group"><label class="form-label" for="listing-price">Price (PHP) <span class="required-mark">*</span></label><input class="form-control" name="price" id="listing-price" type="number" min="0" step="0.01" placeholder="0.00" required><small class="field-hint">Numbers only, e.g. 250 or 250.50.</small></div>
+                </div>
+                <div class="form-group"><label class="form-label" for="listing-condition">Condition or availability <span class="required-mark">*</span></label><select class="form-control" name="condition" id="listing-condition" required>{% for choice in condition_options %}<option value="{{ choice.value }}" data-type="{{ choice.type }}">{{ choice.value }}</option>{% endfor %}</select></div>
+                <div class="form-group"><label class="form-label" for="listing-location">Meetup location</label><input class="form-control" name="location" id="listing-location" placeholder="e.g. USeP campus library"></div>
+                <div class="form-group"><label class="form-label" for="listing-description">Description <span class="required-mark">*</span></label><textarea class="form-control" name="description" id="listing-description" rows="5" placeholder="Tell buyers what they should know..." required></textarea><small class="field-hint">Mention condition details, inclusions, or how the service works.</small></div>
+                <div class="stock-editor stock-editor-inline form-group" id="add-listing-stock-editor">
+                    <label class="form-label" for="add-listing-stock">Stock quantity</label>
+                    <div class="stepper-control stock-stepper">
+                        <button class="stepper-button" type="button" data-step="-1" aria-label="Decrease stock">-</button>
+                        <input class="form-control" name="stock_quantity" id="add-listing-stock" type="number" min="0" step="1" value="1">
+                        <button class="stepper-button" type="button" data-step="1" aria-label="Increase stock">+</button>
+                    </div>
+                    <small class="stock-help">For service listings, stock stays at 0.</small>
+                </div>
+                <div class="form-actions"><button class="btn btn-outline" type="button" data-close-modal="add-listing-modal">Cancel</button><button class="btn btn-primary" type="submit">Publish listing</button></div>
+            </section>
+            <section class="upload-panel">
+                <div class="listing-photo-preview" id="listing-photo-preview" hidden>
+                    <div class="photo-preview-main-wrap">
+                        <img class="photo-preview-main" id="listing-main-image" src="" alt="">
+                        <span class="main-photo-badge">Main photo</span>
+                        <label class="photo-add-overlay" for="listing-image"><i class="bi bi-plus-lg"></i> Add more photos</label>
+                    </div>
+                    <div class="manage-gallery" id="listing-gallery" aria-label="Selected listing photos"></div>
+                    <small class="photo-upload-hint" id="listing-photo-hint">Up to 8 photos. The first photo is your listing thumbnail.</small>
+                </div>
+                <label class="upload-box" id="listing-upload-box" for="listing-image"><span class="upload-icon">+</span><strong>Upload product photos</strong><small>JPG, PNG, or WEBP, up to 8 photos</small><span class="upload-action">Choose photos</span></label>
+                <input class="image-input" name="images" id="listing-image" type="file" accept="image/*" multiple>
+            </section>
+        </form>
+    </div>
+</div>
+
+<div class="modal-overlay" id="manage-item-modal" hidden>
+    <div class="modal-dialog modal-dialog-wide">
+        <div class="modal-header"><h2>Manage item</h2><span class="status-pill status-pill-active" id="manage-status-badge">Active</span><button class="modal-close" type="button" data-close-modal="manage-item-modal" aria-label="Close">&times;</button></div>
+        <form class="manage-layout" id="manage-listing-form" method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <section class="preview-panel"><img id="manage-image" src="" alt=""><div class="manage-gallery" id="manage-gallery" aria-label="Uploaded listing photos"></div><label class="change-photo" for="manage-item-image">Add more photos</label><input class="image-input" name="images" id="manage-item-image" type="file" accept="image/*" multiple><div id="manage-removed-images"></div><div class="preview-stats"><span>Listing views</span><strong id="manage-views">0</strong></div></section>
+            <section class="edit-panel">
+                <div class="form-group"><label class="form-label" for="manage-name">Item name</label><input class="form-control" name="title" id="manage-name" required></div>
+                <div class="field-row"><div class="form-group"><label class="form-label" for="manage-category">Category <span class="required-mark">*</span></label><select class="form-control" name="category" id="manage-category">{% for category in categories %}{% if category.id %}<option value="{{ category.id }}" data-slug="{{ category.slug }}">{{ category.label }}</option>{% endif %}{% endfor %}</select><small class="field-hint">Selecting "Services" hides stock quantity.</small></div><div class="form-group"><label class="form-label" for="manage-price">Price (PHP) <span class="required-mark">*</span></label><input class="form-control" name="price" id="manage-price" type="number" min="0" step="0.01" required></div></div>
+                <div class="form-group"><label class="form-label" for="manage-condition">Condition or availability <span class="required-mark">*</span></label><select class="form-control" name="condition" id="manage-condition" required>{% for choice in condition_choices %}<option value="{{ choice }}">{{ choice }}</option>{% endfor %}</select></div>
+                <div class="form-group"><label class="form-label" for="manage-location">Meetup location</label><input class="form-control" name="location" id="manage-location"></div>
+                <div class="form-group"><label class="form-label" for="manage-description">Description</label><textarea class="form-control" name="description" id="manage-description" rows="4" required></textarea></div>
+                <div class="status-actions"><label class="form-label" for="manage-status">Listing status</label><select class="status-select" name="status" id="manage-status"><option value="ACTIVE">Available</option><option value="SOLD">Sold</option><option value="ARCHIVED">Unavailable</option></select></div>
+                <div class="stock-editor stock-editor-inline form-group" id="manage-stock-editor">
+                    <label class="form-label" for="manage-stock-quantity">Stock quantity</label>
+                    <div class="stepper-control stock-stepper">
+                        <button class="stepper-button" type="button" data-step="-1" aria-label="Decrease stock">-</button>
+                        <input class="form-control" name="stock_quantity" id="manage-stock-quantity" type="number" min="0" step="1" value="0">
+                        <button class="stepper-button" type="button" data-step="1" aria-label="Increase stock">+</button>
+                    </div>
+                    <small class="stock-help">For service listings, stock stays at 0.</small>
+                </div>
+                <div class="form-actions"><button class="btn btn-outline" type="button" id="delete-listing">Delete listing</button><button class="btn btn-primary" type="submit">Save changes</button></div>
+            </section>
+        </form>
+    </div>
+</div>
+
+<div class="modal-overlay" id="delete-confirm-modal" hidden><div class="modal-dialog"><h2>Delete this listing?</h2><p>This can't be undone. The listing will be removed from the marketplace.</p><div class="delete-actions"><button class="btn btn-outline" type="button" id="cancel-delete">Cancel</button><form id="delete-listing-form" method="post">{% csrf_token %}<button class="btn btn-delete" type="submit">Delete</button></form></div></div></div>
+{% endblock %}
+
+{% block extra_js %}<script>window.initialManageListingId = "{{ manage_listing_id|default:'' }}";</script><script src="{% static 'js/seller-dashboard.js' %}?v=20260909-1"></script><script src="{% static 'js/stock-toggle.js' %}?v=20260912-1"></script><script src="{% static 'js/listing-type-tabs.js' %}?v=20260912-1"></script>{% endblock %}

@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Messages | USeP Marketplace{% endblock %}
+
+{% block content %}
+<div class="dashboard-shell">
+    {% include 'components/navbar.html' %}
+    <main class="container dashboard-main">
+        <section class="dashboard-banner">
+            <p class="eyebrow">Marketplace chat</p>
+            <h1>Messages</h1>
+            <p>Talk directly with buyers and sellers before meeting on campus.</p>
+        </section>
+        <section class="seller-list">
+            {% for conversation in conversations %}
+            <a class="seller-listing" href="{% url 'dashboard:conversation' conversation.id %}">
+                <div class="seller-listing-info">
+                    <span class="status-pill status-pill-active">{{ conversation.listing.title }}</span>
+                    <h3>{% if conversation.buyer_id == request.user.id %}{{ conversation.seller.first_name }} {{ conversation.seller.last_name }}{% else %}{{ conversation.buyer.first_name }} {{ conversation.buyer.last_name }}{% endif %}</h3>
+                    <p>Updated {{ conversation.updated_at|date:"M j, Y g:i A" }}</p>
+                </div>
+                <span class="manage-button">Open chat <span aria-hidden="true">&#8594;</span></span>
+            </a>
+            {% empty %}
+            <p class="empty-state">No conversations yet. Open a listing and message the seller to start one.</p>
+            {% endfor %}
+        </section>
+    </main>
+</div>
+{% endblock %}

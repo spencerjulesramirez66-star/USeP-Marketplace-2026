@@ -123,10 +123,18 @@ body {
 
 
 #resend-container {
+<<<<<<< HEAD
     margin-top: 1.5rem;
 
     text-align: center;
 
+=======
+    width: 100%;
+    margin-top: 1.5rem;
+    display: flex;
+    flex-direction: row;
+    gap: 0.5rem;
+>>>>>>> 6fe02047874f2a41b2024f6c526d69b183b30d75
     color: var(--color-text-muted);
 }
 
@@ -134,6 +142,7 @@ body {
     margin: 0;
 }
 
+<<<<<<< HEAD
 #resend-otp {
     padding: 0;
 
@@ -153,6 +162,8 @@ body {
 }
 
 
+=======
+>>>>>>> 6fe02047874f2a41b2024f6c526d69b183b30d75
 #error-container {
     min-height: 1.5rem;
 
@@ -168,6 +179,10 @@ body {
 }
 
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 6fe02047874f2a41b2024f6c526d69b183b30d75
 @media (max-width: 480px) {
 
     #verify-container {
@@ -192,6 +207,7 @@ body {
 
         font-size: 1.25rem;
     }
+<<<<<<< HEAD
 }
 
 .development-otp {
@@ -209,4 +225,6 @@ body {
     color: var(--color-primary);
     font-size: 1.5rem;
     letter-spacing: 0.15em;
+=======
+>>>>>>> 6fe02047874f2a41b2024f6c526d69b183b30d75
 }

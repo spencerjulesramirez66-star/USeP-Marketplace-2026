@@ -27,8 +27,16 @@ class NoCacheAuthenticatedPagesMiddleware:
     def __call__(self, request):
         response = self.get_response(request)
 
+<<<<<<< HEAD
         should_not_cache = (
             request.user.is_authenticated
+=======
+        user = getattr(request, 'user', None)
+        is_authenticated = bool(user and getattr(user, 'is_authenticated', False))
+
+        should_not_cache = (
+            is_authenticated
+>>>>>>> 6fe02047874f2a41b2024f6c526d69b183b30d75
             or request.path.startswith(NO_CACHE_URL_PREFIXES)
         )
 

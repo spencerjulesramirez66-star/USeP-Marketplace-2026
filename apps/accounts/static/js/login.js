@@ -25,3 +25,21 @@ window.addEventListener("scroll", handleScroll, {
 window.addEventListener("resize", handleScroll);
 
 handleScroll();
+
+
+// SHOW PASSWORD
+
+const show_password = document.getElementById("show-password");
+const password = document.getElementById("password");
+
+show_password.addEventListener("click", function () {
+    if (password.type === "password") {
+        password.type = "text";
+        show_password.classList.remove("bi-eye-slash");
+        show_password.classList.add("bi-eye");
+    } else {
+        password.type = "password";
+        show_password.classList.remove("bi-eye");
+        show_password.classList.add("bi-eye-slash");
+    }
+});

@@ -31,7 +31,11 @@
 
         <p>
             We've sent a 6-digit verification code to
+<<<<<<< HEAD
             <span class="email-display">{{ pending_user.email|default:"your email address" }}</span>.
+=======
+            <span class="email-display">{{ email }}</span>.
+>>>>>>> 6fe02047874f2a41b2024f6c526d69b183b30d75
         </p>
 
     </section>
@@ -117,6 +121,7 @@
     </section>
 
 
+<<<<<<< HEAD
     <section id="resend-container">
 
         <p>
@@ -126,6 +131,20 @@
                 Resend OTP
             </button>
         </p>
+=======
+        <section id="resend-container">
+
+        <p>
+            Didn't receive the code?
+        </p>
+
+        <form method="post">
+            {% csrf_token %}
+            <button class="btn btn-link" type="submit" name="resend_otp" value="1">
+                Resend OTP
+            </button>
+        </form>
+>>>>>>> 6fe02047874f2a41b2024f6c526d69b183b30d75
 
     </section>
 

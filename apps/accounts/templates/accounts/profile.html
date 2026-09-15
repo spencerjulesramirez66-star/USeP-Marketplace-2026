@@ -1,0 +1,182 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Profile | USeP Marketplace{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/profile.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="profile-shell">
+    {% include 'components/navbar.html' %}
+    <main class="profile-main container">
+
+        <section class="profile-hero">
+            <form id="avatar-form" method="post" enctype="multipart/form-data" action="{% url 'upload_profile_picture' %}">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.path }}">
+                <label class="profile-hero-avatar-wrap" for="avatar-input">
+                    <img class="profile-hero-avatar"
+                         src="{{ request.user.avatar_url }}"
+                         alt="{{ request.user.first_name }}'s profile picture">
+                    <span class="profile-hero-avatar-edit" aria-hidden="true"><i class="bi bi-camera"></i></span>
+                </label>
+                <input type="file" name="profile_picture" id="avatar-input" accept="image/*" hidden>
+            </form>
+            <div class="profile-hero-info">
+                <span class="profile-hero-role">{{ request.user.get_role_display }}</span>
+                <h1>{{ request.user.first_name }} {{ request.user.last_name }}</h1>
+                <p>{{ request.user.email }}</p>
+                {% if program %}<span class="profile-hero-program">{{ program }}</span>{% endif %}
+                {% if request.user.staff_profile %}<span class="profile-hero-program">{{ request.user.staff_profile.get_staff_type_display }} · {{ request.user.staff_profile.campus }}</span>{% endif %}
+            </div>
+        </section>
+
+        <section class="profile-grid">
+            <div class="panel profile-panel">
+                <h2><i class="bi bi-person-vcard"></i> Personal information</h2>
+                <dl class="profile-fields" id="editable-fields" data-update-url="{% url 'update_profile_field' %}">
+
+                    <div class="profile-field" data-field="first_name">
+                        <dt>First name</dt>
+                        <dd>
+                            <div class="toggle-container">
+                                <div class="edit-container">
+                                    <span class="field-value">{{ request.user.first_name }}</span>
+                                    <input type="text" class="toggle-input field-input" name="first_name"
+                                           value="{{ request.user.first_name }}" maxlength="150" hidden>
+                                </div>
+                                <i class="bi bi-pen button-toggle-icon" role="button" tabindex="0" aria-label="Edit first name"></i>
+                            </div>
+                            <small class="field-error" hidden></small>
+                        </dd>
+                    </div>
+
+                    {% if request.user.middle_name %}
+                    <div class="profile-field" data-field="middle_name">
+                        <dt>Middle name</dt>
+                        <dd>
+                            <div class="toggle-container">
+                                <div class="edit-container">
+                                    <span class="field-value">{{ request.user.middle_name }}</span>
+                                    <input type="text" class="toggle-input field-input" name="middle_name"
+                                           value="{{ request.user.middle_name }}" maxlength="150" hidden>
+                                </div>
+                                <i class="bi bi-pen button-toggle-icon" role="button" tabindex="0" aria-label="Edit middle name"></i>
+                            </div>
+                            <small class="field-error" hidden></small>
+                        </dd>
+                    </div>
+                    {% endif %}
+
+                    <div class="profile-field" data-field="last_name">
+                        <dt>Last name</dt>
+                        <dd>
+                            <div class="toggle-container">
+                                <div class="edit-container">
+                                    <span class="field-value">{{ request.user.last_name }}</span>
+                                    <input type="text" class="toggle-input field-input" name="last_name"
+                                           value="{{ request.user.last_name }}" maxlength="150" hidden>
+                                </div>
+                                <i class="bi bi-pen button-toggle-icon" role="button" tabindex="0" aria-label="Edit last name"></i>
+                            </div>
+                            <small class="field-error" hidden></small>
+                        </dd>
+                    </div>
+
+                    <div class="profile-field">
+                        <dt>Email</dt>
+                        <dd>{{ request.user.email }}</dd>
+                    </div>
+
+                    <div class="profile-field" data-field="contact_num">
+                        <dt>Contact number</dt>
+                        <dd>
+                            <div class="toggle-container">
+                                <div class="edit-container">
+                                    <span class="field-value">{{ request.user.contact_num }}</span>
+                                    <input type="text" class="toggle-input field-input" name="contact_num"
+                                           value="{{ request.user.contact_num }}" maxlength="20" hidden>
+                                </div>
+                                <i class="bi bi-pen button-toggle-icon" role="button" tabindex="0" aria-label="Edit contact number"></i>
+                            </div>
+                            <small class="field-error" hidden></small>
+                        </dd>
+                    </div>
+
+                    <div class="profile-field">
+                        <dt>Member since</dt>
+                        <dd>{{ request.user.date_joined|date:"F Y" }}</dd>
+                    </div>
+                </dl>
+            </div>
+
+            <div class="panel profile-panel">
+                <h2><i class="bi bi-mortarboard"></i> Academic and staff details</h2>
+                <dl class="profile-fields">
+                   {% if request.user.student_profile %}
+                        <div class="profile-field">
+                            <dt>Campus</dt>
+                            <dd>{{ request.user.student_profile.campus }}</dd>
+                        </div>
+
+                        <div class="profile-field">
+                            <dt>Student ID</dt>
+                            <dd>{{ request.user.student_profile.student_id }}</dd>
+                        </div>
+
+                        <div class="profile-field">
+                            <dt>College</dt>
+                            <dd>{{ request.user.student_profile.program.college }}</dd>
+                        </div>
+
+                        <div class="profile-field">
+                            <dt>Program</dt>
+                            <dd>{{ request.user.student_profile.program }}</dd>
+                        </div>
+
+                        <div class="profile-field">
+                            <dt>Major</dt>
+                            <dd>{{ request.user.student_profile.major }}</dd>
+                        </div>
+
+                        <div class="profile-field">
+                            <dt>Year level</dt>
+                            <dd>{{ request.user.student_profile.get_year_level_display }}</dd>
+                        </div>
+                    {% elif request.user.staff_profile %}
+                    <div class="profile-field">
+                        <dt>Staff ID</dt>
+                        <dd>{{ request.user.staff_profile.staff_id }}
+
+                        </dd>
+                    </div>
+                    <div class="profile-field">
+                        <dt>Staff type</dt>
+                        <dd>{{ request.user.staff_profile.get_staff_type_display }}</dd>
+                    </div>
+                    <div class="profile-field">
+                        <dt>Campus</dt>
+                        <dd>{{ request.user.staff_profile.campus }}</dd>
+                    </div>
+                    {% else %}
+                    <p class="profile-empty">No additional account details on file.</p>
+                    {% endif %}
+                </dl>
+            </div>
+        </section>
+
+        <section class="panel profile-security">
+            <div>
+                <h2>Security</h2>
+                <p>Update your password to keep your account secure.</p>
+            </div>
+            <a href="{% url 'change_password' %}" class="btn btn-outline">Change password</a>
+        </section>
+
+    </main>
+</div>
+
+<script src="{% static 'js/profile.js' %}"></script>
+{% endblock %}
