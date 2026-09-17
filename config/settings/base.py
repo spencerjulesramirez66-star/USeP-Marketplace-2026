@@ -37,6 +37,7 @@ AUTH_USER_MODEL = "accounts.User"
 
 INSTALLED_APPS = [
     'apps.dashboard',
+    'apps.messaging',
     'apps.accounts',
     'django.contrib.admin',
     'django.contrib.auth',

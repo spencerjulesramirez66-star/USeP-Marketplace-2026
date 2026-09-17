@@ -14,7 +14,7 @@
             <p>{{ conversation.listing.price_label }} · Keep meetups in public campus locations.</p>
         </section>
         <section class="panel conversation-thread">
-            {% for message in messages %}
+            {% for message in conversation_messages %}
             <article class="conversation-message {% if message.sender_id == request.user.id %}conversation-message-own{% endif %}">
                 <strong>{{ message.sender.first_name }} {{ message.sender.last_name }}</strong>
                 <p>{{ message.body|linebreaksbr }}</p>

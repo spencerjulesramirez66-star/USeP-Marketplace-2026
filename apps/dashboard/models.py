@@ -225,8 +225,13 @@ class Message(models.Model):
 		related_name='sent_marketplace_messages',
 	)
 	body = models.TextField(max_length=2000)
+	attachment = models.FileField(upload_to='messages/', blank=True, null=True)
 	created_at = models.DateTimeField(auto_now_add=True)
 	is_read = models.BooleanField(default=False)
 
 	class Meta:
 		ordering = ['created_at']
+
+	@property
+	def attachment_is_image(self):
+		return bool(self.attachment and self.attachment.name.lower().endswith(('.gif', '.jpeg', '.jpg', '.png', '.webp')))

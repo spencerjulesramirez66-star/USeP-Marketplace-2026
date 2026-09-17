@@ -1,7 +1,9 @@
+import re
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
-from django.http import Http404
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -19,6 +21,22 @@ RECOMMENDATION_WEIGHTS = {
     'recency': 0.2,
     'affinity': 0.3,
 }
+
+
+def _conversation_resources(conversation):
+    media = []
+    files = []
+    links = []
+    for message in conversation.messages.all():
+        if message.attachment:
+            resource = {
+                'url': message.attachment.url,
+                'name': message.attachment.name.rsplit('/', 1)[-1],
+                'is_image': message.attachment_is_image,
+            }
+            (media if resource['is_image'] else files).append(resource)
+        links.extend(re.findall(r'https?://[^\s<]+', message.body or ''))
+    return media, files, list(dict.fromkeys(links))
 
 
 def _condition_options():
@@ -427,7 +445,7 @@ def start_conversation(request, item_slug):
         listing=listing,
     )
     if request.method == 'POST':
-        form = MessageForm(request.POST)
+        form = MessageForm(request.POST, request.FILES)
         if form.is_valid():
             message = form.save(commit=False)
             message.conversation = conversation
@@ -447,7 +465,7 @@ def conversation_list(request):
     ).select_related('buyer', 'seller', 'listing')
     return render(
         request,
-        'dashboard/conversations.html',
+        'messaging/messaging.html',
         {'conversations': conversations, 'categories': _category_context()},
     )
 
@@ -460,26 +478,48 @@ def conversation_detail(request, conversation_id):
         pk=conversation_id,
     )
     if request.method == 'POST':
-        form = MessageForm(request.POST)
+        form = MessageForm(request.POST, request.FILES)
         if form.is_valid():
             message = form.save(commit=False)
             message.conversation = conversation
             message.sender = request.user
             message.save()
             conversation.save(update_fields=['updated_at'])
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'body': message.body,
+                    'attachment_url': message.attachment.url if message.attachment else '',
+                    'attachment_name': message.attachment.name.rsplit('/', 1)[-1] if message.attachment else '',
+                    'attachment_is_image': message.attachment_is_image,
+                    'created_at': message.created_at.isoformat(),
+                    'sender_id': message.sender_id,
+                    'sender_avatar_url': message.sender.avatar_url,
+                })
             messages.success(request, 'Message sent.')
             return redirect('dashboard:conversation', conversation_id=conversation.pk)
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({'error': 'Your message could not be sent. Please check the message and attachment.'}, status=400)
         messages.error(request, 'Your message could not be sent. Please try again.')
     else:
         form = MessageForm()
+    participant = conversation.seller if conversation.buyer_id == request.user.id else conversation.buyer
+    media, files, links = _conversation_resources(conversation)
     conversation.messages.exclude(sender=request.user).filter(is_read=False).update(is_read=True)
     return render(
         request,
-        'dashboard/conversation-detail.html',
+        'messaging/messaging.html',
         {
             'conversation': conversation,
-            'messages': conversation.messages.select_related('sender'),
+            'selected_conversation': conversation,
+            'conversation_messages': conversation.messages.select_related('sender'),
             'message_form': form,
+            'conversations': Conversation.objects.filter(
+                Q(buyer=request.user) | Q(seller=request.user)
+            ).select_related('buyer', 'seller', 'listing'),
             'categories': _category_context(),
+            'chat_participant': participant,
+            'chat_media': media,
+            'chat_files': files,
+            'chat_links': links,
         },
     )
