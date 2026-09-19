@@ -94,3 +94,73 @@ if (profilePictureInput && profilePictureForm) {
         }
     });
 }
+
+const messageLink = document.querySelector("[data-unread-count-url]");
+const marketplace = window.USePMarketplace = window.USePMarketplace || {};
+const debugMessagesBadge = (...args) => {
+    if (window.MESSAGES_BADGE_DEBUG) console.debug("[Messages Badge]", ...args);
+};
+
+// This is deliberately the only place that changes the Messages badge UI.
+marketplace.updateMessageNotificationBadge = (value) => {
+    const count = Number.isFinite(Number(value)) ? Math.max(0, Number(value)) : 0;
+    const badges = document.querySelectorAll("[data-message-unread-badge]");
+    badges.forEach((badge) => {
+        badge.hidden = count === 0;
+        badge.textContent = count > 99 ? "99+" : (count ? String(count) : "");
+    });
+    debugMessagesBadge(`updating ${badges.length} badge element(s)`, { count });
+};
+
+document.addEventListener("messages:unread-count", (event) => {
+    marketplace.updateMessageNotificationBadge(event.detail?.count);
+});
+
+if (messageLink) {
+    const messagesSidebarIsPresent = Boolean(document.querySelector(".messaging-layout[data-conversation-sidebar-state-url]"));
+    let pollTimer = null;
+    let pollInFlight = false;
+    let pollingStopped = false;
+
+    const refreshUnreadBadge = async () => {
+        if (pollInFlight) return;
+        pollInFlight = true;
+        try {
+            const response = await fetch(messageLink.dataset.unreadCountUrl, {
+                method: "GET",
+                credentials: "same-origin",
+                cache: "no-store",
+                headers: { "Accept": "application/json", "X-Requested-With": "XMLHttpRequest" },
+            });
+            if (!response.ok) return;
+            const payload = await response.json();
+            document.dispatchEvent(new CustomEvent("messages:unread-count", {
+                detail: { count: payload.unread_count },
+            }));
+        } catch (_) {
+            // Preserve the last displayed count and retry on the next interval.
+        } finally {
+            pollInFlight = false;
+        }
+    };
+
+    const pollUnreadBadge = async () => {
+        if (pollingStopped) return;
+        await refreshUnreadBadge();
+        if (!pollingStopped) pollTimer = window.setTimeout(pollUnreadBadge, document.hidden ? 5000 : 2000);
+    };
+
+    // The Messages sidebar already polls the same authoritative state.  It
+    // dispatches messages:unread-count above, so do not duplicate requests.
+    if (!messagesSidebarIsPresent) {
+        refreshUnreadBadge();
+        pollTimer = window.setTimeout(pollUnreadBadge, document.hidden ? 5000 : 2000);
+        document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshUnreadBadge(); });
+        window.addEventListener("focus", refreshUnreadBadge);
+        document.addEventListener("messages:unread-changed", refreshUnreadBadge);
+        window.addEventListener("pagehide", () => {
+            pollingStopped = true;
+            window.clearTimeout(pollTimer);
+        }, { once: true });
+    }
+}

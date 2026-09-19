@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static message_links %}
 
 {% block title %}Messages | USeP Marketplace{% endblock %}
 
@@ -8,10 +8,10 @@
 {% endblock %}
 
 {% block content %}
-<div class="messaging-page">
+<div class="messaging-page{% if conversation %} messaging-page-chat-open{% endif %}">
     {% include 'components/navbar.html' %}
 
-    <main class="messaging-layout" aria-label="Marketplace messages">
+    <main class="messaging-layout" aria-label="Marketplace messages" data-conversation-list-url="{% url 'dashboard:conversation_list' %}" data-conversation-sidebar-state-url="{% url 'dashboard:conversation_sidebar_state' %}" data-clear-conversation-url-template="{% url 'dashboard:clear_conversation' 0 %}">
         <aside class="messaging-sidebar">
             <div class="messaging-sidebar-heading">
                 <div>
@@ -34,21 +34,13 @@
             </nav>
 
             <div class="conversation-list" id="conversation-list">
-                {% for conversation_item in conversations %}
-                <a class="conversation-row{% if selected_conversation.id == conversation_item.id %} active{% endif %}" href="{% url 'dashboard:conversation' conversation_item.id %}" data-conversation-search="{{ conversation_item.listing.title }} {% if conversation_item.buyer_id == request.user.id %}{{ conversation_item.seller.first_name }} {{ conversation_item.seller.last_name }}{% else %}{{ conversation_item.buyer.first_name }} {{ conversation_item.buyer.last_name }}{% endif %}">
-                    {% if conversation_item.buyer_id == request.user.id %}
-                    <img class="conversation-avatar" src="{{ conversation_item.seller.avatar_url }}" alt="">
-                    <span class="conversation-row-copy">
-                        <strong>{{ conversation_item.seller.first_name }} {{ conversation_item.seller.last_name }}</strong>
-                    {% else %}
-                    <img class="conversation-avatar" src="{{ conversation_item.buyer.avatar_url }}" alt="">
-                    <span class="conversation-row-copy">
-                        <strong>{{ conversation_item.buyer.first_name }} {{ conversation_item.buyer.last_name }}</strong>
-                    {% endif %}
-                        <span>{{ conversation_item.listing.title }}</span>
-                    </span>
-                    <time datetime="{{ conversation_item.updated_at|date:'c' }}">{{ conversation_item.updated_at|date:"M j" }}</time>
-                </a>
+                {% for group in conversation_groups %}
+                <details class="conversation-group" data-participant-id="{{ group.participant.id }}"{% if selected_conversation and selected_conversation in group.conversations %} open{% endif %}>
+                    <summary{% if group.unread_count %} class="has-unread"{% endif %}><img class="conversation-avatar" src="{{ group.participant.avatar_url }}" alt=""><span class="conversation-row-copy"><strong>{{ group.participant.first_name }} {{ group.participant.last_name }}</strong><span>{{ group.conversations|length }} inquir{{ group.conversations|length|pluralize:"y,ies" }}</span></span>{% if group.unread_count %}<span class="conversation-unread-badge">{{ group.unread_count }}</span>{% endif %}<i class="bi bi-chevron-down" aria-hidden="true"></i></summary>
+                    {% for conversation_item in group.conversations %}
+                    <div class="conversation-row-wrap"><a class="conversation-row{% if selected_conversation.id == conversation_item.id %} active{% endif %}{% if conversation_item.unread_count %} has-unread{% endif %}" href="{% url 'dashboard:conversation' conversation_item.id %}" data-conversation-id="{{ conversation_item.id }}" data-conversation-search="{{ conversation_item.listing.title }} {{ group.participant.first_name }} {{ group.participant.last_name }}"><img class="conversation-avatar" src="{{ conversation_item.listing.conversation_image_url }}" alt=""><span class="conversation-row-copy"><strong>{{ conversation_item.listing.title }}</strong><span>Listing conversation</span></span>{% if conversation_item.unread_count %}<span class="conversation-unread-badge">{{ conversation_item.unread_count }}</span>{% endif %}<time datetime="{{ conversation_item.updated_at|date:'c' }}">{{ conversation_item.updated_at|date:"M j" }}</time></a><button class="conversation-delete-menu" type="button" data-conversation-options="{{ conversation_item.id }}" aria-label="Conversation options" title="Conversation options"><i class="bi bi-three-dots" aria-hidden="true"></i></button></div>
+                    {% endfor %}
+                </details>
                 {% empty %}
                 <div class="conversation-empty">
                     <i class="bi bi-chat-square-text" aria-hidden="true"></i>
@@ -63,19 +55,19 @@
         {% if conversation %}
         <section class="messaging-chat" aria-label="Conversation with {% if conversation.buyer_id == request.user.id %}{{ conversation.seller.first_name }} {{ conversation.seller.last_name }}{% else %}{{ conversation.buyer.first_name }} {{ conversation.buyer.last_name }}{% endif %}">
             <header class="messaging-chat-header">
-                <a class="messaging-mobile-back" href="{% url 'dashboard:conversation_list' %}" aria-label="Back to messages"><i class="bi bi-arrow-left" aria-hidden="true"></i></a>
+                <button class="messaging-mobile-back" type="button" aria-label="Back to conversations" title="Back to conversations"><i class="bi bi-arrow-left" aria-hidden="true"></i></button>
                 {% if conversation.buyer_id == request.user.id %}
                 <img class="messaging-chat-avatar" src="{{ conversation.seller.avatar_url }}" alt="">
                 <div>
-                    <h2>{{ conversation.seller.first_name }} {{ conversation.seller.last_name }}</h2>
+                    <h2 tabindex="-1">{{ conversation.seller.first_name }} {{ conversation.seller.last_name }}</h2>
                 {% else %}
                 <img class="messaging-chat-avatar" src="{{ conversation.buyer.avatar_url }}" alt="">
                 <div>
-                    <h2>{{ conversation.buyer.first_name }} {{ conversation.buyer.last_name }}</h2>
+                    <h2 tabindex="-1">{{ conversation.buyer.first_name }} {{ conversation.buyer.last_name }}</h2>
                 {% endif %}
                     <p>{{ conversation.listing.title }} · {{ conversation.listing.price_label }}</p>
                 </div>
-                <button class="messaging-chat-info" type="button" id="messaging-details-toggle" aria-label="Show conversation details" aria-controls="messaging-details" aria-expanded="false" title="Conversation details"><i class="bi bi-info-circle" aria-hidden="true"></i></button>
+                <button class="messaging-chat-delete-menu" type="button" data-conversation-options="{{ conversation.id }}" aria-label="Conversation options" title="Conversation options"><i class="bi bi-three-dots" aria-hidden="true"></i></button><button class="messaging-chat-info" type="button" id="messaging-details-toggle" aria-label="Show conversation details" aria-controls="messaging-details" aria-expanded="false" title="Conversation details"><i class="bi bi-info-circle" aria-hidden="true"></i></button>
             </header>
 
             <aside class="messaging-details" id="messaging-details" aria-label="Conversation details" hidden>
@@ -93,7 +85,7 @@
                     <div class="messaging-section-heading"><h3><i class="bi bi-images" aria-hidden="true"></i> Media</h3><span>{{ chat_media|length }}</span></div>
                     <div class="messaging-media-grid">
                     {% for attachment in chat_media %}
-                    <a class="messaging-media-item" href="{{ attachment.url }}" target="_blank" rel="noopener"><img src="{{ attachment.url }}" alt="{{ attachment.name }}"><span>{{ attachment.name }}</span></a>
+                    <button class="messaging-media-item" type="button" data-media-url="{{ attachment.url }}" data-media-name="{{ attachment.name }}"><img src="{{ attachment.url }}" alt="{{ attachment.name }}"><span>{{ attachment.name }}</span></button>
                     {% empty %}<p class="messaging-details-empty">No images shared yet.</p>{% endfor %}
                     </div>
                 </div>
@@ -104,23 +96,41 @@
                     </a>
                     {% empty %}<p class="messaging-details-empty">No files shared yet.</p>{% endfor %}
                 </div>
-                <div class="messaging-details-section">
-                    <div class="messaging-section-heading"><h3><i class="bi bi-link-45deg" aria-hidden="true"></i> Links</h3><span>{{ chat_links|length }}</span></div>
-                    {% for link in chat_links %}<a class="messaging-resource messaging-resource-link" href="{{ link }}" target="_blank" rel="noopener"><i class="bi bi-link-45deg" aria-hidden="true"></i><span>{{ link }}</span></a>{% empty %}<p class="messaging-details-empty">No links shared yet.</p>{% endfor %}
+                <div class="messaging-details-section" data-shared-links-section>
+                    <div class="messaging-section-heading"><h3><i class="bi bi-link-45deg" aria-hidden="true"></i> Links</h3><span data-shared-links-count>{{ chat_links|length }}</span></div>
+                    <div class="messaging-link-cards" data-shared-links>
+                    {% for link in chat_links %}<a class="messaging-link-card" href="{{ link.url }}" target="_blank" rel="noopener noreferrer nofollow"><span class="messaging-link-card-visual{% if not link.image %} placeholder{% endif %}">{% if link.image %}<img src="{{ link.image }}" alt="">{% else %}<i class="bi {% if link.is_drive %}bi-folder-fill{% else %}bi-link-45deg{% endif %}" aria-hidden="true"></i>{% endif %}</span><span class="messaging-link-card-copy"><strong title="{{ link.title }}">{{ link.title }}</strong><span>{{ link.domain }}</span></span></a>{% empty %}<p class="messaging-details-empty">No links shared yet.</p>{% endfor %}
+                    </div>
                 </div>
             </aside>
 
-            <div class="messaging-thread">
+            <div class="messaging-thread" data-poll-url="{% url 'dashboard:conversation_new_messages' conversation.id %}" data-links-url="{% url 'dashboard:conversation_links' conversation.id %}" data-link-preview-url="{% url 'dashboard:link_preview' %}" data-delete-url-template="{% url 'dashboard:delete_message' conversation.id 0 %}" data-edit-url-template="{% url 'dashboard:edit_message' conversation.id 0 %}" data-history-url-template="{% url 'dashboard:message_history' conversation.id 0 %}" data-clear-url="{% url 'dashboard:clear_conversation' conversation.id %}">
+                <section class="messaging-listing-context" aria-label="Listing being discussed">
+                    <img src="{{ conversation.listing.conversation_image_url }}" alt="{{ conversation.listing.title }}">
+                    <div class="messaging-listing-context-copy">
+                        <span class="messaging-listing-context-label">Regarding this listing</span>
+                        <strong>{{ conversation.listing.title }}</strong>
+                        <span class="messaging-listing-context-price">{{ conversation.listing.price_label }}</span>
+                        <span class="messaging-listing-context-seller">Seller: {{ conversation.seller.first_name }} {{ conversation.seller.last_name }}</span>
+                    </div>
+                    <div class="messaging-listing-context-actions">
+                        <span class="messaging-listing-status messaging-listing-status-{{ conversation.listing.status|lower }}">{{ conversation.listing.get_status_display }}</span>
+                        <a href="{{ conversation.listing.get_absolute_url }}">View listing <i class="bi bi-arrow-up-right" aria-hidden="true"></i></a>
+                    </div>
+                </section>
                 <div class="messaging-thread-intro">
                     <div class="messaging-thread-mark"><i class="bi bi-shop" aria-hidden="true"></i></div>
                     <strong>{{ conversation.listing.title }}</strong>
                     <span>Keep meetups in public campus locations.</span>
                 </div>
                 {% for message in conversation_messages %}
-                <div class="messaging-message-row{% if message.sender_id == request.user.id %} own{% endif %}">
+                <div class="messaging-message-row{% if message.sender_id == request.user.id %} own{% endif %}" data-message-id="{{ message.id }}">
                     {% if message.sender_id != request.user.id %}<img class="messaging-message-avatar" src="{{ message.sender.avatar_url }}" alt="">{% endif %}
-                    <article class="messaging-bubble{% if message.sender_id == request.user.id %} own{% endif %}">
-                    <p>{{ message.body|linebreaksbr }}</p>
+                    <article class="messaging-bubble{% if message.sender_id == request.user.id %} own{% endif %}{% if message.is_deleted %} messaging-bubble-deleted{% endif %}">
+                    {% if message.is_deleted %}
+                    <p class="messaging-deleted-notice">{% if message.sender.first_name or message.sender.last_name %}{{ message.sender.first_name }} {{ message.sender.last_name }}{% else %}{{ message.sender.email }}{% endif %} deleted a message</p>
+                    {% else %}
+                    <p>{{ message.body|message_links }}</p>
                     {% if message.attachment %}
                         {% if message.attachment_is_image %}
                         <a class="messaging-image-attachment" href="{{ message.attachment.url }}" target="_blank" rel="noopener"><img src="{{ message.attachment.url }}" alt="{{ message.attachment.name|cut:'messages/' }}"></a>
@@ -128,19 +138,26 @@
                         <a class="messaging-attachment" href="{{ message.attachment.url }}" target="_blank" rel="noopener"><i class="bi bi-paperclip" aria-hidden="true"></i> {{ message.attachment.name|cut:'messages/' }}</a>
                         {% endif %}
                     {% endif %}
-                    <time datetime="{{ message.created_at|date:'c' }}">{{ message.created_at|date:"M j, g:i A" }}</time>
+                    {% endif %}
                     </article>
+                    <span class="messaging-message-meta"><time datetime="{{ message.created_at|date:'c' }}">{{ message.created_at|date:"M j, g:i A" }}</time>{% if message.is_edited %}<span aria-hidden="true"> · </span><button class="messaging-edited-indicator" type="button" data-history-message="{{ message.id }}">Edited</button>{% endif %}</span>
+                    {% if message.sender_id == request.user.id and not message.is_deleted %}
+                    <button class="messaging-message-action" type="button" data-message-options="{{ message.id }}" aria-label="Message options" title="Message options"><i class="bi bi-three-dots" aria-hidden="true"></i></button>
+                    {% endif %}
                 </div>
                 {% endfor %}
             </div>
 
             <form method="post" class="messaging-compose-form" enctype="multipart/form-data" data-current-user="{{ request.user.id }}">
                 {% csrf_token %}
-                <label class="messaging-attach-button" for="message-attachment" aria-label="Attach a file" title="Attach a file"><i class="bi bi-paperclip" aria-hidden="true"></i></label>
-                <input class="messaging-attachment-input" id="message-attachment" name="attachment" type="file" accept=".pdf,image/gif,image/jpeg,image/png,image/webp">
+                <div class="messaging-edit-state" id="messaging-edit-state" hidden><span>Editing message</span><button type="button" id="messaging-cancel-edit" aria-label="Cancel editing">Cancel</button></div>
                 <div class="messaging-attachment-preview" id="messaging-attachment-preview" hidden></div>
-                {{ message_form.body }}
-                <button type="submit" aria-label="Send message" title="Send message"><i class="bi bi-send-fill" aria-hidden="true"></i></button>
+                <div class="messaging-compose-controls">
+                    <label class="messaging-attach-button" for="message-attachment" aria-label="Attach a file" title="Attach a file"><i class="bi bi-paperclip" aria-hidden="true"></i></label>
+                    <input class="messaging-attachment-input" id="message-attachment" name="attachment" type="file" accept=".pdf,image/gif,image/jpeg,image/png,image/webp">
+                    {{ message_form.body }}
+                    <button type="submit" aria-label="Send message" title="Send message"><i class="bi bi-send-fill" aria-hidden="true"></i></button>
+                </div>
             </form>
         </section>
         {% else %}
@@ -154,29 +171,231 @@
         {% endif %}
     </main>
 </div>
+<dialog class="messaging-unsend-dialog" id="messaging-unsend-dialog" aria-labelledby="messaging-unsend-title" aria-describedby="messaging-unsend-description">
+    <form method="dialog">
+        <h2 id="messaging-unsend-title">Unsend message?</h2>
+        <p id="messaging-unsend-description">This message will be removed for everyone in this conversation.</p>
+        <div class="messaging-unsend-actions">
+            <button type="submit" value="cancel">Cancel</button>
+            <button type="button" class="messaging-unsend-confirm">Unsend</button>
+        </div>
+    </form>
+</dialog>
+<dialog class="messaging-unsend-dialog messaging-action-sheet" id="messaging-actions-dialog" aria-labelledby="messaging-actions-title"><section><h2 id="messaging-actions-title">Message options</h2><button type="button" data-action-edit>Edit</button><button type="button" data-action-unsend>Unsend</button><button type="button" data-action-cancel>Cancel</button></section></dialog>
+<dialog class="messaging-unsend-dialog messaging-action-sheet" id="conversation-actions-dialog" aria-labelledby="conversation-actions-title"><section><h2 id="conversation-actions-title">Conversation options</h2><button type="button" data-action-clear-conversation>Delete conversation</button><button type="button" data-action-cancel-conversation>Cancel</button></section></dialog>
+<dialog class="messaging-unsend-dialog" id="conversation-clear-dialog" aria-labelledby="conversation-clear-title" aria-describedby="conversation-clear-description"><section><h2 id="conversation-clear-title">Delete conversation?</h2><p id="conversation-clear-description">This conversation and its current history will be removed from your message list. It will not be deleted for the other participant. If a new message is sent later, it may appear again.</p><div class="messaging-unsend-actions"><button type="button" data-clear-cancel>Cancel</button><button type="button" data-clear-confirm>Delete</button></div></section></dialog>
+<dialog class="messaging-lightbox" id="messaging-lightbox" aria-label="Media viewer"><button type="button" class="messaging-lightbox-close" aria-label="Close media viewer"><i class="bi bi-x-lg" aria-hidden="true"></i></button><button type="button" class="messaging-lightbox-prev" aria-label="Previous image"><i class="bi bi-chevron-left" aria-hidden="true"></i></button><img alt=""><button type="button" class="messaging-lightbox-next" aria-label="Next image"><i class="bi bi-chevron-right" aria-hidden="true"></i></button><span class="messaging-lightbox-count"></span></dialog>
 {% endblock %}
 
 {% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         const search = document.querySelector('#message-search');
-        const rows = document.querySelectorAll('.conversation-row');
+        const conversationList = document.querySelector('#conversation-list');
+        const messagingLayout = document.querySelector('.messaging-layout');
         if (search) search.addEventListener('input', () => {
             const query = search.value.trim().toLowerCase();
-            rows.forEach((row) => {
+            document.querySelectorAll('.conversation-row').forEach((row) => {
                 row.hidden = query && !row.dataset.conversationSearch.toLowerCase().includes(query);
             });
         });
 
+        const formatSidebarTime = (value) => new Date(value).toLocaleDateString([], { month: 'short', day: 'numeric' });
+        const addUnreadBadge = (parent, count) => {
+            if (!count) return;
+            const badge = document.createElement('span');
+            badge.className = 'conversation-unread-badge';
+            badge.textContent = String(count);
+            parent.append(badge);
+        };
+        const createConversationRow = (item, participant, activeConversationId) => {
+            const wrap = document.createElement('div');
+            wrap.className = 'conversation-row-wrap';
+            const row = document.createElement('a');
+            row.className = `conversation-row${Number(item.id) === activeConversationId ? ' active' : ''}${item.unread_count ? ' has-unread' : ''}`;
+            row.href = item.url;
+            row.dataset.conversationId = String(item.id);
+            row.dataset.conversationSearch = `${item.listing_title} ${participant.name}`;
+            const image = document.createElement('img');
+            image.className = 'conversation-avatar'; image.src = item.listing_image; image.alt = '';
+            const copy = document.createElement('span'); copy.className = 'conversation-row-copy';
+            const title = document.createElement('strong'); title.textContent = item.listing_title;
+            const preview = document.createElement('span'); preview.textContent = item.preview || 'Listing conversation';
+            copy.append(title, preview);
+            row.append(image, copy);
+            addUnreadBadge(row, item.unread_count);
+            const time = document.createElement('time'); time.dateTime = item.updated_at; time.textContent = formatSidebarTime(item.updated_at);
+            row.append(time);
+            const options = document.createElement('button');
+            options.type = 'button'; options.className = 'conversation-delete-menu';
+            options.dataset.conversationOptions = String(item.id);
+            options.setAttribute('aria-label', 'Conversation options'); options.title = 'Conversation options';
+            options.innerHTML = '<i class="bi bi-three-dots" aria-hidden="true"></i>';
+            wrap.append(row, options);
+            return wrap;
+        };
+        const updateConversationGroup = (groupElement, group, activeConversationId) => {
+            const wasOpen = groupElement.open;
+            const isNew = !groupElement.dataset.participantId;
+            groupElement.dataset.participantId = String(group.participant.id);
+            const summary = document.createElement('summary');
+            if (group.unread_count) summary.classList.add('has-unread');
+            const avatar = document.createElement('img'); avatar.className = 'conversation-avatar'; avatar.src = group.participant.avatar; avatar.alt = '';
+            const copy = document.createElement('span'); copy.className = 'conversation-row-copy';
+            const name = document.createElement('strong'); name.textContent = group.participant.name;
+            const count = document.createElement('span'); count.textContent = `${group.conversations.length} ${group.conversations.length === 1 ? 'inquiry' : 'inquiries'}`;
+            copy.append(name, count);
+            summary.append(avatar, copy);
+            addUnreadBadge(summary, group.unread_count);
+            const chevron = document.createElement('i'); chevron.className = 'bi bi-chevron-down'; chevron.setAttribute('aria-hidden', 'true'); summary.append(chevron);
+            groupElement.replaceChildren(summary, ...group.conversations.map((item) => createConversationRow(item, group.participant, activeConversationId)));
+            groupElement.open = wasOpen || (isNew && Boolean(group.unread_count));
+        };
+        let sidebarPollTimer = null;
+        let sidebarPollInFlight = false;
+        const refreshConversationSidebar = async () => {
+            const stateUrl = messagingLayout?.dataset.conversationSidebarStateUrl;
+            if (!conversationList || !stateUrl || sidebarPollInFlight) return;
+            sidebarPollInFlight = true;
+            try {
+                const response = await fetch(stateUrl, { method: 'GET', credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' } });
+                if (!response.ok) return;
+                const payload = await response.json();
+                document.dispatchEvent(new CustomEvent('messages:unread-count', {
+                    detail: { count: payload.total_unread_count },
+                }));
+                const activeConversationId = Number(document.querySelector('.conversation-row.active')?.dataset.conversationId || 0);
+                const previousScrollTop = conversationList.scrollTop;
+                conversationList.querySelector('.conversation-empty')?.remove();
+                (payload.groups || []).forEach((group) => {
+                    let groupElement = conversationList.querySelector(`[data-participant-id="${group.participant.id}"]`);
+                    if (!groupElement) {
+                        groupElement = document.createElement('details');
+                        groupElement.className = 'conversation-group';
+                    }
+                    updateConversationGroup(groupElement, group, activeConversationId);
+                    conversationList.append(groupElement);
+                });
+                const participantIds = new Set((payload.groups || []).map((group) => String(group.participant.id)));
+                conversationList.querySelectorAll('.conversation-group').forEach((group) => {
+                    if (!participantIds.has(group.dataset.participantId)) group.remove();
+                });
+                if (!(payload.groups || []).length) {
+                    const empty = document.createElement('div');
+                    empty.className = 'conversation-empty';
+                    empty.innerHTML = '<i class="bi bi-chat-square-text" aria-hidden="true"></i><strong>No conversations yet</strong><span>Message a seller from a marketplace listing to start chatting.</span>';
+                    conversationList.append(empty);
+                }
+                conversationList.scrollTop = previousScrollTop;
+                if (search?.value) search.dispatchEvent(new Event('input'));
+            } catch (_) {
+                // Keep the existing sidebar usable and try again on the next cycle.
+            } finally {
+                sidebarPollInFlight = false;
+            }
+        };
+        const pollConversationSidebar = async () => {
+            await refreshConversationSidebar();
+            sidebarPollTimer = window.setTimeout(pollConversationSidebar, document.hidden ? 5000 : 2000);
+        };
+        if (conversationList && messagingLayout?.dataset.conversationSidebarStateUrl) {
+            refreshConversationSidebar();
+            sidebarPollTimer = window.setTimeout(pollConversationSidebar, 2000);
+            document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshConversationSidebar(); });
+            window.addEventListener('pagehide', () => window.clearTimeout(sidebarPollTimer), { once: true });
+        }
+
         const thread = document.querySelector('.messaging-thread');
         const composeForm = document.querySelector('.messaging-compose-form');
+        const messagingPage = document.querySelector('.messaging-page');
+        const mobileBack = document.querySelector('.messaging-mobile-back');
+        const mobileBreakpoint = window.matchMedia('(max-width: 760px)');
+        const lightbox = document.querySelector('#messaging-lightbox');
+        let lightboxIndex = 0;
+        const lightboxImages = () => [...document.querySelectorAll('[data-media-url]')];
+        const renderLightbox = () => {
+            const images = lightboxImages(); const item = images[lightboxIndex]; if (!item) return;
+            lightbox.querySelector('img').src = item.dataset.mediaUrl; lightbox.querySelector('img').alt = item.dataset.mediaName || '';
+            lightbox.querySelector('.messaging-lightbox-count').textContent = `${lightboxIndex + 1} / ${images.length}`;
+            lightbox.querySelector('.messaging-lightbox-prev').disabled = lightboxIndex === 0;
+            lightbox.querySelector('.messaging-lightbox-next').disabled = lightboxIndex === images.length - 1;
+        };
+        document.addEventListener('click', (event) => { const item = event.target.closest('[data-media-url]'); if (!item) return; lightboxIndex = lightboxImages().indexOf(item); renderLightbox(); lightbox.showModal(); });
+        lightbox?.querySelector('.messaging-lightbox-close')?.addEventListener('click', () => lightbox.close());
+        lightbox?.querySelector('.messaging-lightbox-prev')?.addEventListener('click', () => { lightboxIndex--; renderLightbox(); });
+        lightbox?.querySelector('.messaging-lightbox-next')?.addEventListener('click', () => { lightboxIndex++; renderLightbox(); });
+        document.addEventListener('keydown', (event) => { if (!lightbox?.open) return; if (event.key === 'ArrowLeft' && lightboxIndex) { lightboxIndex--; renderLightbox(); } if (event.key === 'ArrowRight' && lightboxIndex < lightboxImages().length - 1) { lightboxIndex++; renderLightbox(); } });
         const details = document.querySelector('#messaging-details');
         const detailsToggle = document.querySelector('#messaging-details-toggle');
         const detailsClose = document.querySelector('.messaging-details-close');
+        const sharedLinks = document.querySelector('[data-shared-links]');
+        const sharedLinksCount = document.querySelector('[data-shared-links-count]');
+        let linksRefreshInFlight = false;
+        const renderSharedLinks = (links) => {
+            if (!sharedLinks || !sharedLinksCount) return;
+            sharedLinks.replaceChildren();
+            sharedLinksCount.textContent = String(links.length);
+            if (!links.length) {
+                const empty = document.createElement('p');
+                empty.className = 'messaging-details-empty';
+                empty.textContent = 'No links shared yet.';
+                sharedLinks.append(empty);
+                return;
+            }
+            links.forEach((item) => {
+                const link = document.createElement('a');
+                link.className = 'messaging-link-card';
+                link.href = item.url;
+                link.target = '_blank';
+                link.rel = 'noopener noreferrer nofollow';
+                const visual = document.createElement('span');
+                visual.className = `messaging-link-card-visual${item.image ? '' : ' placeholder'}`;
+                if (item.image) {
+                    const image = document.createElement('img');
+                    image.src = item.image;
+                    image.alt = '';
+                    image.addEventListener('error', () => { visual.replaceChildren(); visual.classList.add('placeholder'); const icon = document.createElement('i'); icon.className = `bi ${item.is_drive ? 'bi-folder-fill' : 'bi-link-45deg'}`; icon.setAttribute('aria-hidden', 'true'); visual.append(icon); }, { once: true });
+                    visual.append(image);
+                } else {
+                    const icon = document.createElement('i');
+                    icon.className = `bi ${item.is_drive ? 'bi-folder-fill' : 'bi-link-45deg'}`;
+                    icon.setAttribute('aria-hidden', 'true');
+                    visual.append(icon);
+                }
+                const copy = document.createElement('span');
+                copy.className = 'messaging-link-card-copy';
+                const title = document.createElement('strong');
+                title.title = item.title || item.domain || item.url;
+                title.textContent = item.title || item.domain || item.url;
+                const domain = document.createElement('span');
+                domain.textContent = item.domain || item.url;
+                copy.append(title, domain);
+                link.append(visual, copy);
+                sharedLinks.append(link);
+            });
+        };
+        const refreshSharedLinks = async () => {
+            if (!thread?.dataset.linksUrl || linksRefreshInFlight) return;
+            linksRefreshInFlight = true;
+            try {
+                const response = await fetch(thread.dataset.linksUrl, {
+                    method: 'GET', credentials: 'same-origin', cache: 'no-store',
+                    headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                });
+                if (!response.ok) return;
+                const payload = await response.json();
+                renderSharedLinks(Array.isArray(payload.links) ? payload.links : []);
+            } catch (_) {
+                // Keep the server-rendered links visible if the refresh fails.
+            } finally {
+                linksRefreshInFlight = false;
+            }
+        };
         const setDetailsOpen = (open) => {
             if (!details || !detailsToggle) return;
             details.hidden = !open;
             detailsToggle.setAttribute('aria-expanded', String(open));
+            if (open) refreshSharedLinks();
         };
         detailsToggle?.addEventListener('click', () => setDetailsOpen(details.hidden));
         detailsClose?.addEventListener('click', () => setDetailsOpen(false));
@@ -187,8 +406,67 @@
         document.addEventListener('keydown', (event) => {
             if (event.key === 'Escape') setDetailsOpen(false);
         });
+
+        mobileBack?.addEventListener('click', () => {
+            if (!mobileBreakpoint.matches) return;
+            cancelEditing?.();
+            messagingPage.classList.remove('messaging-page-chat-open');
+            const listUrl = messagingLayout?.dataset.conversationListUrl;
+            if (listUrl && window.location.pathname !== listUrl) {
+                window.history.replaceState({ messagingPanel: 'list' }, '', listUrl);
+            }
+            const activeConversation = document.querySelector('.conversation-row.active');
+            activeConversation?.focus({ preventScroll: true });
+        });
+        const conversationActionsDialog = document.querySelector('#conversation-actions-dialog');
+        const conversationClearDialog = document.querySelector('#conversation-clear-dialog');
+        const clearConversationConfirm = conversationClearDialog?.querySelector('[data-clear-confirm]');
+        let pendingConversationId = null;
+        const csrfToken = () => document.cookie.split('; ').find((item) => item.startsWith('csrftoken='))?.split('=').slice(1).join('') || '';
+        const clearConversationUrl = (conversationId) => {
+            const template = messagingLayout?.dataset.clearConversationUrlTemplate;
+            return template ? template.replace('/0/', `/${conversationId}/`) : '';
+        };
+        document.addEventListener('click', (event) => {
+            const options = event.target.closest('[data-conversation-options]');
+            if (!options) return;
+            event.preventDefault(); event.stopPropagation();
+            pendingConversationId = Number(options.dataset.conversationOptions);
+            conversationActionsDialog?.showModal();
+        });
+        conversationActionsDialog?.querySelector('[data-action-clear-conversation]')?.addEventListener('click', () => {
+            conversationActionsDialog.close();
+            if (pendingConversationId) conversationClearDialog?.showModal();
+        });
+        conversationActionsDialog?.querySelector('[data-action-cancel-conversation]')?.addEventListener('click', () => conversationActionsDialog.close());
+        conversationClearDialog?.querySelector('[data-clear-cancel]')?.addEventListener('click', () => conversationClearDialog.close());
+        clearConversationConfirm?.addEventListener('click', async () => {
+            if (!pendingConversationId || clearConversationConfirm.disabled) return;
+            clearConversationConfirm.disabled = true;
+            try {
+                const response = await fetch(clearConversationUrl(pendingConversationId), {
+                    method: 'POST', credentials: 'same-origin',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': decodeURIComponent(csrfToken()) },
+                });
+                const payload = await response.json();
+                if (!response.ok) throw new Error(payload.error || 'Conversation could not be deleted.');
+                conversationClearDialog.close();
+                const activeId = Number(document.querySelector('.conversation-row.active')?.dataset.conversationId || 0);
+                await refreshConversationSidebar();
+                document.dispatchEvent(new CustomEvent('messages:unread-changed'));
+                if (activeId === pendingConversationId) window.location.assign(messagingLayout.dataset.conversationListUrl);
+                pendingConversationId = null;
+            } catch (error) {
+                window.alert(error.message);
+            } finally {
+                clearConversationConfirm.disabled = false;
+            }
+        });
         const attachmentInput = document.querySelector('#message-attachment');
         const attachmentPreview = document.querySelector('#messaging-attachment-preview');
+        const messageInput = composeForm?.querySelector('textarea[name="body"]');
+        let previewObjectUrl = null;
+        let isSubmitting = false;
         const scrollToLatest = () => {
             if (!thread) return;
             thread.scrollTop = thread.scrollHeight;
@@ -201,10 +479,33 @@
             if (!image.complete) image.addEventListener('load', scrollToLatest, { once: true });
         });
 
+        const resizeMessageInput = () => {
+            if (!messageInput) return;
+            messageInput.style.height = 'auto';
+            messageInput.style.height = `${Math.min(messageInput.scrollHeight, 120)}px`;
+        };
+        const clearAttachmentPreview = () => {
+            if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl);
+            previewObjectUrl = null;
+            attachmentInput.value = '';
+            attachmentPreview.replaceChildren();
+            attachmentPreview.hidden = true;
+        };
+
         if (!attachmentInput || !attachmentPreview) return;
+
+        resizeMessageInput();
+        messageInput?.addEventListener('input', resizeMessageInput);
+        messageInput?.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
+            event.preventDefault();
+            if (!isSubmitting) composeForm.requestSubmit();
+        });
 
         attachmentInput.addEventListener('change', () => {
             const file = attachmentInput.files[0];
+            if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl);
+            previewObjectUrl = null;
             attachmentPreview.replaceChildren();
             attachmentPreview.hidden = !file;
             if (!file) return;
@@ -216,7 +517,8 @@
                 const image = document.createElement('img');
                 image.className = 'messaging-attachment-preview-image';
                 image.alt = file.name;
-                image.src = URL.createObjectURL(file);
+                previewObjectUrl = URL.createObjectURL(file);
+                image.src = previewObjectUrl;
                 preview.appendChild(image);
             } else {
                 const icon = document.createElement('i');
@@ -236,77 +538,420 @@
             remove.setAttribute('aria-label', 'Remove attachment');
             remove.title = 'Remove attachment';
             remove.innerHTML = '<i class="bi bi-x-lg" aria-hidden="true"></i>';
-            remove.addEventListener('click', () => {
-                attachmentInput.value = '';
-                attachmentPreview.replaceChildren();
-                attachmentPreview.hidden = true;
-            });
+            remove.addEventListener('click', clearAttachmentPreview);
             preview.appendChild(remove);
             attachmentPreview.appendChild(preview);
         });
 
+        const appendLinkedText = (container, text) => {
+            const urlPattern = /\b(?:https?:\/\/|www\.|(?:[a-z0-9-]+\.)+(?:com|org|net|edu|gov|io|co|uk|ph|dev|app|info|me|tv|gg|ai|us|ca|de|jp|fr|au|news|site|online|store))[^\s<]*/gi;
+            const trailingPunctuation = /[.,!?;:]+$/;
+            const trimUrlPunctuation = (url) => {
+                let trimmed = url.replace(trailingPunctuation, '');
+                for (const [opening, closing] of [['(', ')'], ['[', ']']]) {
+                    while (trimmed.endsWith(closing)
+                        && [...trimmed].filter((character) => character === closing).length
+                            > [...trimmed].filter((character) => character === opening).length) {
+                        trimmed = trimmed.slice(0, -1);
+                    }
+                }
+                return trimmed;
+            };
+            let cursor = 0;
+            for (const match of text.matchAll(urlPattern)) {
+                const matchedUrl = match[0];
+                const urlText = trimUrlPunctuation(matchedUrl);
+                const index = match.index;
+                if (!urlText) continue;
+                container.append(document.createTextNode(text.slice(cursor, index)));
+                const href = /^https?:\/\//i.test(urlText) ? urlText : `https://${urlText}`;
+                try {
+                    const parsedUrl = new URL(href);
+                    if (!['http:', 'https:'].includes(parsedUrl.protocol)) throw new Error('Unsupported URL protocol');
+                    const link = document.createElement('a');
+                    link.href = parsedUrl.href;
+                    link.target = '_blank';
+                    link.rel = 'noopener noreferrer nofollow';
+                    link.textContent = urlText;
+                    container.append(link);
+                } catch (_) {
+                    container.append(document.createTextNode(urlText));
+                }
+                cursor = index + urlText.length;
+            }
+            container.append(document.createTextNode(text.slice(cursor)));
+        };
+
+        const firstPreviewUrl = (text) => {
+            const urls = [...text.matchAll(/\b(?:https?:\/\/|www\.|(?:[a-z0-9-]+\.)+(?:com|org|net|edu|gov|io|co|uk|ph|dev|app|info|me|tv|gg|ai|us|ca|de|jp|fr|au|news|site|online|store))[^\s<]*/gi)]
+                .map((match) => match[0].replace(/[.,!?;:)\]]+$/, ''))
+                .map((url) => /^https?:\/\//i.test(url) ? url : `https://${url}`);
+            const isAssetUrl = (url) => {
+                try {
+                    const parsed = new URL(url);
+                    return /\.(?:png|jpe?g|gif|webp|svg|ico)$/i.test(parsed.pathname)
+                        || /\/(?:emoji|emoticons?)\//i.test(parsed.pathname)
+                        || /(?:fbcdn|static|cdn|doubleclick)/i.test(parsed.hostname);
+                } catch (_) {
+                    return true;
+                }
+            };
+            return urls.find((url) => !isAssetUrl(url)) || urls[0] || '';
+        };
+        const renderLinkPreview = (messageRow, preview) => {
+            if (!preview || messageRow.querySelector('.messaging-link-preview')) return;
+            const bubble = messageRow.querySelector('.messaging-bubble');
+            if (!bubble) return;
+            bubble.classList.add('messaging-bubble-has-preview');
+            const card = document.createElement('a');
+            card.className = 'messaging-link-preview';
+            card.href = preview.url;
+            card.target = '_blank';
+            card.rel = 'noopener noreferrer nofollow';
+            const media = document.createElement('span');
+            media.className = 'messaging-link-preview-media';
+            const renderPreviewFallback = () => {
+                media.replaceChildren();
+                media.classList.add('placeholder');
+                if (preview.favicon) {
+                    const favicon = document.createElement('img');
+                    favicon.className = 'messaging-link-preview-fallback-icon';
+                    favicon.src = preview.favicon;
+                    favicon.alt = '';
+                    favicon.addEventListener('error', () => favicon.remove(), { once: true });
+                    media.appendChild(favicon);
+                } else {
+                    const icon = document.createElement('i');
+                    icon.className = 'bi bi-link-45deg';
+                    icon.setAttribute('aria-hidden', 'true');
+                    media.appendChild(icon);
+                }
+            };
+            if (preview.image) {
+                const image = document.createElement('img');
+                image.className = 'messaging-link-preview-image';
+                image.src = preview.image;
+                image.alt = '';
+                image.addEventListener('error', renderPreviewFallback, { once: true });
+                media.appendChild(image);
+            } else {
+                renderPreviewFallback();
+            }
+            card.appendChild(media);
+            const copy = document.createElement('span');
+            copy.className = 'messaging-link-preview-copy';
+            const title = document.createElement('strong');
+            title.textContent = preview.title;
+            copy.appendChild(title);
+            const site = document.createElement('span');
+            site.className = 'messaging-link-preview-site';
+            site.textContent = preview.site_name;
+            copy.appendChild(site);
+            if (preview.description) {
+                const description = document.createElement('span');
+                description.className = 'messaging-link-preview-description';
+                description.textContent = preview.description;
+                copy.appendChild(description);
+            }
+            card.appendChild(copy);
+            bubble.appendChild(card);
+        };
+        const loadLinkPreview = async (messageRow, text) => {
+            const url = firstPreviewUrl(text);
+            if (!url || messageRow.dataset.previewRequested) return;
+            messageRow.dataset.previewRequested = 'true';
+            try {
+                const response = await fetch(`${thread.dataset.linkPreviewUrl}?url=${encodeURIComponent(url)}`);
+                if (!response.ok) return;
+                const payload = await response.json();
+                renderLinkPreview(messageRow, payload.preview);
+            } catch (_) {
+                // Leave the normal clickable URL in place when metadata is unavailable.
+            }
+        };
+
+        const currentUserId = Number(composeForm?.dataset.currentUser);
+        const renderedMessageIds = new Set(
+            [...thread.querySelectorAll('[data-message-id]')].map((row) => Number(row.dataset.messageId))
+        );
+        let lastMessageId = Math.max(0, ...renderedMessageIds);
+        const unsendDialog = document.querySelector('#messaging-unsend-dialog');
+        const actionsDialog = document.querySelector('#messaging-actions-dialog');
+        const unsendConfirm = unsendDialog?.querySelector('.messaging-unsend-confirm');
+        const unsendCancel = unsendDialog?.querySelector('button[value="cancel"]');
+        let pendingDeleteMessageId = null;
+        let deleteTrigger = null;
+        let actionMessageId = null;
+        let editingMessageId = null;
+        const editState = document.querySelector('#messaging-edit-state');
+        const cancelEdit = document.querySelector('#messaging-cancel-edit');
+        const senderDeletedText = (payload) => `${payload.sender_name || 'This user'} deleted a message`;
+        const renderDeletedMessage = (payload) => {
+            const messageRow = thread.querySelector(`[data-message-id="${payload.id}"]`);
+            const bubble = messageRow?.querySelector('.messaging-bubble');
+            if (!messageRow || !bubble) return false;
+            const time = bubble.querySelector('time');
+            bubble.replaceChildren();
+            bubble.classList.add('messaging-bubble-deleted');
+            const notice = document.createElement('p');
+            notice.className = 'messaging-deleted-notice';
+            notice.textContent = senderDeletedText(payload);
+            bubble.appendChild(notice);
+            if (time) bubble.appendChild(time);
+            messageRow.querySelector('.messaging-message-action')?.remove();
+            delete messageRow.dataset.previewRequested;
+            return true;
+        };
+        const addDeleteAction = (messageRow, messageId) => {
+            const action = document.createElement('button');
+            action.type = 'button';
+            action.className = 'messaging-message-action';
+            action.dataset.messageOptions = String(messageId);
+            action.setAttribute('aria-label', 'Message options');
+            action.title = 'Message options';
+            action.innerHTML = '<i class="bi bi-three-dots" aria-hidden="true"></i>';
+            messageRow.appendChild(action);
+        };
+        const appendMessage = (payload, forceScroll = false) => {
+            const messageId = Number(payload.id);
+            if (!messageId) return false;
+            if (renderedMessageIds.has(messageId)) {
+                if (payload.is_deleted) renderDeletedMessage(payload);
+                return false;
+            }
+
+            const isOwnMessage = Number(payload.sender_id) === currentUserId;
+            const wasNearBottom = forceScroll || (
+                thread.scrollHeight - thread.scrollTop - thread.clientHeight < 96
+            );
+            const bubble = document.createElement('article');
+            bubble.className = `messaging-bubble${isOwnMessage ? ' own' : ''}`;
+            const messageRow = document.createElement('div');
+            messageRow.className = `messaging-message-row${isOwnMessage ? ' own' : ''}`;
+            messageRow.dataset.messageId = String(messageId);
+            if (!isOwnMessage) {
+                const avatar = document.createElement('img');
+                avatar.className = 'messaging-message-avatar';
+                avatar.src = payload.sender_avatar_url;
+                avatar.alt = '';
+                messageRow.appendChild(avatar);
+            }
+            messageRow.appendChild(bubble);
+            if (payload.is_deleted) {
+                bubble.classList.add('messaging-bubble-deleted');
+                const notice = document.createElement('p');
+                notice.className = 'messaging-deleted-notice';
+                notice.textContent = senderDeletedText(payload);
+                bubble.appendChild(notice);
+            } else if (payload.body) {
+                const body = document.createElement('p');
+                appendLinkedText(body, payload.body);
+                bubble.appendChild(body);
+            }
+            if (!payload.is_deleted && payload.attachment_url) {
+                if (payload.attachment_is_image) {
+                    const imageLink = document.createElement('a');
+                    imageLink.className = 'messaging-image-attachment';
+                    imageLink.href = payload.attachment_url;
+                    imageLink.target = '_blank';
+                    imageLink.rel = 'noopener';
+                    const image = document.createElement('img');
+                    image.src = payload.attachment_url;
+                    image.alt = payload.attachment_name;
+                    if (wasNearBottom) image.addEventListener('load', scrollToLatest, { once: true });
+                    imageLink.appendChild(image);
+                    bubble.appendChild(imageLink);
+                } else {
+                    const fileLink = document.createElement('a');
+                    fileLink.className = 'messaging-attachment';
+                    fileLink.href = payload.attachment_url;
+                    fileLink.target = '_blank';
+                    fileLink.rel = 'noopener';
+                    fileLink.innerHTML = '<i class="bi bi-paperclip" aria-hidden="true"></i> ';
+                    fileLink.append(payload.attachment_name);
+                    bubble.appendChild(fileLink);
+                }
+            }
+            const time = document.createElement('time');
+            time.dateTime = payload.created_at;
+            time.textContent = new Date(payload.created_at).toLocaleString([], {
+                month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+            });
+            bubble.appendChild(time);
+            thread.appendChild(messageRow);
+            renderedMessageIds.add(messageId);
+            lastMessageId = Math.max(lastMessageId, messageId);
+            if (isOwnMessage && !payload.is_deleted) addDeleteAction(messageRow, messageId);
+            if (!payload.is_deleted) loadLinkPreview(messageRow, payload.body || '');
+            if (wasNearBottom) scrollToLatest();
+            return true;
+        };
+
+        thread.addEventListener('click', (event) => {
+            const history = event.target.closest('[data-history-message]');
+            if (history) {
+                const url = thread.dataset.historyUrlTemplate.replace('/0/', `/${history.dataset.historyMessage}/`);
+                fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } }).then((response) => response.json()).then((payload) => {
+                    thread.querySelectorAll('.messaging-inline-history').forEach((item) => item.remove());
+                    const row = history.closest('.messaging-message-row'); const stack = document.createElement('div'); stack.className = 'messaging-inline-history';
+                    const hide = document.createElement('button'); hide.type = 'button'; hide.className = 'messaging-hide-edits'; hide.textContent = 'Hide edits'; hide.addEventListener('click', () => stack.remove()); stack.appendChild(hide);
+                    payload.history.slice(0, -1).forEach((body) => { const bubble = document.createElement('p'); bubble.className = 'messaging-history-bubble'; bubble.textContent = body; stack.appendChild(bubble); });
+                    row.insertBefore(stack, row.querySelector('.messaging-bubble'));
+                });
+                return;
+            }
+            const options = event.target.closest('[data-message-options]');
+            if (options) {
+                actionMessageId = Number(options.dataset.messageOptions);
+                deleteTrigger = options;
+                actionsDialog?.showModal();
+                return;
+            }
+            const action = event.target.closest('[data-delete-message]');
+            if (!action) return;
+            pendingDeleteMessageId = Number(action.dataset.deleteMessage);
+            deleteTrigger = action;
+            if (unsendDialog?.showModal) {
+                unsendDialog.showModal();
+                unsendCancel?.focus();
+            }
+            else if (window.confirm('Unsend this message for everyone?')) unsendConfirm?.click();
+        });
+        let longPressTimer = null;
+        let touchStart = null;
+        thread.addEventListener('pointerdown', (event) => {
+            if (!mobileBreakpoint.matches || event.pointerType !== 'touch' || event.target.closest('a, button')) return;
+            const row = event.target.closest('.messaging-message-row.own[data-message-id]');
+            if (!row) return;
+            touchStart = { x: event.clientX, y: event.clientY, id: row.dataset.messageId };
+            longPressTimer = window.setTimeout(() => { actionMessageId = Number(touchStart.id); actionsDialog?.showModal(); longPressTimer = null; }, 600);
+        });
+        thread.addEventListener('pointermove', (event) => { if (touchStart && Math.hypot(event.clientX - touchStart.x, event.clientY - touchStart.y) > 10) { clearTimeout(longPressTimer); longPressTimer = null; } });
+        ['pointerup', 'pointercancel'].forEach((type) => thread.addEventListener(type, () => { clearTimeout(longPressTimer); longPressTimer = null; touchStart = null; }));
+        const cancelEditing = () => { editingMessageId = null; if (editState) editState.hidden = true; composeForm?.reset(); clearAttachmentPreview(); resizeMessageInput(); };
+        cancelEdit?.addEventListener('click', cancelEditing);
+        document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && editingMessageId) cancelEditing(); });
+        actionsDialog?.querySelector('[data-action-unsend]')?.addEventListener('click', () => {
+            actionsDialog.close();
+            pendingDeleteMessageId = actionMessageId;
+            unsendDialog?.showModal();
+            unsendCancel?.focus();
+        });
+        actionsDialog?.querySelector('[data-action-edit]')?.addEventListener('click', () => {
+            const row = thread.querySelector(`[data-message-id="${actionMessageId}"]`);
+            const text = row?.querySelector('.messaging-bubble > p')?.textContent?.trim();
+            if (!text || !messageInput) return;
+            actionsDialog.close(); editingMessageId = actionMessageId; messageInput.value = text; editState.hidden = false; resizeMessageInput(); messageInput.focus();
+        });
+        actionsDialog?.querySelector('[data-action-cancel]')?.addEventListener('click', () => actionsDialog.close());
+        unsendDialog?.addEventListener('close', () => {
+            pendingDeleteMessageId = null;
+            if (deleteTrigger?.isConnected) deleteTrigger.focus({ preventScroll: true });
+            deleteTrigger = null;
+        });
+        unsendConfirm?.addEventListener('click', async () => {
+            if (!pendingDeleteMessageId || unsendConfirm.disabled) return;
+            unsendConfirm.disabled = true;
+            try {
+                const csrfToken = composeForm?.querySelector('[name=csrfmiddlewaretoken]')?.value;
+                const deleteUrl = thread.dataset.deleteUrlTemplate.replace('/0/', `/${pendingDeleteMessageId}/`);
+                const response = await fetch(deleteUrl, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': csrfToken,
+                    },
+                });
+                const payload = await response.json();
+                if (!response.ok) throw new Error(payload.error || 'Message could not be unsent.');
+                renderDeletedMessage(payload);
+                refreshSharedLinks();
+                unsendDialog?.close();
+                pendingDeleteMessageId = null;
+            } catch (error) {
+                window.alert(error.message);
+            } finally {
+                unsendConfirm.disabled = false;
+            }
+        });
+
+        thread.querySelectorAll('.messaging-message-row[data-message-id]').forEach((row) => {
+            loadLinkPreview(row, row.querySelector('.messaging-bubble p')?.textContent || '');
+        });
+
         if (composeForm && thread) composeForm.addEventListener('submit', async (event) => {
             event.preventDefault();
+            if (isSubmitting) return;
+            const hasMessage = Boolean(messageInput?.value.trim());
+            const hasAttachment = Boolean(attachmentInput.files.length);
+            if (!hasMessage && !hasAttachment) {
+                messageInput?.focus();
+                return;
+            }
+            isSubmitting = true;
             const sendButton = composeForm.querySelector('button[type="submit"]');
             sendButton.disabled = true;
             try {
-                const response = await fetch(composeForm.action || window.location.href, {
+                const response = await fetch(editingMessageId ? thread.dataset.editUrlTemplate.replace('/0/', `/${editingMessageId}/`) : (composeForm.action || window.location.href), {
                     method: 'POST',
-                    body: new FormData(composeForm),
-                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    body: editingMessageId ? new URLSearchParams({ body: messageInput.value }) : new FormData(composeForm),
+                    headers: editingMessageId ? { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': composeForm.querySelector('[name=csrfmiddlewaretoken]').value } : { 'X-Requested-With': 'XMLHttpRequest' },
                 });
                 const payload = await response.json();
                 if (!response.ok) throw new Error(payload.error || 'Message could not be sent.');
-
-                const bubble = document.createElement('article');
-                bubble.className = 'messaging-bubble own';
-                const messageRow = document.createElement('div');
-                messageRow.className = 'messaging-message-row own';
-                messageRow.appendChild(bubble);
-                if (payload.body) {
-                    const body = document.createElement('p');
-                    body.textContent = payload.body;
-                    bubble.appendChild(body);
-                }
-                if (payload.attachment_url) {
-                    if (payload.attachment_is_image) {
-                        const imageLink = document.createElement('a');
-                        imageLink.className = 'messaging-image-attachment';
-                        imageLink.href = payload.attachment_url;
-                        imageLink.target = '_blank';
-                        imageLink.rel = 'noopener';
-                        const image = document.createElement('img');
-                        image.src = payload.attachment_url;
-                        image.alt = payload.attachment_name;
-                        image.addEventListener('load', scrollToLatest, { once: true });
-                        imageLink.appendChild(image);
-                        bubble.appendChild(imageLink);
-                    } else {
-                        const fileLink = document.createElement('a');
-                        fileLink.className = 'messaging-attachment';
-                        fileLink.href = payload.attachment_url;
-                        fileLink.target = '_blank';
-                        fileLink.rel = 'noopener';
-                        fileLink.innerHTML = '<i class="bi bi-paperclip" aria-hidden="true"></i> ';
-                        fileLink.append(payload.attachment_name);
-                        bubble.appendChild(fileLink);
-                    }
-                }
-                const time = document.createElement('time');
-                time.dateTime = payload.created_at;
-                time.textContent = new Date(payload.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
-                bubble.appendChild(time);
-                thread.appendChild(messageRow);
+                if (editingMessageId) { editingMessageId = null; editState.hidden = true; window.location.reload(); } else { appendMessage(payload, true); refreshSharedLinks(); }
                 composeForm.reset();
-                attachmentPreview.replaceChildren();
-                attachmentPreview.hidden = true;
+                clearAttachmentPreview();
+                resizeMessageInput();
+                messageInput?.focus();
                 scrollToLatest();
             } catch (error) {
                 window.alert(error.message);
             } finally {
+                isSubmitting = false;
                 sendButton.disabled = false;
             }
         });
+
+        let pollTimer = null;
+        let pollInFlight = false;
+        const schedulePoll = (delay = 2000) => {
+            window.clearTimeout(pollTimer);
+            pollTimer = window.setTimeout(pollForMessages, delay);
+        };
+        const pollForMessages = async () => {
+            if (pollInFlight || document.hidden) {
+                schedulePoll(document.hidden ? 5000 : 2000);
+                return;
+            }
+            pollInFlight = true;
+            try {
+                const response = await fetch(`${thread.dataset.pollUrl}?after=${encodeURIComponent(lastMessageId)}`, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                });
+                if (!response.ok) return;
+                const payload = await response.json();
+                payload.messages.forEach((message) => appendMessage(message));
+                payload.deleted_messages?.forEach((message) => renderDeletedMessage(message));
+                if (payload.messages.length || payload.deleted_messages?.length) refreshSharedLinks();
+                if (payload.messages.some((message) => message.sender_id !== currentUserId)) {
+                    document.dispatchEvent(new CustomEvent('messages:unread-changed'));
+                }
+            } catch (_) {
+                // Keep the existing conversation intact and retry on the next interval.
+            } finally {
+                pollInFlight = false;
+                schedulePoll();
+            }
+        };
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                window.clearTimeout(pollTimer);
+                pollForMessages();
+            }
+        });
+        window.addEventListener('pagehide', () => window.clearTimeout(pollTimer), { once: true });
+        schedulePoll();
     });
 </script>
 {% endblock %}

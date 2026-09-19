@@ -79,7 +79,10 @@ def remove_marketplace_seed(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('accounts', '0005_seller_profile_and_catalog_cleanup'),
+        # This seed only uses User fields introduced in accounts.0001.  It was
+        # already applied before accounts.0005 on existing databases, so a
+        # later dependency makes Django's migration history inconsistent.
+        ('accounts', '0001_initial'),
         ('dashboard', '0001_initial'),
     ]
 

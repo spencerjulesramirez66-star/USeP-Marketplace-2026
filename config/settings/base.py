@@ -36,7 +36,9 @@ AUTH_USER_MODEL = "accounts.User"
 # Application definition
 
 INSTALLED_APPS = [
-    'apps.dashboard',
+    'daphne',
+    'apps.dashboard.apps.DashboardConfig',
+    'channels',
     'apps.messaging',
     'apps.accounts',
     'django.contrib.admin',
@@ -46,6 +48,9 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 ]
+
+ASGI_APPLICATION = 'config.asgi.application'
+CHANNEL_LAYERS = {'default': {'BACKEND': 'channels.layers.InMemoryChannelLayer'}}
 
 MIDDLEWARE = [
     'config.settings.middleware.NoCacheAuthenticatedPagesMiddleware',
@@ -70,6 +75,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'apps.dashboard.context_processors.unread_messages',
             ],
         },
     },
