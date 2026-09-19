@@ -40,6 +40,7 @@
             <form class="form" id="login-form" method="post">
 
                 {% csrf_token %}
+                {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
 
                 <div class="form-group">
                     <label class="form-label" for="email">

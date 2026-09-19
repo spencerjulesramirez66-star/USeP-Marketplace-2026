@@ -68,14 +68,17 @@
                 {% elif request.user.is_authenticated and item.status == 'ARCHIVED' %}
                 <span class="btn btn-outline detail-action detail-action-disabled">Unavailable</span>
                 {% elif request.user.is_authenticated %}
-                <button class="btn btn-primary detail-action chat-coming-soon" type="button">Message seller</button>
+                <form method="post" action="{% url 'dashboard:start_conversation' item.slug %}">
+                    {% csrf_token %}
+                    <button class="btn btn-primary detail-action" type="submit">Message seller</button>
+                </form>
                 <form method="post" action="{% url 'dashboard:toggle_saved_item' item.slug %}">
                     {% csrf_token %}
                     <input type="hidden" name="next" value="{{ request.path }}">
                     <button class="btn btn-outline detail-action" type="submit">{% if is_saved %}Remove from cart{% else %}Add to cart{% endif %}</button>
                 </form>
                 {% else %}
-                <button class="btn btn-primary detail-action chat-coming-soon" type="button">Message seller</button>
+                <a class="btn btn-primary detail-action" href="{% url 'login' %}?next={{ request.get_full_path|urlencode }}">Message seller</a>
                 {% endif %}
                 {% if can_edit %}
                 <button class="btn btn-outline detail-action" type="button" id="open-detail-edit">Edit listing</button>

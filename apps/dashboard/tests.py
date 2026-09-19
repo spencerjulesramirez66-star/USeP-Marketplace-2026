@@ -4,11 +4,41 @@ from django.urls import reverse
 
 from apps.accounts.models import User
 from .forms import ListingForm
-from .models import Category, Conversation, Listing, SavedItem
+from .models import Category, Conversation, ConversationUserState, Listing, Message, SavedItem
 
 
 @override_settings(ALLOWED_HOSTS=['testserver'])
 class BuyerDashboardViewsTests(TestCase):
+    def test_local_conversation_clear_hides_history_only_for_current_participant(self):
+        buyer = User.objects.create_user(email='clear-buyer@example.com', password='StrongPassword123!', first_name='Clear', last_name='Buyer', contact_num='09123456001', email_verified=True, is_first_login=False)
+        listing = Listing.objects.filter(status=Listing.Status.ACTIVE).first()
+        conversation = Conversation.objects.create(buyer=buyer, seller=listing.seller, listing=listing)
+        first = Message.objects.create(conversation=conversation, sender=buyer, body='A')
+        last = Message.objects.create(conversation=conversation, sender=listing.seller, body='B')
+        self.client.force_login(buyer)
+        response = self.client.post(reverse('dashboard:clear_conversation', args=[conversation.pk]))
+        self.assertEqual(response.status_code, 200)
+        state = ConversationUserState.objects.get(conversation=conversation, user=buyer)
+        self.assertEqual(state.cleared_through_message_id, last.pk)
+        self.assertEqual(Message.objects.filter(conversation=conversation).count(), 2)
+        self.assertNotContains(self.client.get(reverse('dashboard:conversation_list')), listing.title)
+        self.client.force_login(listing.seller)
+        self.assertContains(self.client.get(reverse('dashboard:conversation', args=[conversation.pk])), 'A')
+
+    def test_new_message_reactivates_a_locally_cleared_conversation_without_old_history(self):
+        buyer = User.objects.create_user(email='reactivate-buyer@example.com', password='StrongPassword123!', first_name='Reactivate', last_name='Buyer', contact_num='09123456002', email_verified=True, is_first_login=False)
+        listing = Listing.objects.filter(status=Listing.Status.ACTIVE).first()
+        conversation = Conversation.objects.create(buyer=buyer, seller=listing.seller, listing=listing)
+        Message.objects.create(conversation=conversation, sender=buyer, body='Old history')
+        self.client.force_login(buyer)
+        self.client.post(reverse('dashboard:clear_conversation', args=[conversation.pk]))
+        fresh = Message.objects.create(conversation=conversation, sender=listing.seller, body='New history')
+        page = self.client.get(reverse('dashboard:conversation', args=[conversation.pk]))
+        self.assertContains(page, 'New history')
+        self.assertNotContains(page, 'Old history')
+        self.assertContains(self.client.get(reverse('dashboard:conversation_list')), listing.title)
+        self.assertEqual(fresh.pk, ConversationUserState.objects.get(conversation=conversation, user=buyer).cleared_through_message_id + 1)
+
     def test_buyer_listing_page_loads(self):
         response = self.client.get(reverse('dashboard:buyer'))
         self.assertEqual(response.status_code, 200)
@@ -101,6 +131,175 @@ class BuyerDashboardViewsTests(TestCase):
         )
         self.assertEqual(chat_response.status_code, 302)
         self.assertTrue(Conversation.objects.filter(buyer=buyer, listing=listing).exists())
+
+    def test_message_seller_opens_one_empty_conversation_per_listing(self):
+        buyer = User.objects.create_user(
+            email='conversation-buyer@example.com', password='StrongPassword123!',
+            first_name='Conversation', last_name='Buyer', contact_num='09123456770',
+            email_verified=True, is_first_login=False,
+        )
+        seller = User.objects.create_user(
+            email='conversation-seller@example.com', password='StrongPassword123!',
+            first_name='Conversation', last_name='Seller', contact_num='09123456771',
+            email_verified=True, is_first_login=False,
+        )
+        category = Category.objects.get(slug='textbooks')
+        first_listing = Listing.objects.create(
+            seller=seller, category=category, title='Listing One', slug='listing-one',
+            description='First listing', price=100, condition='Good', status=Listing.Status.ACTIVE,
+        )
+        second_listing = Listing.objects.create(
+            seller=seller, category=category, title='Listing Two', slug='listing-two',
+            description='Second listing', price=200, condition='Good', status=Listing.Status.ACTIVE,
+        )
+        self.client.force_login(buyer)
+
+        start_url = reverse('dashboard:start_conversation', args=[first_listing.slug])
+        first_response = self.client.post(start_url)
+        second_response = self.client.post(start_url)
+        self.client.post(reverse('dashboard:start_conversation', args=[second_listing.slug]))
+
+        self.assertRedirects(first_response, reverse('dashboard:conversation', args=[
+            Conversation.objects.get(buyer=buyer, listing=first_listing).pk,
+        ]))
+        self.assertEqual(second_response.status_code, 302)
+        self.assertEqual(Conversation.objects.filter(buyer=buyer, seller=seller).count(), 2)
+        self.assertEqual(Message.objects.filter(conversation__buyer=buyer).count(), 0)
+
+    def test_conversation_page_shows_listing_context_and_denies_non_participants(self):
+        buyer = User.objects.create_user(
+            email='context-buyer@example.com', password='StrongPassword123!',
+            first_name='Context', last_name='Buyer', contact_num='09123456772',
+            email_verified=True, is_first_login=False,
+        )
+        outsider = User.objects.create_user(
+            email='context-outsider@example.com', password='StrongPassword123!',
+            first_name='Context', last_name='Outsider', contact_num='09123456773',
+            email_verified=True, is_first_login=False,
+        )
+        listing = Listing.objects.filter(status=Listing.Status.ACTIVE).first()
+        conversation = Conversation.objects.create(
+            buyer=buyer, seller=listing.seller, listing=listing,
+        )
+
+        self.client.force_login(buyer)
+        response = self.client.get(reverse('dashboard:conversation', args=[conversation.pk]))
+        self.assertContains(response, 'Regarding this listing')
+        self.assertContains(response, listing.title)
+        self.assertContains(response, 'messaging-page-chat-open')
+        self.assertContains(response, 'aria-label="Back to conversations"')
+
+        self.client.force_login(outsider)
+        response = self.client.get(reverse('dashboard:conversation', args=[conversation.pk]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_deleting_a_listing_with_messages_archives_it_and_keeps_the_conversation(self):
+        seller = User.objects.get(email='test.seller@usep.edu.ph')
+        buyer = User.objects.create_user(
+            email='history-buyer@example.com', password='StrongPassword123!',
+            first_name='History', last_name='Buyer', contact_num='09123456774',
+            email_verified=True, is_first_login=False,
+        )
+        listing = Listing.objects.filter(seller=seller, status=Listing.Status.ACTIVE).first()
+        conversation = Conversation.objects.create(buyer=buyer, seller=seller, listing=listing)
+        Message.objects.create(conversation=conversation, sender=buyer, body='Please keep this history.')
+        self.client.force_login(seller)
+
+        response = self.client.post(reverse('dashboard:delete_listing', args=[listing.pk]))
+
+        self.assertRedirects(response, reverse('dashboard:seller'))
+        listing.refresh_from_db()
+        self.assertEqual(listing.status, Listing.Status.ARCHIVED)
+        self.assertTrue(Conversation.objects.filter(pk=conversation.pk).exists())
+        self.assertTrue(Message.objects.filter(conversation=conversation).exists())
+
+    def test_new_messages_endpoint_returns_only_new_messages_to_participants(self):
+        buyer = User.objects.create_user(
+            email='polling-buyer@example.com', password='StrongPassword123!',
+            first_name='Polling', last_name='Buyer', contact_num='09123456775',
+            email_verified=True, is_first_login=False,
+        )
+        outsider = User.objects.create_user(
+            email='polling-outsider@example.com', password='StrongPassword123!',
+            first_name='Polling', last_name='Outsider', contact_num='09123456776',
+            email_verified=True, is_first_login=False,
+        )
+        listing = Listing.objects.filter(status=Listing.Status.ACTIVE).first()
+        conversation = Conversation.objects.create(
+            buyer=buyer, seller=listing.seller, listing=listing,
+        )
+        old_message = Message.objects.create(conversation=conversation, sender=buyer, body='Already rendered')
+        new_message = Message.objects.create(conversation=conversation, sender=listing.seller, body='New message')
+
+        self.client.force_login(buyer)
+        response = self.client.get(
+            reverse('dashboard:conversation_new_messages', args=[conversation.pk]),
+            {'after': old_message.pk},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['messages'], [{
+            'id': new_message.pk,
+            'body': 'New message',
+            'attachment_url': '',
+            'attachment_name': '',
+            'attachment_is_image': False,
+            'created_at': new_message.created_at.isoformat(),
+            'sender_id': listing.seller_id,
+            'sender_avatar_url': listing.seller.avatar_url,
+        }])
+        self.assertEqual(response.json()['deleted_messages'], [])
+
+        self.client.force_login(outsider)
+        response = self.client.get(reverse('dashboard:conversation_new_messages', args=[conversation.pk]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_sender_can_unsend_message_and_payload_hides_its_contents(self):
+        buyer = User.objects.create_user(
+            email='unsend-buyer@example.com', password='StrongPassword123!',
+            first_name='Unsend', last_name='Buyer', contact_num='09123456777',
+            email_verified=True, is_first_login=False,
+        )
+        listing = Listing.objects.filter(status=Listing.Status.ACTIVE).first()
+        conversation = Conversation.objects.create(buyer=buyer, seller=listing.seller, listing=listing)
+        message = Message.objects.create(
+            conversation=conversation, sender=buyer, body='This must no longer be exposed.',
+        )
+
+        self.client.force_login(buyer)
+        response = self.client.post(reverse('dashboard:delete_message', args=[conversation.pk, message.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['is_deleted'], True)
+        self.assertNotIn('body', response.json())
+        message.refresh_from_db()
+        self.assertTrue(message.is_deleted)
+        self.assertIsNotNone(message.deleted_at)
+
+        page_response = self.client.get(reverse('dashboard:conversation', args=[conversation.pk]))
+        self.assertContains(page_response, 'Unsend Buyer deleted a message')
+        self.assertNotContains(page_response, 'This must no longer be exposed.')
+
+        response = self.client.get(reverse('dashboard:conversation_new_messages', args=[conversation.pk]))
+        self.assertEqual(response.json()['deleted_messages'][0]['id'], message.pk)
+        self.assertNotIn('body', response.json()['deleted_messages'][0])
+
+    def test_participant_cannot_unsend_another_users_message(self):
+        buyer = User.objects.create_user(
+            email='unsend-owner@example.com', password='StrongPassword123!',
+            first_name='Owner', last_name='Buyer', contact_num='09123456778',
+            email_verified=True, is_first_login=False,
+        )
+        listing = Listing.objects.filter(status=Listing.Status.ACTIVE).first()
+        conversation = Conversation.objects.create(buyer=buyer, seller=listing.seller, listing=listing)
+        message = Message.objects.create(conversation=conversation, sender=buyer, body='Only my sender can remove me.')
+
+        self.client.force_login(listing.seller)
+        response = self.client.post(reverse('dashboard:delete_message', args=[conversation.pk, message.pk]))
+
+        self.assertEqual(response.status_code, 403)
+        message.refresh_from_db()
+        self.assertFalse(message.is_deleted)
 
     def test_seller_cannot_add_own_listing_to_cart(self):
         seller = User.objects.get(email='test.seller@usep.edu.ph')

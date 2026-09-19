@@ -11,6 +11,7 @@ from django.views.decorators.http import require_POST
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.http import JsonResponse
+from django.utils.http import url_has_allowed_host_and_scheme
 
 from .models import User, EmailOTP, OTPPurpose
 from .utils import generate_otp, send_otp_email
@@ -47,7 +48,7 @@ ALLOWED_PROFILE_FIELDS = {
 def setup_login_view(request):
 
     if request.user.is_authenticated:
-        return redirect_user(request.user)
+        return redirect_user(request.user, request.GET.get('next'))
 
     if request.method == "POST":
 
@@ -94,9 +95,9 @@ def setup_login_view(request):
             return redirect("verify")
 
         login(request, user)
-        return redirect_user(user)
+        return redirect_user(user, request.POST.get('next'))
 
-    return render(request, "accounts/login.html")
+    return render(request, "accounts/login.html", {'next': request.GET.get('next', '')})
 
 
 def get_verification_context(request):
@@ -336,10 +337,17 @@ def get_user(request, email=None):
     return authenticate(request, username=email, password=password)
 
 
-def redirect_user(user):
+def redirect_user(user, next_url=None):
 
     if user.is_first_login:
         return redirect("change_password")
+
+    if next_url and url_has_allowed_host_and_scheme(
+        url=next_url,
+        allowed_hosts=None,
+        require_https=False,
+    ):
+        return redirect(next_url)
 
     return redirect("dashboard:buyer")
 

@@ -210,6 +210,21 @@
     color: var(--color-primary-dark);
 }
 
+.navbar-message-badge {
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    border: 2px solid var(--color-primary-dark);
+    border-radius: 999px;
+    color: #fff;
+    background: #dc2626;
+    font-size: 0.62rem;
+}
+.navbar-message-badge[hidden] { display: none; }
+
+.message-notification-toast { position: fixed; right: 1rem; bottom: 1rem; z-index: 900; display: flex; flex-direction: column; gap: .2rem; width: min(320px, calc(100vw - 2rem)); padding: .8rem .9rem; border-radius: .65rem; color: var(--color-text); background: #fff; box-shadow: 0 8px 24px rgba(23,23,23,.18); text-decoration: none; }
+.message-notification-toast span { overflow: hidden; color: #64748b; font-size: .82rem; text-overflow: ellipsis; white-space: nowrap; }
+
 .navbar-login-btn {
     display: inline-flex;
     align-items: center;

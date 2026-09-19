@@ -49,7 +49,14 @@
                 </div>
                 <div class="product-side-actions">
                     {% if request.user.id != item.seller_id %}
-                    <button type="button" class="mini-message-btn chat-coming-soon">Message seller</button>
+                        {% if request.user.is_authenticated %}
+                        <form method="post" action="{% url 'dashboard:start_conversation' item.slug %}">
+                            {% csrf_token %}
+                            <button type="submit" class="mini-message-btn">Message seller</button>
+                        </form>
+                        {% else %}
+                        <a class="mini-message-btn" href="{% url 'login' %}?next={{ request.get_full_path|urlencode }}">Message seller</a>
+                        {% endif %}
                     {% endif %}
                 </div>
             </div>

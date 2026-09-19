@@ -1,7 +1,9 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db.models import Q
-from django.http import Http404
+from django.views.decorators.cache import never_cache
+from django.db import transaction
+from django.db.models import Count, F, OuterRef, Q, Subquery
+from django.http import Http404, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -9,7 +11,10 @@ from django.utils import timezone
 from apps.accounts.models import User
 
 from .forms import CONDITION_CHOICES, PRODUCT_CONDITIONS, SERVICE_CONDITIONS, ListingForm, MessageForm
-from .models import Category, Conversation, Listing, ListingImage, Message, SavedItem
+from .models import Category, Conversation, ConversationUserState, Listing, ListingImage, Message, MessageRevision, SavedItem
+from apps.messaging.link_previews import get_link_preview
+from apps.messaging.message_urls import extract_meaningful_message_urls
+from urllib.parse import urlparse
 
 
 RECOMMENDATION_WEIGHTS = {
@@ -17,6 +22,166 @@ RECOMMENDATION_WEIGHTS = {
     'recency': 0.2,
     'affinity': 0.3,
 }
+
+
+def _conversation_state(conversation, user):
+    return ConversationUserState.objects.filter(conversation=conversation, user=user).first()
+
+
+def _clear_cutoff_for(conversation, user):
+    state = _conversation_state(conversation, user)
+    return state.cleared_through_message_id if state else None
+
+
+def _visible_messages_for_user(conversation, user):
+    """Messages visible in a participant's local copy of a shared thread."""
+    messages = conversation.messages.all()
+    cutoff = _clear_cutoff_for(conversation, user)
+    return messages.filter(pk__gt=cutoff) if cutoff else messages
+
+
+def _visible_participant_messages_for(user):
+    """All messages visible to a user across their conversations, without N+1 state lookups."""
+    state = ConversationUserState.objects.filter(conversation_id=OuterRef('conversation_id'), user=user)
+    return Message.objects.filter(Q(conversation__buyer=user) | Q(conversation__seller=user)).annotate(
+        local_cleared_through_id=Subquery(state.values('cleared_through_message_id')[:1]),
+        local_cleared_at=Subquery(state.values('cleared_at')[:1]),
+    ).filter(
+        Q(local_cleared_at__isnull=True) | Q(local_cleared_through_id__isnull=True) | Q(pk__gt=F('local_cleared_through_id')),
+    )
+
+
+def _conversation_resources(conversation, user):
+    media = []
+    files = []
+    links = []
+    for message in _visible_messages_for_user(conversation, user).filter(is_deleted=False):
+        if message.attachment:
+            resource = {
+                'url': message.attachment.url,
+                'name': message.attachment.name.rsplit('/', 1)[-1],
+                'is_image': message.attachment_is_image,
+            }
+            (media if resource['is_image'] else files).append(resource)
+        links.extend(extract_meaningful_message_urls(message.body))
+    return media, files, [_link_card(link) for link in dict.fromkeys(links)]
+
+
+def _link_card(url, preview=None):
+    """Provide a safe Details-card fallback even if metadata cannot be fetched."""
+    parsed = urlparse(url)
+    domain = (parsed.hostname or '').removeprefix('www.')
+    preview = preview or {}
+    return {
+        'url': url,
+        'title': preview.get('title') or domain or url,
+        'domain': domain,
+        'image': preview.get('image') or '',
+        'is_drive': (parsed.hostname or '').lower() in ('drive.google.com', 'www.drive.google.com'),
+    }
+
+
+def _message_payload(message):
+    """The shared JSON shape for sent and polled chat messages."""
+    if message.is_deleted:
+        sender_name = f'{message.sender.first_name} {message.sender.last_name}'.strip() or message.sender.email
+        return {
+            'id': message.pk,
+            'is_deleted': True,
+            'sender_id': message.sender_id,
+            'sender_name': sender_name,
+            'created_at': message.created_at.isoformat(),
+        }
+    return {
+        'id': message.pk,
+        'body': message.body,
+        'attachment_url': message.attachment.url if message.attachment else '',
+        'attachment_name': message.attachment.name.rsplit('/', 1)[-1] if message.attachment else '',
+        'attachment_is_image': message.attachment_is_image,
+        'created_at': message.created_at.isoformat(),
+        'sender_id': message.sender_id,
+        'sender_avatar_url': message.sender.avatar_url,
+        'is_edited': message.is_edited,
+        'edited_at': message.edited_at.isoformat() if message.edited_at else '',
+    }
+
+
+def _unread_message_count(user):
+    return sum(conversation.unread_count for conversation in _visible_active_conversations_for(user).annotate(
+        unread_count=_visible_unread_count_annotation(user),
+    ))
+
+
+def _conversation_groups(conversations, user):
+    groups = {}
+    for conversation in conversations:
+        participant = conversation.seller if conversation.buyer_id == user.id else conversation.buyer
+        group = groups.setdefault(participant.id, {'participant': participant, 'conversations': [], 'unread_count': 0})
+        group['conversations'].append(conversation)
+        group['unread_count'] += conversation.unread_count
+    return sorted(groups.values(), key=lambda group: group['conversations'][0].updated_at, reverse=True)
+
+
+def _visible_unread_count_annotation(user):
+    return Count(
+        'messages',
+        filter=(Q(messages__is_read=False, messages__is_deleted=False) & ~Q(messages__sender=user)
+                & (Q(cleared_at__isnull=True) | Q(cleared_through_id__isnull=True) | Q(messages__pk__gt=F('cleared_through_id')))),
+    )
+
+
+def _visible_active_conversations_for(user):
+    """Active threads for one participant, respecting that participant's clear cutoff."""
+    latest_messages = Message.objects.filter(conversation=OuterRef('pk')).order_by('-pk')
+    state = ConversationUserState.objects.filter(conversation=OuterRef('pk'), user=user)
+    return Conversation.objects.filter(Q(buyer=user) | Q(seller=user)).annotate(
+        latest_message_id=Subquery(latest_messages.values('pk')[:1]),
+        cleared_through_id=Subquery(state.values('cleared_through_message_id')[:1]),
+        cleared_at=Subquery(state.values('cleared_at')[:1]),
+    ).filter(latest_message_id__isnull=False).filter(
+        Q(cleared_at__isnull=True) | Q(cleared_through_id__isnull=True) | Q(latest_message_id__gt=F('cleared_through_id')),
+    )
+
+
+def _conversation_summary_groups(user):
+    latest_messages = Message.objects.filter(conversation=OuterRef('pk')).order_by('-pk')
+    conversations = _visible_active_conversations_for(user).select_related('buyer', 'seller', 'listing').prefetch_related('listing__listing_images').annotate(
+        unread_count=_visible_unread_count_annotation(user),
+        latest_body=Subquery(latest_messages.values('body')[:1]),
+        latest_attachment=Subquery(latest_messages.values('attachment')[:1]),
+        latest_deleted=Subquery(latest_messages.values('is_deleted')[:1]),
+    ).order_by('-updated_at')
+    groups = []
+    for group in _conversation_groups(conversations, user):
+        conversations = []
+        for conversation in group['conversations']:
+            if conversation.latest_deleted:
+                preview = 'Message deleted'
+            elif conversation.latest_body:
+                preview = conversation.latest_body.replace('\n', ' ').strip()[:100]
+            elif conversation.latest_attachment:
+                preview = 'Sent a photo' if str(conversation.latest_attachment).lower().endswith(('.gif', '.jpeg', '.jpg', '.png', '.webp')) else 'Sent an attachment'
+            else:
+                preview = 'No messages yet'
+            conversations.append({
+                'id': conversation.pk,
+                'url': reverse('dashboard:conversation', args=[conversation.pk]),
+                'listing_title': conversation.listing.title,
+                'listing_image': conversation.listing.conversation_image_url,
+                'unread_count': conversation.unread_count,
+                'updated_at': conversation.updated_at.isoformat(),
+                'preview': preview,
+            })
+        groups.append({
+            'participant': {
+                'id': group['participant'].pk,
+                'name': f"{group['participant'].first_name} {group['participant'].last_name}".strip() or group['participant'].email,
+                'avatar': group['participant'].avatar_url,
+            },
+            'unread_count': group['unread_count'],
+            'conversations': conversations,
+        })
+    return groups
 
 
 def _condition_options():
@@ -199,8 +364,15 @@ def _remove_listing_images(listing, image_ids):
 def delete_listing(request, listing_id):
     if request.method == 'POST':
         listing = get_object_or_404(Listing, pk=listing_id, seller=request.user)
-        listing.delete()
-        messages.success(request, 'The listing was deleted.')
+        if listing.conversations.exists():
+            # Conversation.listing intentionally remains a required foreign key.
+            # Archive instead of cascading away a buyer and seller's history.
+            listing.status = Listing.Status.ARCHIVED
+            listing.save(update_fields=['status', 'updated_at'])
+            messages.success(request, 'The listing was archived so its message history remains available.')
+        else:
+            listing.delete()
+            messages.success(request, 'The listing was deleted.')
     return redirect('dashboard:seller')
 
 
@@ -405,8 +577,8 @@ def start_conversation(request, item_slug):
         seller=listing.seller,
         listing=listing,
     )
-    if request.method == 'POST':
-        form = MessageForm(request.POST)
+    if request.method == 'POST' and (request.POST.get('body', '').strip() or request.FILES.get('attachment')):
+        form = MessageForm(request.POST, request.FILES)
         if form.is_valid():
             message = form.save(commit=False)
             message.conversation = conversation
@@ -421,44 +593,210 @@ def start_conversation(request, item_slug):
 
 @login_required
 def conversation_list(request):
-    conversations = Conversation.objects.filter(
-        Q(buyer=request.user) | Q(seller=request.user)
-    ).select_related('buyer', 'seller', 'listing')
+    conversations = _visible_active_conversations_for(request.user).select_related('buyer', 'seller', 'listing').prefetch_related('listing__listing_images').annotate(
+        unread_count=_visible_unread_count_annotation(request.user),
+    )
     return render(
         request,
-        'dashboard/conversations.html',
-        {'conversations': conversations, 'categories': _category_context()},
+        'messaging/messaging.html',
+        {'conversation_groups': _conversation_groups(conversations, request.user), 'categories': _category_context()},
     )
+
+
+@login_required
+@never_cache
+def conversation_sidebar_state(request):
+    groups = _conversation_summary_groups(request.user)
+    return JsonResponse({
+        'groups': groups,
+        # The sidebar groups are already calculated from the current user's
+        # visibility cutoff, so this is the authoritative total for this poll.
+        'total_unread_count': sum(group['unread_count'] for group in groups),
+    })
 
 
 @login_required
 def conversation_detail(request, conversation_id):
     conversation = get_object_or_404(
-        Conversation.objects.select_related('buyer', 'seller', 'listing'),
+        Conversation.objects.select_related('buyer', 'seller', 'listing').prefetch_related('listing__listing_images'),
         Q(buyer=request.user) | Q(seller=request.user),
         pk=conversation_id,
     )
     if request.method == 'POST':
-        form = MessageForm(request.POST)
+        form = MessageForm(request.POST, request.FILES)
         if form.is_valid():
             message = form.save(commit=False)
             message.conversation = conversation
             message.sender = request.user
             message.save()
             conversation.save(update_fields=['updated_at'])
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse(_message_payload(message))
             messages.success(request, 'Message sent.')
             return redirect('dashboard:conversation', conversation_id=conversation.pk)
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({'error': 'Your message could not be sent. Please check the message and attachment.'}, status=400)
         messages.error(request, 'Your message could not be sent. Please try again.')
     else:
         form = MessageForm()
-    conversation.messages.exclude(sender=request.user).filter(is_read=False).update(is_read=True)
+    participant = conversation.seller if conversation.buyer_id == request.user.id else conversation.buyer
+    media, files, links = _conversation_resources(conversation, request.user)
+    visible_messages = _visible_messages_for_user(conversation, request.user).select_related('sender')
+    visible_messages.exclude(sender=request.user).filter(is_read=False).update(is_read=True)
     return render(
         request,
-        'dashboard/conversation-detail.html',
+        'messaging/messaging.html',
         {
             'conversation': conversation,
-            'messages': conversation.messages.select_related('sender'),
+            'selected_conversation': conversation,
+            'conversation_messages': visible_messages,
             'message_form': form,
+            'conversation_groups': _conversation_groups(_visible_active_conversations_for(request.user).select_related('buyer', 'seller', 'listing').prefetch_related('listing__listing_images').annotate(
+                unread_count=_visible_unread_count_annotation(request.user)
+            ), request.user),
             'categories': _category_context(),
+            'chat_participant': participant,
+            'chat_media': media,
+            'chat_files': files,
+            'chat_links': links,
         },
     )
+
+
+@login_required
+def conversation_new_messages(request, conversation_id):
+    """Return new messages plus existing messages that were unsent."""
+    conversation = get_object_or_404(
+        Conversation.objects.filter(Q(buyer=request.user) | Q(seller=request.user)),
+        pk=conversation_id,
+    )
+    try:
+        after_id = max(int(request.GET.get('after', 0)), 0)
+    except (TypeError, ValueError):
+        after_id = 0
+
+    cutoff = _clear_cutoff_for(conversation, request.user) or 0
+    after_id = max(after_id, cutoff)
+    new_messages = list(conversation.messages.filter(pk__gt=after_id).select_related('sender'))
+    conversation.messages.filter(
+        pk__in=[message.pk for message in new_messages], is_read=False,
+    ).exclude(sender=request.user).update(is_read=True)
+    deleted_messages = _visible_messages_for_user(conversation, request.user).filter(is_deleted=True).select_related('sender')
+    edited_messages = _visible_messages_for_user(conversation, request.user).filter(is_edited=True, is_deleted=False).select_related('sender')
+    return JsonResponse({
+        'messages': [_message_payload(message) for message in new_messages],
+        'deleted_messages': [_message_payload(message) for message in deleted_messages],
+        'updated_messages': [_message_payload(message) for message in edited_messages],
+    })
+
+
+@login_required
+def delete_message(request, conversation_id, message_id):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Delete requests must use POST.'}, status=405)
+    conversation = get_object_or_404(
+        Conversation.objects.filter(Q(buyer=request.user) | Q(seller=request.user)),
+        pk=conversation_id,
+    )
+    message = get_object_or_404(
+        Message.objects.select_related('sender'), pk=message_id, conversation=conversation,
+    )
+    if message.sender_id != request.user.id:
+        return HttpResponseForbidden('You can only unsend your own messages.')
+    if not message.is_deleted:
+        message.is_deleted = True
+        message.deleted_at = timezone.now()
+        message.save(update_fields=['is_deleted', 'deleted_at', 'updated_at'])
+        conversation.save(update_fields=['updated_at'])
+    return JsonResponse(_message_payload(message))
+
+
+@login_required
+def clear_conversation(request, conversation_id):
+    """Clear only request.user's local history; shared messages are never deleted."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Delete requests must use POST.'}, status=405)
+    conversation = get_object_or_404(
+        Conversation.objects.filter(Q(buyer=request.user) | Q(seller=request.user)), pk=conversation_id,
+    )
+    with transaction.atomic():
+        latest_message_id = conversation.messages.order_by('-pk').values_list('pk', flat=True).first()
+        state, _ = ConversationUserState.objects.select_for_update().get_or_create(
+            conversation=conversation, user=request.user,
+        )
+        state.cleared_through_message_id = latest_message_id
+        state.cleared_at = timezone.now()
+        state.save(update_fields=['cleared_through_message', 'cleared_at', 'updated_at'])
+    return JsonResponse({'conversation_id': conversation.pk, 'cleared_through_message_id': latest_message_id})
+
+
+@login_required
+def edit_message(request, conversation_id, message_id):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Edit requests must use POST.'}, status=405)
+    conversation = get_object_or_404(Conversation.objects.filter(Q(buyer=request.user) | Q(seller=request.user)), pk=conversation_id)
+    message = get_object_or_404(Message.objects.select_related('sender'), pk=message_id, conversation=conversation)
+    if message.sender_id != request.user.id:
+        return HttpResponseForbidden('You can only edit your own messages.')
+    if message.is_deleted:
+        return JsonResponse({'error': 'Deleted messages cannot be edited.'}, status=400)
+    body = (request.POST.get('body') or '').strip()
+    if not body or len(body) > 2000:
+        return JsonResponse({'error': 'Message text must be between 1 and 2000 characters.'}, status=400)
+    if body != message.body:
+        with transaction.atomic():
+            MessageRevision.objects.create(message=message, body=message.body, editor=request.user)
+            message.body, message.is_edited, message.edited_at = body, True, timezone.now()
+            message.save(update_fields=['body', 'is_edited', 'edited_at', 'updated_at'])
+            conversation.save(update_fields=['updated_at'])
+    return JsonResponse(_message_payload(message))
+
+
+@login_required
+def message_history(request, conversation_id, message_id):
+    conversation = get_object_or_404(Conversation.objects.filter(Q(buyer=request.user) | Q(seller=request.user)), pk=conversation_id)
+    message = get_object_or_404(_visible_messages_for_user(conversation, request.user).prefetch_related('revisions'), pk=message_id, is_deleted=False)
+    return JsonResponse({'history': [revision.body for revision in message.revisions.all()] + [message.body]})
+
+
+@login_required
+def link_preview(request):
+    preview = get_link_preview(request.GET.get('url', ''))
+    return JsonResponse({'preview': preview})
+
+
+@login_required
+@never_cache
+def conversation_links(request, conversation_id):
+    """Return current, non-deleted shared links for one authorised conversation."""
+    conversation = get_object_or_404(
+        Conversation.objects.filter(Q(buyer=request.user) | Q(seller=request.user)),
+        pk=conversation_id,
+    )
+    links = []
+    for message in _visible_messages_for_user(conversation, request.user).filter(is_deleted=False).order_by('created_at', 'pk'):
+        links.extend(extract_meaningful_message_urls(message.body))
+    return JsonResponse({
+        'links': [_link_card(link, get_link_preview(link)) for link in dict.fromkeys(links)],
+    })
+
+
+@login_required
+@never_cache
+def unread_message_count(request):
+    try:
+        after_id = max(int(request.GET.get('after', 0)), 0)
+    except (TypeError, ValueError):
+        after_id = 0
+    incoming = _visible_participant_messages_for(request.user).filter(
+        is_read=False, is_deleted=False, pk__gt=after_id,
+    ).exclude(sender=request.user).select_related('sender', 'conversation__listing').order_by('pk')[:20]
+    return JsonResponse({
+        'unread_count': _unread_message_count(request.user),
+        'latest_message_id': _visible_participant_messages_for(request.user).exclude(sender=request.user).order_by('-pk').values_list('pk', flat=True).first() or 0,
+        'new_messages': [{
+            'id': message.pk, 'conversation_id': message.conversation_id,
+            'sender_name': f'{message.sender.first_name} {message.sender.last_name}'.strip() or message.sender.email,
+            'listing_title': message.conversation.listing.title, 'preview': message.body[:100],
+        } for message in incoming],
+    })

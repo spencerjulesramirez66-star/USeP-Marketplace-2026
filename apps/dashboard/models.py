@@ -99,6 +99,14 @@ class Listing(models.Model):
 		return 'https://placehold.co/640x480?text=USeP+Marketplace'
 
 	@property
+	def conversation_image_url(self):
+		"""The first gallery image for chat context, with the normal fallback."""
+		gallery_image = self.listing_images.all().first()
+		if gallery_image:
+			return gallery_image.image.url
+		return self.image_url
+
+	@property
 	def is_service_listing(self):
 		return self.category and self.category.slug.lower() == 'services'
 
@@ -225,8 +233,45 @@ class Message(models.Model):
 		related_name='sent_marketplace_messages',
 	)
 	body = models.TextField(max_length=2000)
+	attachment = models.FileField(upload_to='messages/', blank=True, null=True)
 	created_at = models.DateTimeField(auto_now_add=True)
+	updated_at = models.DateTimeField(auto_now=True)
+	is_deleted = models.BooleanField(default=False)
+	deleted_at = models.DateTimeField(blank=True, null=True)
+	is_edited = models.BooleanField(default=False)
+	edited_at = models.DateTimeField(blank=True, null=True)
 	is_read = models.BooleanField(default=False)
 
 	class Meta:
 		ordering = ['created_at']
+
+	@property
+	def attachment_is_image(self):
+		return bool(self.attachment and self.attachment.name.lower().endswith(('.gif', '.jpeg', '.jpg', '.png', '.webp')))
+
+
+class ConversationUserState(models.Model):
+	"""A participant's local view boundary for a shared conversation."""
+	conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name='user_states')
+	user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='conversation_states')
+	cleared_through_message = models.ForeignKey(
+		Message, blank=True, null=True, on_delete=models.SET_NULL, related_name='+',
+	)
+	cleared_at = models.DateTimeField(blank=True, null=True)
+	created_at = models.DateTimeField(auto_now_add=True)
+	updated_at = models.DateTimeField(auto_now=True)
+
+	class Meta:
+		constraints = [
+			models.UniqueConstraint(fields=['conversation', 'user'], name='unique_conversation_user_state'),
+		]
+
+
+class MessageRevision(models.Model):
+	message = models.ForeignKey(Message, on_delete=models.CASCADE, related_name='revisions')
+	body = models.TextField(max_length=2000)
+	edited_at = models.DateTimeField(auto_now_add=True)
+	editor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='message_revisions')
+
+	class Meta:
+		ordering = ['edited_at', 'pk']

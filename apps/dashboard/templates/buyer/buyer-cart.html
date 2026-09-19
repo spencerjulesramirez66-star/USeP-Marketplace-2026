@@ -38,7 +38,10 @@
                 </div>
                 <div class="cart-listing-price"><span>Price</span><strong>{{ saved_item.listing.price_label }}</strong></div>
                 <div class="cart-listing-actions">
-                    <button class="cart-message-button chat-coming-soon" type="button"><i class="bi bi-chat-dots"></i><span>Message seller</span></button>
+                    <form method="post" action="{% url 'dashboard:start_conversation' saved_item.listing.slug %}">
+                        {% csrf_token %}
+                        <button class="cart-message-button" type="submit"><i class="bi bi-chat-dots"></i><span>Message seller</span></button>
+                    </form>
                     <form method="post" action="{% url 'dashboard:toggle_saved_item' saved_item.listing.slug %}">
                         {% csrf_token %}<input type="hidden" name="next" value="{% url 'dashboard:buyer_cart' %}">
                         <button class="cart-remove-button" type="submit"><i class="bi bi-trash3"></i><span>Remove</span></button>
@@ -48,7 +51,7 @@
             {% empty %}
             <div class="empty-cart-state">
                 <h3>Your saved list is empty.</h3>
-                <p>Add listings here while you browse. Seller chat will be available soon.</p>
+                <p>Add listings here while you browse, then message a seller when you are ready.</p>
             </div>
             {% endfor %}
             </div>
