@@ -12,8 +12,6 @@ from .forms import CONDITION_CHOICES, PRODUCT_CONDITIONS, SERVICE_CONDITIONS, Li
 from .models import Category, Conversation, Listing, ListingImage, Message, SavedItem
 
 
-# Relative weight of each signal in the "Recommended for you" ranking.
-# Tunable without touching the scoring logic itself.
 RECOMMENDATION_WEIGHTS = {
     'popularity': 0.5,
     'recency': 0.2,
@@ -207,10 +205,6 @@ def delete_listing(request, listing_id):
 
 
 def _buyer_affinity_categories(user):
-    """Category IDs a buyer has shown interest in: saved or messaged about.
-    Returns an empty set for anonymous visitors or buyers with no history,
-    which naturally reduces the ranking below to popularity + recency only.
-    """
     if not user.is_authenticated:
         return set()
     saved_categories = SavedItem.objects.filter(buyer=user).values_list('listing__category_id', flat=True)
@@ -219,23 +213,8 @@ def _buyer_affinity_categories(user):
 
 
 def _rank_listings_for_buyer(listings, user):
-    """Score and order listings for the "Recommended for you" feed.
+    # score = 0.5 * popularity + 0.2 * recency + 0.3 * affinity
 
-    score = 0.5 * popularity + 0.2 * recency + 0.3 * affinity
-
-    - popularity: views normalized against the highest view count in this
-      result set, so no single outlier listing skews everything else.
-    - recency: 1 / (1 + days_since_created), a soft decay rather than a
-      hard cutoff, so a brand-new listing with 0 views still ranks
-      reasonably instead of sinking to the bottom.
-    - affinity: 1 if the listing's category matches one the buyer has
-      saved or messaged about before, else 0.
-
-    Evaluates the queryset once into a list and scores in Python. Simple
-    and portable across DB backends; if the catalog grows large enough
-    for this to matter, move the popularity/recency math into the query
-    itself and keep only affinity lookups in Python.
-    """
     listings = list(listings)
     if not listings:
         return listings
