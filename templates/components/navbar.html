@@ -40,9 +40,9 @@
         </a>
 
         {% if request.user.is_authenticated %}
-        <button type="button" class="navbar-icon-btn chat-coming-soon" aria-label="Messages">
+        <a href="{% url 'dashboard:conversation_list' %}" class="navbar-icon-btn" aria-label="Messages">
             <i class="bi bi-chat-dots"></i>
-        </button>
+        </a>
         {% endif %}
 
         {% if request.user.is_authenticated %}

@@ -1,0 +1,312 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Messages | USeP Marketplace{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/messaging.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="messaging-page">
+    {% include 'components/navbar.html' %}
+
+    <main class="messaging-layout" aria-label="Marketplace messages">
+        <aside class="messaging-sidebar">
+            <div class="messaging-sidebar-heading">
+                <div>
+                    <p class="messaging-eyebrow">USeP Marketplace</p>
+                    <h1>Messages</h1>
+                </div>
+                <a class="messaging-compose" href="{% url 'dashboard:buyer' %}" aria-label="Find a seller to message" title="Find a seller to message">
+                    <i class="bi bi-pencil-square" aria-hidden="true"></i>
+                </a>
+            </div>
+
+            <label class="messaging-search" for="message-search">
+                <i class="bi bi-search" aria-hidden="true"></i>
+                <input id="message-search" type="search" placeholder="Search messages" autocomplete="off">
+            </label>
+
+            <nav class="messaging-tabs" aria-label="Message filters">
+                <a class="messaging-tab active" href="{% url 'dashboard:conversation_list' %}">All messages</a>
+                <a class="messaging-tab" href="{% url 'dashboard:buyer' %}">Browse marketplace</a>
+            </nav>
+
+            <div class="conversation-list" id="conversation-list">
+                {% for conversation_item in conversations %}
+                <a class="conversation-row{% if selected_conversation.id == conversation_item.id %} active{% endif %}" href="{% url 'dashboard:conversation' conversation_item.id %}" data-conversation-search="{{ conversation_item.listing.title }} {% if conversation_item.buyer_id == request.user.id %}{{ conversation_item.seller.first_name }} {{ conversation_item.seller.last_name }}{% else %}{{ conversation_item.buyer.first_name }} {{ conversation_item.buyer.last_name }}{% endif %}">
+                    {% if conversation_item.buyer_id == request.user.id %}
+                    <img class="conversation-avatar" src="{{ conversation_item.seller.avatar_url }}" alt="">
+                    <span class="conversation-row-copy">
+                        <strong>{{ conversation_item.seller.first_name }} {{ conversation_item.seller.last_name }}</strong>
+                    {% else %}
+                    <img class="conversation-avatar" src="{{ conversation_item.buyer.avatar_url }}" alt="">
+                    <span class="conversation-row-copy">
+                        <strong>{{ conversation_item.buyer.first_name }} {{ conversation_item.buyer.last_name }}</strong>
+                    {% endif %}
+                        <span>{{ conversation_item.listing.title }}</span>
+                    </span>
+                    <time datetime="{{ conversation_item.updated_at|date:'c' }}">{{ conversation_item.updated_at|date:"M j" }}</time>
+                </a>
+                {% empty %}
+                <div class="conversation-empty">
+                    <i class="bi bi-chat-square-text" aria-hidden="true"></i>
+                    <strong>No conversations yet</strong>
+                    <span>Message a seller from a marketplace listing to start chatting.</span>
+                    <a href="{% url 'dashboard:buyer' %}">Explore listings</a>
+                </div>
+                {% endfor %}
+            </div>
+        </aside>
+
+        {% if conversation %}
+        <section class="messaging-chat" aria-label="Conversation with {% if conversation.buyer_id == request.user.id %}{{ conversation.seller.first_name }} {{ conversation.seller.last_name }}{% else %}{{ conversation.buyer.first_name }} {{ conversation.buyer.last_name }}{% endif %}">
+            <header class="messaging-chat-header">
+                <a class="messaging-mobile-back" href="{% url 'dashboard:conversation_list' %}" aria-label="Back to messages"><i class="bi bi-arrow-left" aria-hidden="true"></i></a>
+                {% if conversation.buyer_id == request.user.id %}
+                <img class="messaging-chat-avatar" src="{{ conversation.seller.avatar_url }}" alt="">
+                <div>
+                    <h2>{{ conversation.seller.first_name }} {{ conversation.seller.last_name }}</h2>
+                {% else %}
+                <img class="messaging-chat-avatar" src="{{ conversation.buyer.avatar_url }}" alt="">
+                <div>
+                    <h2>{{ conversation.buyer.first_name }} {{ conversation.buyer.last_name }}</h2>
+                {% endif %}
+                    <p>{{ conversation.listing.title }} · {{ conversation.listing.price_label }}</p>
+                </div>
+                <button class="messaging-chat-info" type="button" id="messaging-details-toggle" aria-label="Show conversation details" aria-controls="messaging-details" aria-expanded="false" title="Conversation details"><i class="bi bi-info-circle" aria-hidden="true"></i></button>
+            </header>
+
+            <aside class="messaging-details" id="messaging-details" aria-label="Conversation details" hidden>
+                <div class="messaging-details-header">
+                    <h2>Conversation details</h2>
+                    <button class="messaging-details-close" type="button" aria-label="Close conversation details" title="Close"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                </div>
+                <div class="messaging-profile">
+                    <img src="{{ chat_participant.avatar_url }}" alt="">
+                    <h3>{{ chat_participant.first_name }} {{ chat_participant.last_name }}</h3>
+                    <p>{{ chat_participant.email }}</p>
+                    {% if chat_participant.is_seller %}<span><i class="bi bi-shop" aria-hidden="true"></i> Marketplace seller</span>{% endif %}
+                </div>
+                <div class="messaging-details-section">
+                    <div class="messaging-section-heading"><h3><i class="bi bi-images" aria-hidden="true"></i> Media</h3><span>{{ chat_media|length }}</span></div>
+                    <div class="messaging-media-grid">
+                    {% for attachment in chat_media %}
+                    <a class="messaging-media-item" href="{{ attachment.url }}" target="_blank" rel="noopener"><img src="{{ attachment.url }}" alt="{{ attachment.name }}"><span>{{ attachment.name }}</span></a>
+                    {% empty %}<p class="messaging-details-empty">No images shared yet.</p>{% endfor %}
+                    </div>
+                </div>
+                <div class="messaging-details-section">
+                    <div class="messaging-section-heading"><h3><i class="bi bi-file-earmark-text" aria-hidden="true"></i> Files</h3><span>{{ chat_files|length }}</span></div>
+                    {% for attachment in chat_files %}
+                    <a class="messaging-resource" href="{{ attachment.url }}" target="_blank" rel="noopener"><i class="bi bi-file-earmark-text" aria-hidden="true"></i><span>{{ attachment.name }}</span>
+                    </a>
+                    {% empty %}<p class="messaging-details-empty">No files shared yet.</p>{% endfor %}
+                </div>
+                <div class="messaging-details-section">
+                    <div class="messaging-section-heading"><h3><i class="bi bi-link-45deg" aria-hidden="true"></i> Links</h3><span>{{ chat_links|length }}</span></div>
+                    {% for link in chat_links %}<a class="messaging-resource messaging-resource-link" href="{{ link }}" target="_blank" rel="noopener"><i class="bi bi-link-45deg" aria-hidden="true"></i><span>{{ link }}</span></a>{% empty %}<p class="messaging-details-empty">No links shared yet.</p>{% endfor %}
+                </div>
+            </aside>
+
+            <div class="messaging-thread">
+                <div class="messaging-thread-intro">
+                    <div class="messaging-thread-mark"><i class="bi bi-shop" aria-hidden="true"></i></div>
+                    <strong>{{ conversation.listing.title }}</strong>
+                    <span>Keep meetups in public campus locations.</span>
+                </div>
+                {% for message in conversation_messages %}
+                <div class="messaging-message-row{% if message.sender_id == request.user.id %} own{% endif %}">
+                    {% if message.sender_id != request.user.id %}<img class="messaging-message-avatar" src="{{ message.sender.avatar_url }}" alt="">{% endif %}
+                    <article class="messaging-bubble{% if message.sender_id == request.user.id %} own{% endif %}">
+                    <p>{{ message.body|linebreaksbr }}</p>
+                    {% if message.attachment %}
+                        {% if message.attachment_is_image %}
+                        <a class="messaging-image-attachment" href="{{ message.attachment.url }}" target="_blank" rel="noopener"><img src="{{ message.attachment.url }}" alt="{{ message.attachment.name|cut:'messages/' }}"></a>
+                        {% else %}
+                        <a class="messaging-attachment" href="{{ message.attachment.url }}" target="_blank" rel="noopener"><i class="bi bi-paperclip" aria-hidden="true"></i> {{ message.attachment.name|cut:'messages/' }}</a>
+                        {% endif %}
+                    {% endif %}
+                    <time datetime="{{ message.created_at|date:'c' }}">{{ message.created_at|date:"M j, g:i A" }}</time>
+                    </article>
+                </div>
+                {% endfor %}
+            </div>
+
+            <form method="post" class="messaging-compose-form" enctype="multipart/form-data" data-current-user="{{ request.user.id }}">
+                {% csrf_token %}
+                <label class="messaging-attach-button" for="message-attachment" aria-label="Attach a file" title="Attach a file"><i class="bi bi-paperclip" aria-hidden="true"></i></label>
+                <input class="messaging-attachment-input" id="message-attachment" name="attachment" type="file" accept=".pdf,image/gif,image/jpeg,image/png,image/webp">
+                <div class="messaging-attachment-preview" id="messaging-attachment-preview" hidden></div>
+                {{ message_form.body }}
+                <button type="submit" aria-label="Send message" title="Send message"><i class="bi bi-send-fill" aria-hidden="true"></i></button>
+            </form>
+        </section>
+        {% else %}
+        <section class="messaging-welcome" aria-labelledby="messaging-welcome-title">
+            <div class="messaging-welcome-mark"><i class="bi bi-chat-heart-fill" aria-hidden="true"></i></div>
+            <p class="messaging-eyebrow">Campus conversations</p>
+            <h2 id="messaging-welcome-title">Your marketplace messages</h2>
+            <p>Choose a conversation to connect with a buyer or seller, or browse listings to find your next campus deal.</p>
+            <a class="messaging-primary-action" href="{% url 'dashboard:buyer' %}"><i class="bi bi-shop" aria-hidden="true"></i> Browse marketplace</a>
+        </section>
+        {% endif %}
+    </main>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const search = document.querySelector('#message-search');
+        const rows = document.querySelectorAll('.conversation-row');
+        if (search) search.addEventListener('input', () => {
+            const query = search.value.trim().toLowerCase();
+            rows.forEach((row) => {
+                row.hidden = query && !row.dataset.conversationSearch.toLowerCase().includes(query);
+            });
+        });
+
+        const thread = document.querySelector('.messaging-thread');
+        const composeForm = document.querySelector('.messaging-compose-form');
+        const details = document.querySelector('#messaging-details');
+        const detailsToggle = document.querySelector('#messaging-details-toggle');
+        const detailsClose = document.querySelector('.messaging-details-close');
+        const setDetailsOpen = (open) => {
+            if (!details || !detailsToggle) return;
+            details.hidden = !open;
+            detailsToggle.setAttribute('aria-expanded', String(open));
+        };
+        detailsToggle?.addEventListener('click', () => setDetailsOpen(details.hidden));
+        detailsClose?.addEventListener('click', () => setDetailsOpen(false));
+        document.addEventListener('click', (event) => {
+            if (!details || details.hidden || details.contains(event.target) || detailsToggle?.contains(event.target)) return;
+            setDetailsOpen(false);
+        });
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') setDetailsOpen(false);
+        });
+        const attachmentInput = document.querySelector('#message-attachment');
+        const attachmentPreview = document.querySelector('#messaging-attachment-preview');
+        const scrollToLatest = () => {
+            if (!thread) return;
+            thread.scrollTop = thread.scrollHeight;
+            requestAnimationFrame(() => {
+                thread.scrollTop = thread.scrollHeight;
+            });
+        };
+        scrollToLatest();
+        if (thread) thread.querySelectorAll('img').forEach((image) => {
+            if (!image.complete) image.addEventListener('load', scrollToLatest, { once: true });
+        });
+
+        if (!attachmentInput || !attachmentPreview) return;
+
+        attachmentInput.addEventListener('change', () => {
+            const file = attachmentInput.files[0];
+            attachmentPreview.replaceChildren();
+            attachmentPreview.hidden = !file;
+            if (!file) return;
+
+            const preview = document.createElement('div');
+            preview.className = 'messaging-attachment-preview-card';
+            const isImage = file.type.startsWith('image/');
+            if (isImage) {
+                const image = document.createElement('img');
+                image.className = 'messaging-attachment-preview-image';
+                image.alt = file.name;
+                image.src = URL.createObjectURL(file);
+                preview.appendChild(image);
+            } else {
+                const icon = document.createElement('i');
+                icon.className = 'bi bi-file-earmark-text messaging-attachment-preview-icon';
+                icon.setAttribute('aria-hidden', 'true');
+                preview.appendChild(icon);
+            }
+
+            const name = document.createElement('span');
+            name.className = 'messaging-attachment-preview-name';
+            name.textContent = file.name;
+            preview.appendChild(name);
+
+            const remove = document.createElement('button');
+            remove.type = 'button';
+            remove.className = 'messaging-attachment-preview-remove';
+            remove.setAttribute('aria-label', 'Remove attachment');
+            remove.title = 'Remove attachment';
+            remove.innerHTML = '<i class="bi bi-x-lg" aria-hidden="true"></i>';
+            remove.addEventListener('click', () => {
+                attachmentInput.value = '';
+                attachmentPreview.replaceChildren();
+                attachmentPreview.hidden = true;
+            });
+            preview.appendChild(remove);
+            attachmentPreview.appendChild(preview);
+        });
+
+        if (composeForm && thread) composeForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const sendButton = composeForm.querySelector('button[type="submit"]');
+            sendButton.disabled = true;
+            try {
+                const response = await fetch(composeForm.action || window.location.href, {
+                    method: 'POST',
+                    body: new FormData(composeForm),
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                });
+                const payload = await response.json();
+                if (!response.ok) throw new Error(payload.error || 'Message could not be sent.');
+
+                const bubble = document.createElement('article');
+                bubble.className = 'messaging-bubble own';
+                const messageRow = document.createElement('div');
+                messageRow.className = 'messaging-message-row own';
+                messageRow.appendChild(bubble);
+                if (payload.body) {
+                    const body = document.createElement('p');
+                    body.textContent = payload.body;
+                    bubble.appendChild(body);
+                }
+                if (payload.attachment_url) {
+                    if (payload.attachment_is_image) {
+                        const imageLink = document.createElement('a');
+                        imageLink.className = 'messaging-image-attachment';
+                        imageLink.href = payload.attachment_url;
+                        imageLink.target = '_blank';
+                        imageLink.rel = 'noopener';
+                        const image = document.createElement('img');
+                        image.src = payload.attachment_url;
+                        image.alt = payload.attachment_name;
+                        image.addEventListener('load', scrollToLatest, { once: true });
+                        imageLink.appendChild(image);
+                        bubble.appendChild(imageLink);
+                    } else {
+                        const fileLink = document.createElement('a');
+                        fileLink.className = 'messaging-attachment';
+                        fileLink.href = payload.attachment_url;
+                        fileLink.target = '_blank';
+                        fileLink.rel = 'noopener';
+                        fileLink.innerHTML = '<i class="bi bi-paperclip" aria-hidden="true"></i> ';
+                        fileLink.append(payload.attachment_name);
+                        bubble.appendChild(fileLink);
+                    }
+                }
+                const time = document.createElement('time');
+                time.dateTime = payload.created_at;
+                time.textContent = new Date(payload.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+                bubble.appendChild(time);
+                thread.appendChild(messageRow);
+                composeForm.reset();
+                attachmentPreview.replaceChildren();
+                attachmentPreview.hidden = true;
+                scrollToLatest();
+            } catch (error) {
+                window.alert(error.message);
+            } finally {
+                sendButton.disabled = false;
+            }
+        });
+    });
+</script>
+{% endblock %}

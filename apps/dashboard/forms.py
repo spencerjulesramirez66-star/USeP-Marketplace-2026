@@ -136,10 +136,37 @@ class ListingForm(forms.ModelForm):
 class MessageForm(forms.ModelForm):
     class Meta:
         model = Message
-        fields = ['body']
+        fields = ['body', 'attachment']
         widgets = {
             'body': forms.Textarea(attrs={
                 'rows': 3,
                 'placeholder': 'Ask the seller about this listing...',
             }),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['body'].required = False
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if not cleaned_data.get('body', '').strip() and not cleaned_data.get('attachment'):
+            raise forms.ValidationError('Write a message or attach a file.')
+        return cleaned_data
+
+    def clean_attachment(self):
+        attachment = self.cleaned_data.get('attachment')
+        if not attachment:
+            return attachment
+        if attachment.size > 10 * 1024 * 1024:
+            raise forms.ValidationError('Attachments must be 10 MB or smaller.')
+        allowed_types = {
+            'application/pdf',
+            'image/gif',
+            'image/jpeg',
+            'image/png',
+            'image/webp',
+        }
+        if attachment.content_type not in allowed_types:
+            raise forms.ValidationError('Attach a PDF, JPG, PNG, GIF, or WEBP file.')
+        return attachment
