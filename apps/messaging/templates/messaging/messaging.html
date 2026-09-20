@@ -153,6 +153,9 @@
                     {% endif %}
                 </div>
                 {% endfor %}
+            </div>
+
+            <div class="messaging-typing-area">
                 <div class="messaging-typing" role="status" aria-live="polite" hidden><span></span><span></span><span></span><i>{{ chat_participant.first_name }} is typing…</i></div>
             </div>
 
@@ -601,7 +604,7 @@
         if (!attachmentInput || !attachmentPreview) return;
 
         resizeMessageInput();
-        const typingIndicator = thread?.querySelector('.messaging-typing');
+        const typingIndicator = thread?.parentElement?.querySelector('.messaging-typing');
         const typingConversationId = thread?.dataset.pollUrl?.match(/messages\/(\d+)\/new/)?.[1] || 'unknown';
         const typingElementState = () => {
             if (!typingIndicator) return { exists: false };
