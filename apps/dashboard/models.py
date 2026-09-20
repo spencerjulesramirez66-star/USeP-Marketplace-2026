@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.core.validators import MinValueValidator
 from django.db import models
+from django.templatetags.static import static
 from django.urls import reverse
 from django.utils.text import slugify
 from img_compress import compress_to_webp
@@ -126,7 +127,7 @@ class Listing(models.Model):
 	def seller_avatar_url(self):
 		if self.seller.profile_picture:
 			return self.seller.profile_picture.url
-		return '/static/images/default-avatar.png'
+		return static('images/default-avatar.jpg')
 
 	@property
 	def gallery_urls(self):

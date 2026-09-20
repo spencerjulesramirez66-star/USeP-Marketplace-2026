@@ -5,11 +5,11 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
-<link rel="stylesheet" href="{% static 'css/buyer-dashboard.css' %}?v=20260905-6">
+<link rel="stylesheet" href="{% static 'css/buyer-dashboard.css' %}?v=20260920-mobile-marketplace">
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/buyer-dashboard.js' %}?v=20260905-2"></script>
+<script src="{% static 'js/buyer-dashboard.js' %}?v=20260920-mobile-search"></script>
 {% endblock %}
 
 {% block content %}
@@ -39,11 +39,24 @@
             <div class="buyer-feed" id="products">
                 {% if seller_filter and seller_profile %}
                 <section class="seller-profile panel">
-                    <div class="seller-profile-content">
-                        <div class="seller-avatar"><img src="{{ seller_profile.avatar|default:'/static/images/default-avatar.png' }}" alt="{{ seller_profile.name }} profile picture"></div>
-                        <div class="seller-profile-info">
+                    <div class="seller-profile-content storefront-profile-content">
+                        <div class="seller-avatar storefront-profile-avatar">
+                            {% if seller_profile.avatar %}
+                            <img src="{{ seller_profile.avatar }}" alt="{{ seller_profile.name }} profile picture">
+                            {% else %}
+                            <img src="{% static 'images/default-avatar.jpg' %}" alt="{{ seller_profile.name }} profile picture">
+                            {% endif %}
+                        </div>
+                        <div class="seller-profile-info storefront-profile-identity">
                             <strong class="seller-name">{{ seller_profile.name }}</strong>
                             <small class="seller-role">{{ seller_profile.role }}</small>
+                            <div class="storefront-profile-facts">
+                                {% if seller_profile.program %}<span><i class="bi bi-mortarboard" aria-hidden="true"></i>{{ seller_profile.program }}</span>{% endif %}
+                                {% if seller_profile.campus %}<span><i class="bi bi-geo-alt" aria-hidden="true"></i>{{ seller_profile.campus }}</span>{% endif %}
+                                <span><i class="bi bi-envelope" aria-hidden="true"></i>{{ seller_profile.email }}</span>
+                                {% if seller_profile.contact %}<span><i class="bi bi-telephone" aria-hidden="true"></i>{{ seller_profile.contact }}</span>{% endif %}
+                                <span><i class="bi bi-box-seam" aria-hidden="true"></i>{{ seller_profile.listing_count }} active listing{{ seller_profile.listing_count|pluralize }}</span>
+                            </div>
                         </div>
                         <a href="{% url 'dashboard:buyer' %}" class="btn btn-sm btn-outline other-products-btn">
                             <i class="bi bi-arrow-left"></i> Back to all listings

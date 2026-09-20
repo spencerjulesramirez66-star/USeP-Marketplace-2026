@@ -109,6 +109,32 @@ document.addEventListener('DOMContentLoaded', () => {
             clearTimeout(debounceTimer);
             runSearch();
         });
+
+        const mobileSearchButton = searchForm.querySelector('.navbar-mobile-search-submit');
+        const mobileSearchQuery = window.matchMedia('(max-width: 760px)');
+        const setMobileSearchOpen = (isOpen) => {
+            searchForm.classList.toggle('is-mobile-search-open', isOpen);
+            mobileSearchButton?.setAttribute('aria-label', isOpen ? 'Close search' : 'Search marketplace');
+            mobileSearchButton?.setAttribute('title', isOpen ? 'Close search' : 'Search marketplace');
+            const icon = mobileSearchButton?.querySelector('i');
+            if (icon) icon.className = `bi ${isOpen ? 'bi-x-lg' : 'bi-search'}`;
+            if (isOpen) window.setTimeout(() => searchInput.focus(), 0);
+        };
+
+        mobileSearchButton?.addEventListener('click', () => {
+            if (!mobileSearchQuery.matches) return;
+            setMobileSearchOpen(!searchForm.classList.contains('is-mobile-search-open'));
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && searchForm.classList.contains('is-mobile-search-open')) {
+                setMobileSearchOpen(false);
+            }
+        });
+
+        mobileSearchQuery.addEventListener('change', (event) => {
+            if (!event.matches) setMobileSearchOpen(false);
+        });
     }
 
     const backToTopButton = document.getElementById('back-to-top');

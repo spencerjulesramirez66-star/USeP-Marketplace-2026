@@ -68,9 +68,13 @@
                 {% elif request.user.is_authenticated and item.status == 'ARCHIVED' %}
                 <span class="btn btn-outline detail-action detail-action-disabled">Unavailable</span>
                 {% elif request.user.is_authenticated %}
-                <form method="post" action="{% url 'dashboard:start_conversation' item.slug %}">
+                <form class="detail-quick-message" method="post" action="{% url 'dashboard:start_conversation' item.slug %}">
                     {% csrf_token %}
-                    <button class="btn btn-primary detail-action" type="submit">Message seller</button>
+                    <label for="quick-message-body">Message seller</label>
+                    <div class="detail-quick-message-row">
+                        <input id="quick-message-body" name="body" type="text" value="Hi, is this available?" maxlength="2000" required aria-label="Message seller">
+                        <button type="submit">Send</button>
+                    </div>
                 </form>
                 <form method="post" action="{% url 'dashboard:toggle_saved_item' item.slug %}">
                     {% csrf_token %}
@@ -80,6 +84,10 @@
                 {% else %}
                 <a class="btn btn-primary detail-action" href="{% url 'login' %}?next={{ request.get_full_path|urlencode }}">Message seller</a>
                 {% endif %}
+                <div class="detail-utility-actions">
+                    <button class="detail-copy-link" type="button" data-copy-listing-link="{{ request.scheme }}://{{ request.get_host }}{% url 'dashboard:buyer_detail' item.slug %}" aria-label="Copy listing link" title="Copy link"><i class="bi bi-share" aria-hidden="true"></i><span>Copy link</span></button>
+                    <span class="detail-copy-feedback" aria-live="polite"></span>
+                </div>
                 {% if can_edit %}
                 <button class="btn btn-outline detail-action" type="button" id="open-detail-edit">Edit listing</button>
                 {% endif %}
@@ -88,7 +96,13 @@
 
         <section class="seller-profile panel">
             <div class="seller-profile-content">
-                <div class="seller-profile-avatar"><img src="{{ seller_info.avatar|default:'/static/images/default-avatar.png' }}" alt="{{ seller_info.name }} profile picture"></div>
+                <div class="seller-profile-avatar">
+                    {% if seller_info.avatar %}
+                    <img src="{{ seller_info.avatar }}" alt="{{ seller_info.name }} profile picture">
+                    {% else %}
+                    <img src="{% static 'images/default-avatar.jpg' %}" alt="{{ seller_info.name }} profile picture">
+                    {% endif %}
+                </div>
                 <div class="seller-profile-info">
                     <strong class="seller-name">{{ seller_info.name }}</strong>
                     <small class="seller-role">{{ seller_info.role }}</small>
@@ -176,4 +190,16 @@
 <script src="{% static 'js/buyer-dashboard.js' %}?v=20260905-4"></script>
 {% if can_edit %}<script src="{% static 'js/detail-edit-modal.js' %}?v=20260907-2"></script>{% endif %}
 <script src="{% static 'js/stock-toggle.js' %}?v=20260912-1"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('[data-copy-listing-link]').forEach((button) => button.addEventListener('click', async () => {
+    const text = button.dataset.copyListingLink;
+    try { await navigator.clipboard.writeText(text); }
+    catch (_) { const area = document.createElement('textarea'); area.value = text; area.style.position = 'fixed'; area.style.opacity = '0'; document.body.appendChild(area); area.select(); document.execCommand('copy'); area.remove(); }
+    const feedback = button.parentElement.querySelector('.detail-copy-feedback');
+    feedback.textContent = 'Link copied'; button.classList.add('is-copied');
+    window.setTimeout(() => { feedback.textContent = ''; button.classList.remove('is-copied'); }, 1800);
+  }));
+});
+</script>
 {% endblock %}

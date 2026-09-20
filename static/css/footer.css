@@ -87,3 +87,14 @@
     padding-top: 0.75rem;
     border-top: 1px solid var(--fb-border);
 }
+
+@media (max-width: 760px) {
+    .site-footer { margin-top: 1.5rem; }
+    .footer-inner { grid-template-columns: 1fr; gap: 1.55rem; padding: 2rem 1.25rem 1.75rem; }
+    .footer-brand { margin-bottom: .65rem; }
+    .footer-inner h4 { margin-bottom: .65rem; font-size: .95rem; }
+    .footer-inner ul { gap: .55rem; }
+    .footer-inner a { display: inline-flex; min-height: 32px; align-items: center; font-size: .9rem; }
+    .footer-bottom { padding: 1rem 1.25rem 1.5rem; font-size: .8rem; text-align: left; }
+    .back-to-top { right: 1rem; bottom: 1rem; width: 44px; height: 44px; }
+}

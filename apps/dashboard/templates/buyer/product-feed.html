@@ -35,6 +35,14 @@
                     </form>
                     {% endif %}
                 </div>
+                <div class="product-mobile-summary">
+                    <span class="product-mobile-price">{{ item.price_label }}</span>
+                    <span class="product-mobile-separator" aria-hidden="true">&middot;</span>
+                    <a href="{% url 'dashboard:buyer_detail' item.slug %}{% if query %}?q={{ query|urlencode }}{% endif %}{% if selected_category and selected_category != 'all' %}{% if query %}&{% else %}?{% endif %}category={{ selected_category }}{% endif %}" class="product-mobile-title">{{ item.title }}</a>
+                </div>
+                {% if item.status == 'SOLD' or item.status == 'ARCHIVED' %}
+                <span class="product-mobile-status">{{ item.get_status_display }}</span>
+                {% endif %}
                 <h3 class="product-title"><a href="{% url 'dashboard:buyer_detail' item.slug %}{% if query %}?q={{ query|urlencode }}{% endif %}{% if selected_category and selected_category != 'all' %}{% if query %}&{% else %}?{% endif %}category={{ selected_category }}{% endif %}" class="product-title-link">{{ item.title }}</a></h3>
                 <p class="product-subtitle">{{ item.condition }} • {{ item.location }}</p>
                 <div class="product-footer">
