@@ -250,6 +250,20 @@ class Message(models.Model):
 		return bool(self.attachment and self.attachment.name.lower().endswith(('.gif', '.jpeg', '.jpg', '.png', '.webp')))
 
 
+class MessageAttachment(models.Model):
+	message = models.ForeignKey(Message, on_delete=models.CASCADE, related_name='attachments')
+	file = models.FileField(upload_to='messages/')
+	created_at = models.DateTimeField(auto_now_add=True)
+
+	@property
+	def is_image(self):
+		return self.file.name.lower().endswith(('.gif', '.jpeg', '.jpg', '.png', '.webp'))
+
+	@property
+	def is_video(self):
+		return self.file.name.lower().endswith(('.mp4', '.webm', '.mov'))
+
+
 class ConversationUserState(models.Model):
 	"""A participant's local view boundary for a shared conversation."""
 	conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name='user_states')
@@ -264,6 +278,27 @@ class ConversationUserState(models.Model):
 	class Meta:
 		constraints = [
 			models.UniqueConstraint(fields=['conversation', 'user'], name='unique_conversation_user_state'),
+		]
+
+
+class ConversationTypingState(models.Model):
+	"""Ephemeral per-participant activity for a conversation.
+
+	The timestamp, rather than a persistent boolean, is the source of truth for
+	typing.  A stale record is simply not considered typing.
+	"""
+	conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name='typing_states')
+	user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='conversation_typing_states')
+	last_activity_at = models.DateTimeField(blank=True, null=True)
+	# Ordering is scoped to one browser page session. A freshly loaded page
+	# starts its client sequence at one, so it must not inherit an older page's
+	# durable sequence value.
+	client_session_id = models.CharField(max_length=36, blank=True, null=True)
+	last_sequence = models.PositiveIntegerField(default=0)
+
+	class Meta:
+		constraints = [
+			models.UniqueConstraint(fields=['conversation', 'user'], name='unique_conversation_typing_state'),
 		]
 
 

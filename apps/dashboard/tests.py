@@ -1,14 +1,56 @@
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
+from datetime import timedelta
 
 from apps.accounts.models import User
 from .forms import ListingForm
-from .models import Category, Conversation, ConversationUserState, Listing, Message, SavedItem
+from .models import Category, Conversation, ConversationTypingState, ConversationUserState, Listing, Message, MessageRevision, SavedItem
 
 
 @override_settings(ALLOWED_HOSTS=['testserver'])
 class BuyerDashboardViewsTests(TestCase):
+    def test_typing_state_is_ordered_and_expires(self):
+        buyer = User.objects.create_user(email='typing-buyer@example.com', password='StrongPassword123!', first_name='Typing', last_name='Buyer', contact_num='09123456003', email_verified=True, is_first_login=False)
+        listing = Listing.objects.filter(status=Listing.Status.ACTIVE).first()
+        conversation = Conversation.objects.create(buyer=buyer, seller=listing.seller, listing=listing)
+        url = reverse('dashboard:conversation_typing', args=[conversation.pk])
+        self.client.force_login(buyer)
+        self.assertEqual(self.client.post(url, {'typing': '1', 'sequence': '1'}).status_code, 200)
+        self.client.post(url, {'typing': '0', 'sequence': '2'})
+        self.client.post(url, {'typing': '1', 'sequence': '1'})
+        state = ConversationTypingState.objects.get(conversation=conversation, user=buyer)
+        self.assertIsNone(state.last_activity_at)
+        self.assertEqual(state.last_sequence, 2)
+        self.client.post(url, {'typing': '1', 'sequence': '3'})
+        state.refresh_from_db()
+        self.assertIsNotNone(state.last_activity_at)
+        state.last_activity_at = timezone.now() - timedelta(seconds=4)
+        state.save(update_fields=['last_activity_at'])
+        self.client.force_login(listing.seller)
+        poll_url = reverse('dashboard:conversation_new_messages', args=[conversation.pk])
+        self.assertFalse(self.client.get(poll_url).json()['other_user_typing'])
+
+    def test_typing_endpoint_rejects_outsider(self):
+        buyer = User.objects.create_user(email='typing-owner@example.com', password='StrongPassword123!', first_name='Typing', last_name='Owner', contact_num='09123456004', email_verified=True, is_first_login=False)
+        outsider = User.objects.create_user(email='typing-outsider@example.com', password='StrongPassword123!', first_name='Typing', last_name='Outsider', contact_num='09123456005', email_verified=True, is_first_login=False)
+        listing = Listing.objects.filter(status=Listing.Status.ACTIVE).first()
+        conversation = Conversation.objects.create(buyer=buyer, seller=listing.seller, listing=listing)
+        self.client.force_login(outsider)
+        self.assertEqual(self.client.post(reverse('dashboard:conversation_typing', args=[conversation.pk]), {'typing': '1', 'sequence': '1'}).status_code, 404)
+
+    def test_typing_state_is_only_returned_for_the_other_participant(self):
+        buyer = User.objects.create_user(email='typing-visible-buyer@example.com', password='StrongPassword123!', first_name='Typing', last_name='Visible', contact_num='09123456006', email_verified=True, is_first_login=False)
+        listing = Listing.objects.filter(status=Listing.Status.ACTIVE).first()
+        conversation = Conversation.objects.create(buyer=buyer, seller=listing.seller, listing=listing)
+        typing_url = reverse('dashboard:conversation_typing', args=[conversation.pk])
+        poll_url = reverse('dashboard:conversation_new_messages', args=[conversation.pk])
+        self.client.force_login(buyer)
+        self.client.post(typing_url, {'typing': '1', 'sequence': '1'})
+        self.assertFalse(self.client.get(poll_url).json()['other_user_typing'])
+        self.client.force_login(listing.seller)
+        self.assertTrue(self.client.get(poll_url).json()['other_user_typing'])
     def test_local_conversation_clear_hides_history_only_for_current_participant(self):
         buyer = User.objects.create_user(email='clear-buyer@example.com', password='StrongPassword123!', first_name='Clear', last_name='Buyer', contact_num='09123456001', email_verified=True, is_first_login=False)
         listing = Listing.objects.filter(status=Listing.Status.ACTIVE).first()
@@ -253,6 +295,43 @@ class BuyerDashboardViewsTests(TestCase):
         self.client.force_login(outsider)
         response = self.client.get(reverse('dashboard:conversation_new_messages', args=[conversation.pk]))
         self.assertEqual(response.status_code, 404)
+
+    def test_new_messages_endpoint_returns_each_edit_once_after_revision_cursor(self):
+        buyer = User.objects.create_user(
+            email='revision-buyer@example.com', password='StrongPassword123!',
+            first_name='Revision', last_name='Buyer', contact_num='09123456774',
+            email_verified=True, is_first_login=False,
+        )
+        listing = Listing.objects.filter(status=Listing.Status.ACTIVE).first()
+        conversation = Conversation.objects.create(buyer=buyer, seller=listing.seller, listing=listing)
+        message = Message.objects.create(conversation=conversation, sender=listing.seller, body='Original')
+        first_revision = MessageRevision.objects.create(message=message, body=message.body, editor=listing.seller)
+        message.body = 'First edit'
+        message.is_edited = True
+        message.edited_at = timezone.now()
+        message.save(update_fields=['body', 'is_edited', 'edited_at', 'updated_at'])
+
+        self.client.force_login(buyer)
+        url = reverse('dashboard:conversation_new_messages', args=[conversation.pk])
+        response = self.client.get(url, {'after': message.pk, 'revision_after': 0})
+        payload = response.json()
+        self.assertEqual(payload['messages'], [])
+        self.assertEqual([item['id'] for item in payload['updated_messages']], [message.pk])
+        self.assertEqual(payload['updated_messages'][0]['body'], 'First edit')
+        self.assertEqual(payload['revision_cursor'], first_revision.pk)
+
+        response = self.client.get(url, {'after': message.pk, 'revision_after': first_revision.pk})
+        self.assertEqual(response.json()['updated_messages'], [])
+
+        second_revision = MessageRevision.objects.create(message=message, body=message.body, editor=listing.seller)
+        message.body = 'Second edit'
+        message.edited_at = timezone.now()
+        message.save(update_fields=['body', 'edited_at', 'updated_at'])
+        response = self.client.get(url, {'after': message.pk, 'revision_after': first_revision.pk})
+        payload = response.json()
+        self.assertEqual([item['id'] for item in payload['updated_messages']], [message.pk])
+        self.assertEqual(payload['updated_messages'][0]['body'], 'Second edit')
+        self.assertEqual(payload['revision_cursor'], second_revision.pk)
 
     def test_sender_can_unsend_message_and_payload_hides_its_contents(self):
         buyer = User.objects.create_user(

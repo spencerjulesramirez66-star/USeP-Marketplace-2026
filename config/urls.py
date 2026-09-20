@@ -19,6 +19,7 @@ from django.urls import path, include
 
 from django.conf import settings
 from django.conf.urls.static import static
+from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 from django.views.generic import RedirectView
 
 urlpatterns = [
@@ -31,3 +32,6 @@ urlpatterns = [
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    # Daphne's development server does not install the staticfiles runserver
+    # handler, so register the finder-backed static routes explicitly.
+    urlpatterns += staticfiles_urlpatterns()
