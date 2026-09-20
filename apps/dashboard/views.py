@@ -704,7 +704,86 @@ def conversation_sidebar_state(request):
     })
 
 
+def _search_snippet(body, query, radius=48):
+    normalized = ' '.join((body or '').split())
+    match_start = normalized.lower().find(query.lower())
+    if match_start < 0:
+        return normalized[: radius * 2]
+    start = max(0, match_start - radius)
+    end = min(len(normalized), match_start + len(query) + radius)
+    return f"{'…' if start else ''}{normalized[start:end]}{'…' if end < len(normalized) else ''}"
+
+
 @login_required
+@never_cache
+def conversation_message_search(request, conversation_id):
+    query = (request.GET.get('q') or '').strip()
+    if len(query) > 100:
+        return JsonResponse({'error': 'Search query is too long.'}, status=400)
+    conversation = get_object_or_404(
+        Conversation.objects.filter(Q(buyer=request.user) | Q(seller=request.user)),
+        pk=conversation_id,
+    )
+    if len(query) < 2:
+        return JsonResponse({'query': query, 'count': 0, 'results': []})
+    matches = _visible_messages_for_user(conversation, request.user).filter(
+        is_deleted=False,
+        body__icontains=query,
+    ).exclude(body='').select_related('sender').order_by('-created_at', '-pk')
+    count = matches.count()
+    results = []
+    for message in matches[:25]:
+        sender_name = f'{message.sender.first_name} {message.sender.last_name}'.strip() or message.sender.email
+        results.append({
+            'id': message.pk,
+            'sender_name': sender_name,
+            'sender_avatar_url': message.sender.avatar_url,
+            'snippet': _search_snippet(message.body, query),
+            'created_at': message.created_at.isoformat(),
+        })
+    return JsonResponse({
+        'query': query,
+        'count': count,
+        'results': results,
+        'match_ids': list(matches.values_list('pk', flat=True)),
+        'has_more': count > len(results),
+    })
+
+
+@login_required
+@never_cache
+def conversation_search(request):
+    query = (request.GET.get('q') or '').strip()
+    if len(query) > 100:
+        return JsonResponse({'error': 'Search query is too long.'}, status=400)
+    if len(query) < 2:
+        return JsonResponse({'query': query, 'results': []})
+    participant_match = (
+        (Q(buyer=request.user) & (Q(seller__first_name__icontains=query) | Q(seller__last_name__icontains=query)))
+        | (Q(seller=request.user) & (Q(buyer__first_name__icontains=query) | Q(buyer__last_name__icontains=query)))
+    )
+    conversations = _visible_active_conversations_for(request.user).filter(
+        Q(listing__title__icontains=query) | participant_match,
+    ).select_related('buyer', 'seller', 'listing').annotate(
+        unread_count=_visible_unread_count_annotation(request.user),
+    ).order_by('-updated_at')[:30]
+    results = []
+    for conversation in conversations:
+        participant = conversation.seller if conversation.buyer_id == request.user.id else conversation.buyer
+        results.append({
+            'id': conversation.pk,
+            'url': reverse('dashboard:conversation', args=[conversation.pk]),
+            'participant_name': f'{participant.first_name} {participant.last_name}'.strip() or participant.email,
+            'participant_avatar_url': participant.avatar_url,
+            'listing_title': conversation.listing.title,
+            'listing_image_url': conversation.listing.conversation_image_url,
+            'unread_count': conversation.unread_count,
+        })
+    return JsonResponse({'query': query, 'results': results, 'has_more': len(results) == 30})
+
+
+@login_required
+@never_cache
 def conversation_detail(request, conversation_id):
     conversation = get_object_or_404(
         Conversation.objects.select_related('buyer', 'seller', 'listing').prefetch_related('listing__listing_images'),
