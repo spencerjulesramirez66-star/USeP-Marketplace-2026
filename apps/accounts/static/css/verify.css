@@ -38,7 +38,7 @@ body {
     display: flex;
     flex-direction: column;
 
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 10px 30px color-mix(in srgb, var(--color-text) 15%, transparent);
 }
 
 

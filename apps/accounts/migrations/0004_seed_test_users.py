@@ -56,15 +56,15 @@ def create_test_users(apps, schema_editor):
     # -------------------------
 
     staff, created = User.objects.get_or_create(
-        email="spencerjulesramirez66@gmail.com",
+        email="biratacador03202400139@usep.edu.ph",
         defaults={
             "password": make_password("TestPassword123!"),
             "email_verified": False,
             "is_first_login": True,
-            "first_name": "Spencer",
+            "first_name": "Mali imu name",
             "middle_name": "",
-            "last_name": "Ramirez",
-            "contact_num": "09123456782",
+            "last_name": "Change it nigga",
+            "contact_num": "911",
             "role": "USER",
             "is_active": True,
             "is_staff": False,

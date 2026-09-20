@@ -1,6 +1,6 @@
 .profile-shell {
     min-height: 100dvh;
-    background: linear-gradient(135deg, #fffaf4 0%, var(--color-background) 52%, #eef5ff 100%);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 4%, var(--color-surface)) 0%, var(--color-background) 52%, color-mix(in srgb, var(--color-accent) 8%, var(--color-surface)) 100%);
 }
 
 .profile-main {
@@ -17,7 +17,7 @@
     background: linear-gradient(135deg, var(--color-primary-dark) 0%, var(--color-primary) 100%);
     border-radius: 0.75rem;
     color: var(--color-surface);
-    box-shadow: 0 10px 24px rgba(127, 29, 29, 0.16);
+    box-shadow: 0 10px 24px color-mix(in srgb, var(--color-primary-dark) 16%, transparent);
 }
 
 .profile-hero-avatar {
@@ -29,16 +29,16 @@
     max-width: none;
     object-position: center;
     clip-path: circle(50%);
-    border: 3px solid rgba(255, 255, 255, 0.6);
+    border: 3px solid color-mix(in srgb, var(--color-surface) 60%, transparent);
 }
 
 .profile-hero-role {
     display: inline-block;
     margin-bottom: 0.35rem;
     padding: 0.2rem 0.6rem;
-    background: rgba(255, 255, 255, 0.18);
+    background: color-mix(in srgb, var(--color-surface) 18%, transparent);
     border-radius: 999px;
-    font-family: var(--secondary-font);
+    font-family: var(--secondary-font), sans-serif;
     font-size: 0.7rem;
     font-weight: 700;
     letter-spacing: 0.06em;
@@ -52,7 +52,7 @@
 
 .profile-hero-info p {
     margin-top: 0.2rem;
-    color: #fee2e2;
+    color: color-mix(in srgb, var(--color-danger) 15%, var(--color-surface));
 }
 
 .profile-grid {
@@ -78,12 +78,12 @@
     padding: 0.85rem;
     border: 1px solid var(--color-border);
     border-radius: 0.65rem;
-    background: rgba(248, 250, 252, 0.72);
+    background: color-mix(in srgb, var(--color-background) 72%, transparent);
 }
 
 .profile-field dt {
     color: var(--color-text-muted);
-    font-family: var(--secondary-font);
+    font-family: var(--secondary-font), sans-serif;
     font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -117,7 +117,7 @@
     max-width: none;
     object-position: center;
     clip-path: circle(50%);
-    border: 3px solid rgba(255, 255, 255, 0.6);
+    border: 3px solid color-mix(in srgb, var(--color-surface) 60%, transparent);
 }
 
 .profile-hero-avatar-edit {
@@ -208,7 +208,7 @@
     font-size: 0.8rem;
     line-height: 1;
 
-    font-family: var(--font-secondary);
+    font-family: var(--secondary-font), sans-serif;
     color: var(--color-primary);
 }
 
@@ -240,7 +240,7 @@
 .field-error {
     display: block;
     margin-top: 0.3rem;
-    color: #b91c1c;
+    color: var(--color-primary);
     font-size: 0.75rem;
 }
 
@@ -256,7 +256,7 @@
 .profile-hero-program {
     display: inline-block;
     margin-top: 0.6rem;
-    color: #fee2e2;
+    color: color-mix(in srgb, var(--color-danger) 15%, var(--color-surface));
     font-size: 0.88rem;
 }
 

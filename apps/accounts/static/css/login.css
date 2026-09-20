@@ -101,7 +101,7 @@ footer p{
     font-size: 1rem;
     line-height: 1;
 
-    font-family: var(--font-secondary);
+    font-family: var(--secondary-font), sans-serif;
     color: var(--color-primary);
 }
 
@@ -183,7 +183,7 @@ footer p{
         background: linear-gradient(
             to bottom,
             transparent,
-            rgba(0, 0, 0, 0.65)
+            color-mix(in srgb, var(--color-text) 65%, transparent)
         );
 
         pointer-events: none;
@@ -202,15 +202,15 @@ footer p{
 
         transform: translateX(-50%);
 
-        color: white;
-        font-family: var(--font-primary);
+        color: var(--color-surface);
+        font-family: var(--primary-font), sans-serif;
         font-size: 0.7rem;
         font-weight: 500;
 
         line-height: 1.5;
         text-align: center;
 
-        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+        text-shadow: 0 2px 8px color-mix(in srgb, var(--color-text) 50%, transparent);
 
         animation: scroll-hint 2s ease-in-out infinite;
     }

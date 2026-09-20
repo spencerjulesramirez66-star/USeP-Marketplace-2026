@@ -1,8 +1,12 @@
 from django.db import migrations, models
 import django.db.models.deletion
 
+
 class Migration(migrations.Migration):
-    dependencies = [('dashboard', '0012_message_soft_delete')]
+    dependencies = [
+        ('dashboard', '0006_message_soft_delete'),
+        ('accounts', '0001_initial'),
+    ]
     operations = [
         migrations.AddField(model_name='message', name='edited_at', field=models.DateTimeField(blank=True, null=True)),
         migrations.AddField(model_name='message', name='is_edited', field=models.BooleanField(default=False)),

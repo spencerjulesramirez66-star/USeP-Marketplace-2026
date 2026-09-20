@@ -22,3 +22,12 @@ logs/
 # OS
 .DS_Store
 Thumbs.db
+
+# Cache
+.mypy_cache/
+
+# Notes
+notes.txt
+
+# Server Stuff
+staticfiles/

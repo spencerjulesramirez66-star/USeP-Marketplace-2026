@@ -2,7 +2,7 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-    dependencies = [('dashboard', '0016_conversation_typing_state')]
+    dependencies = [('dashboard', '0010_conversation_typing_state')]
 
     operations = [
         migrations.AddField(

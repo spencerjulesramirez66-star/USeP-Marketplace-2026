@@ -18,13 +18,11 @@ from .models import Category, Conversation, ConversationReadState, ConversationT
 from apps.messaging.link_previews import get_link_preview
 from apps.messaging.message_urls import extract_meaningful_message_urls
 from urllib.parse import urlparse
-
+from file_compress import max_attachment_size, prepare_attachment, validate_attachment_sizes
 
 logger = logging.getLogger(__name__)
 
 
-# Relative weight of each signal in the "Recommended for you" ranking.
-# Tunable without touching the scoring logic itself.
 RECOMMENDATION_WEIGHTS = {
     'popularity': 0.5,
     'recency': 0.2,
@@ -136,11 +134,20 @@ def _message_payload(message):
         if original.is_deleted:
             reply = {'message_id': original.pk, 'unavailable': True}
         else:
+            first_attachment = next(iter(original.attachments.all()), None)
+            if first_attachment and first_attachment.is_image:
+                reply_image_url = first_attachment.file.url
+            elif original.attachment and original.attachment_is_image:
+                reply_image_url = original.attachment.url
+            else:
+                reply_image_url = ''
             reply = {
                 'message_id': original.pk, 'unavailable': False,
                 'sender_name': f'{original.sender.first_name} {original.sender.last_name}'.strip() or original.sender.email,
                 'body': original.body[:180],
                 'attachment_count': original.attachments.count() or (1 if original.attachment else 0),
+                'attachment_is_image': bool(reply_image_url),
+                'attachment_url': reply_image_url,
             }
     return {
         'id': message.pk,
@@ -195,12 +202,11 @@ def _save_message_with_attachments(form, conversation, sender, files, replied_to
     message.conversation = conversation
     message.sender = sender
     message.replied_to = replied_to
-    # New multi-file uploads live in MessageAttachment; retain Message.attachment
-    # solely for existing records and backwards compatibility.
     message.attachment = None
     message.save()
     MessageAttachment.objects.bulk_create([
-        MessageAttachment(message=message, file=attachment) for attachment in files.getlist('attachments')
+        MessageAttachment(message=message, file=prepare_attachment(attachment))
+        for attachment in files.getlist('attachments')
     ])
     return message
 
@@ -476,10 +482,6 @@ def delete_listing(request, listing_id):
 
 
 def _buyer_affinity_categories(user):
-    """Category IDs a buyer has shown interest in: saved or messaged about.
-    Returns an empty set for anonymous visitors or buyers with no history,
-    which naturally reduces the ranking below to popularity + recency only.
-    """
     if not user.is_authenticated:
         return set()
     saved_categories = SavedItem.objects.filter(buyer=user).values_list('listing__category_id', flat=True)
@@ -488,23 +490,8 @@ def _buyer_affinity_categories(user):
 
 
 def _rank_listings_for_buyer(listings, user):
-    """Score and order listings for the "Recommended for you" feed.
+    # score = 0.5 * popularity + 0.2 * recency + 0.3 * affinity
 
-    score = 0.5 * popularity + 0.2 * recency + 0.3 * affinity
-
-    - popularity: views normalized against the highest view count in this
-      result set, so no single outlier listing skews everything else.
-    - recency: 1 / (1 + days_since_created), a soft decay rather than a
-      hard cutoff, so a brand-new listing with 0 views still ranks
-      reasonably instead of sinking to the bottom.
-    - affinity: 1 if the listing's category matches one the buyer has
-      saved or messaged about before, else 0.
-
-    Evaluates the queryset once into a list and scores in Python. Simple
-    and portable across DB backends; if the catalog grows large enough
-    for this to matter, move the popularity/recency math into the query
-    itself and keep only affinity lookups in Python.
-    """
     listings = list(listings)
     if not listings:
         return listings
@@ -712,9 +699,13 @@ def start_conversation(request, item_slug):
     if request.method == 'POST' and (request.POST.get('body', '').strip() or request.FILES.getlist('attachments')):
         form = MessageForm(request.POST, request.FILES)
         if form.is_valid():
-            message = _save_message_with_attachments(form, conversation, request.user, request.FILES)
-            conversation.save(update_fields=['updated_at'])
-            messages.success(request, 'Message sent to the seller.')
+            size_error = validate_attachment_sizes(request.FILES.getlist('attachments'), max_attachment_size(form))
+            if size_error:
+                messages.error(request, size_error)
+            else:
+                _save_message_with_attachments(form, conversation, request.user, request.FILES)
+                conversation.save(update_fields=['updated_at'])
+                messages.success(request, 'Message sent to the seller.')
         else:
             messages.error(request, 'Your message could not be sent. Please try again.')
     return redirect('dashboard:conversation', conversation_id=conversation.pk)
@@ -738,8 +729,6 @@ def conversation_sidebar_state(request):
     groups = _conversation_summary_groups(request.user)
     return JsonResponse({
         'groups': groups,
-        # The sidebar groups are already calculated from the current user's
-        # visibility cutoff, so this is the authoritative total for this poll.
         'total_unread_count': sum(group['unread_count'] for group in groups),
     })
 
@@ -833,6 +822,13 @@ def conversation_detail(request, conversation_id):
     if request.method == 'POST':
         form = MessageForm(request.POST, request.FILES)
         if form.is_valid():
+            size_error = validate_attachment_sizes(request.FILES.getlist('attachments'), max_attachment_size(form))
+            if size_error:
+                if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                    return JsonResponse({'error': size_error}, status=400)
+                messages.error(request, size_error)
+                return redirect('dashboard:conversation', conversation_id=conversation.pk)
+
             reply_id = request.POST.get('reply_to_message_id')
             replied_to = None
             if reply_id:
