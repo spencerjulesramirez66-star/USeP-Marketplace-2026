@@ -4,7 +4,7 @@
 {% block title %}Messages | USeP Marketplace{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/messaging.css' %}?v=20260920-message-search-single-pill">
+<link rel="stylesheet" href="{% static 'css/messaging.css' %}?v=20260920-mobile-brand-visible">
 {% endblock %}
 
 {% block content %}
@@ -119,7 +119,7 @@
                 </div>
             </aside>
 
-            <div class="messaging-thread" data-poll-url="{% url 'dashboard:conversation_new_messages' conversation.id %}" data-typing-url="{% url 'dashboard:conversation_typing' conversation.id %}" data-links-url="{% url 'dashboard:conversation_links' conversation.id %}" data-link-preview-url="{% url 'dashboard:link_preview' %}" data-delete-url-template="{% url 'dashboard:delete_message' conversation.id 0 %}" data-edit-url-template="{% url 'dashboard:edit_message' conversation.id 0 %}" data-history-url-template="{% url 'dashboard:message_history' conversation.id 0 %}" data-clear-url="{% url 'dashboard:clear_conversation' conversation.id %}" data-revision-cursor="{{ message_revision_cursor }}">
+            <div class="messaging-thread" data-poll-url="{% url 'dashboard:conversation_new_messages' conversation.id %}" data-read-url="{% url 'dashboard:conversation_read' conversation.id %}" data-other-avatar="{{ chat_participant.avatar_url }}" data-typing-url="{% url 'dashboard:conversation_typing' conversation.id %}" data-links-url="{% url 'dashboard:conversation_links' conversation.id %}" data-link-preview-url="{% url 'dashboard:link_preview' %}" data-delete-url-template="{% url 'dashboard:delete_message' conversation.id 0 %}" data-edit-url-template="{% url 'dashboard:edit_message' conversation.id 0 %}" data-history-url-template="{% url 'dashboard:message_history' conversation.id 0 %}" data-clear-url="{% url 'dashboard:clear_conversation' conversation.id %}" data-revision-cursor="{{ message_revision_cursor }}">
                 <section class="messaging-listing-context" aria-label="Listing being discussed">
                     <img src="{{ conversation.listing.conversation_image_url }}" alt="{{ conversation.listing.title }}">
                     <div class="messaging-listing-context-copy">
@@ -139,12 +139,13 @@
                     <span>Keep meetups in public campus locations.</span>
                 </div>
                 {% for message in conversation_messages %}
-                <div class="messaging-message-row{% if message.sender_id == request.user.id %} own{% endif %}" data-message-id="{{ message.id }}" data-message-has-body="{% if message.body %}true{% else %}false{% endif %}">
+                <div class="messaging-message-row{% if message.sender_id == request.user.id %} own{% endif %}" data-message-id="{{ message.id }}" data-message-has-body="{% if message.body %}true{% else %}false{% endif %}" data-sender-name="{% if message.sender.first_name or message.sender.last_name %}{{ message.sender.first_name }} {{ message.sender.last_name }}{% else %}{{ message.sender.email }}{% endif %}">
                     {% if message.sender_id != request.user.id %}<img class="messaging-message-avatar" src="{{ message.sender.avatar_url }}" alt="">{% endif %}
                     <div class="messaging-message-content">
                     {% if message.is_deleted %}
                     <article class="messaging-bubble{% if message.sender_id == request.user.id %} own{% endif %} messaging-bubble-deleted"><p class="messaging-deleted-notice">{% if message.sender.first_name or message.sender.last_name %}{{ message.sender.first_name }} {{ message.sender.last_name }}{% else %}{{ message.sender.email }}{% endif %} deleted a message</p></article>
                     {% else %}
+                    {% if message.replied_to %}<button class="messaging-reply-quote{% if message.replied_to.is_deleted %} unavailable{% endif %}" type="button"{% if not message.replied_to.is_deleted %} data-reply-jump="{{ message.replied_to_id }}"{% endif %}><strong>{% if message.replied_to.is_deleted %}Message unavailable{% else %}{{ message.replied_to.sender.first_name|default:message.replied_to.sender.email }}{% endif %}</strong>{% if not message.replied_to.is_deleted %}<span>{{ message.replied_to.body|default:"Attachment"|truncatechars:180 }}</span>{% endif %}</button>{% endif %}
                     {% if message.body %}<article class="messaging-bubble{% if message.sender_id == request.user.id %} own{% endif %}"><p>{{ message.body|message_links }}</p></article>{% endif %}
                     {% if message.attachments.all or message.attachment %}
                     <div class="messaging-attachment-bubbles">
@@ -163,9 +164,11 @@
                     {% endif %}
                     </div>
                     <span class="messaging-message-meta"><time datetime="{{ message.created_at|date:'c' }}">{{ message.created_at|date:"M j, g:i A" }}</time>{% if message.is_edited %}<span aria-hidden="true"> · </span><button class="messaging-edited-indicator" type="button" data-history-message="{{ message.id }}">Edited</button>{% endif %}</span>
+                    {% if not message.is_deleted %}<button class="messaging-reply-action" type="button" data-reply-message="{{ message.id }}" aria-label="Reply to message" title="Reply"><i class="bi bi-reply-fill" aria-hidden="true"></i></button>{% endif %}
                     {% if message.sender_id == request.user.id and not message.is_deleted %}
                     <button class="messaging-message-action" type="button" data-message-options="{{ message.id }}" data-message-has-body="{% if message.body %}true{% else %}false{% endif %}" aria-label="Message options" title="Message options"><i class="bi bi-three-dots" aria-hidden="true"></i></button>
                     {% endif %}
+                    {% if message.id == seen_message_id %}<img class="messaging-seen-avatar" src="{{ chat_participant.avatar_url }}" alt="Seen" title="Seen">{% endif %}
                 </div>
                 {% endfor %}
                 <div class="messaging-thread-bottom" aria-hidden="true"></div>
@@ -177,6 +180,8 @@
 
             <form method="post" class="messaging-compose-form" enctype="multipart/form-data" data-current-user="{{ request.user.id }}" data-max-attachment-size="{{ message_form.max_attachment_size_bytes }}">
                 {% csrf_token %}
+                <input type="hidden" name="reply_to_message_id" id="messaging-reply-to-message-id">
+                <div class="messaging-reply-state" id="messaging-reply-state" hidden><span><strong id="messaging-reply-name">Replying to</strong><em id="messaging-reply-preview"></em></span><button type="button" id="messaging-cancel-reply" aria-label="Cancel reply"><i class="bi bi-x-lg" aria-hidden="true"></i></button></div>
                 <div class="messaging-edit-state" id="messaging-edit-state" hidden><span>Editing message</span><button type="button" id="messaging-cancel-edit" aria-label="Cancel editing">Cancel</button></div>
                 <div class="messaging-attachment-preview" id="messaging-attachment-preview" hidden></div>
                 <div class="messaging-attachment-warning" id="messaging-attachment-warning" role="alert" hidden></div>
@@ -210,7 +215,7 @@
         </div>
     </form>
 </dialog>
-<dialog class="messaging-unsend-dialog messaging-action-sheet" id="messaging-actions-dialog" aria-labelledby="messaging-actions-title"><section><h2 id="messaging-actions-title">Message options</h2><button type="button" data-action-edit>Edit</button><button type="button" data-action-unsend>Unsend</button><button type="button" data-action-cancel>Cancel</button></section></dialog>
+<dialog class="messaging-unsend-dialog messaging-action-sheet" id="messaging-actions-dialog" aria-labelledby="messaging-actions-title"><section><h2 id="messaging-actions-title">Message options</h2><button type="button" data-action-reply>Reply</button><button type="button" data-action-copy>Copy</button><button type="button" data-action-edit>Edit</button><button type="button" data-action-unsend>Unsend</button><button type="button" data-action-cancel>Cancel</button></section></dialog>
 <dialog class="messaging-unsend-dialog messaging-action-sheet" id="conversation-actions-dialog" aria-labelledby="conversation-actions-title"><section><h2 id="conversation-actions-title">Conversation options</h2><button type="button" data-action-clear-conversation>Delete conversation</button><button type="button" data-action-cancel-conversation>Cancel</button></section></dialog>
 <dialog class="messaging-unsend-dialog" id="conversation-clear-dialog" aria-labelledby="conversation-clear-title" aria-describedby="conversation-clear-description"><section><h2 id="conversation-clear-title">Delete conversation?</h2><p id="conversation-clear-description">This conversation and its current history will be removed from your message list. It will not be deleted for the other participant. If a new message is sent later, it may appear again.</p><div class="messaging-unsend-actions"><button type="button" data-clear-cancel>Cancel</button><button type="button" data-clear-confirm>Delete</button></div></section></dialog>
 <dialog class="messaging-lightbox" id="messaging-lightbox" aria-label="Media viewer"><button type="button" class="messaging-lightbox-close" aria-label="Close media viewer"><i class="bi bi-x-lg" aria-hidden="true"></i></button><button type="button" class="messaging-lightbox-prev" aria-label="Previous image"><i class="bi bi-chevron-left" aria-hidden="true"></i></button><img alt=""><button type="button" class="messaging-lightbox-next" aria-label="Next image"><i class="bi bi-chevron-right" aria-hidden="true"></i></button><span class="messaging-lightbox-count"></span></dialog>
@@ -433,6 +438,14 @@
         const messagingPage = document.querySelector('.messaging-page');
         const mobileBack = document.querySelector('.messaging-mobile-back');
         const mobileBreakpoint = window.matchMedia('(max-width: 760px)');
+        let chatIsActuallyVisible = !mobileBreakpoint.matches || messagingPage?.classList.contains('messaging-page-chat-open');
+        const canMarkConversationRead = () => Boolean(
+            !document.hidden && thread && (!mobileBreakpoint.matches || chatIsActuallyVisible) &&
+            (!mobileBreakpoint.matches || messagingPage?.classList.contains('messaging-page-chat-open'))
+        );
+        mobileBreakpoint.addEventListener?.('change', (event) => {
+            chatIsActuallyVisible = !event.matches || messagingPage?.classList.contains('messaging-page-chat-open');
+        });
         const lightbox = document.querySelector('#messaging-lightbox');
         let lightboxIndex = 0;
         const lightboxImages = () => [...document.querySelectorAll('[data-media-url]')];
@@ -537,6 +550,7 @@
             if (!mobileBreakpoint.matches) return;
             stopTyping?.();
             cancelEditing?.();
+            chatIsActuallyVisible = false;
             messagingPage.classList.remove('messaging-page-chat-open');
             const listUrl = messagingLayout?.dataset.conversationListUrl;
             if (listUrl && window.location.pathname !== listUrl) {
@@ -1131,6 +1145,43 @@
         );
         let lastMessageId = Math.max(0, ...renderedMessageIds);
         let messageRevisionCursor = Number(thread.dataset.revisionCursor) || 0;
+        let lastSentReadMessageId = 0;
+        let seenMarker = thread.querySelector('.messaging-seen-avatar') || null;
+        let currentSeenMessageId = Number(seenMarker?.closest('[data-message-id]')?.dataset.messageId) || 0;
+        const updateSeenMarker = (cursorId) => {
+            const rows = [...thread.querySelectorAll('.messaging-message-row.own[data-message-id]')];
+            const target = rows.filter((row) => Number(row.dataset.messageId) <= Number(cursorId)).at(-1);
+            if (!target) return;
+            const targetId = Number(target.dataset.messageId);
+            if (targetId < currentSeenMessageId) return;
+            if (targetId === currentSeenMessageId && seenMarker?.parentElement === target) return;
+            const moved = currentSeenMessageId > 0 && targetId !== currentSeenMessageId;
+            if (!seenMarker) {
+                seenMarker = document.createElement('img');
+                seenMarker.className = 'messaging-seen-avatar';
+                seenMarker.src = thread.dataset.otherAvatar;
+                seenMarker.alt = 'Seen'; seenMarker.title = 'Seen';
+            }
+            target.appendChild(seenMarker);
+            currentSeenMessageId = targetId;
+            if (moved) {
+                seenMarker.classList.remove('is-seen-enter');
+                void seenMarker.offsetWidth;
+                seenMarker.classList.add('is-seen-enter');
+            }
+        };
+        thread.addEventListener('animationend', (event) => {
+            if (event.target === seenMarker && event.animationName === 'messaging-reply-in') {
+                seenMarker.classList.remove('is-seen-enter');
+            }
+        });
+        const markVisibleRead = async () => {
+            if (!canMarkConversationRead() || !thread.dataset.readUrl) return;
+            const newest = [...thread.querySelectorAll('.messaging-message-row[data-message-id]')].at(-1);
+            const id = Number(newest?.dataset.messageId); if (!id || id <= lastSentReadMessageId) return;
+            lastSentReadMessageId = id;
+            try { await fetch(thread.dataset.readUrl, { method:'POST', credentials:'same-origin', headers:{ 'X-CSRFToken': composeForm.querySelector('[name=csrfmiddlewaretoken]').value, 'X-Requested-With':'XMLHttpRequest', 'Content-Type':'application/x-www-form-urlencoded' }, body:`last_read_message_id=${encodeURIComponent(id)}` }); } catch (_) { lastSentReadMessageId = 0; }
+        };
         const unsendDialog = document.querySelector('#messaging-unsend-dialog');
         const actionsDialog = document.querySelector('#messaging-actions-dialog');
         const unsendConfirm = unsendDialog?.querySelector('.messaging-unsend-confirm');
@@ -1141,10 +1192,31 @@
         let editingMessageId = null;
         const editState = document.querySelector('#messaging-edit-state');
         const cancelEdit = document.querySelector('#messaging-cancel-edit');
+        const replyState = document.querySelector('#messaging-reply-state');
+        const replyInput = document.querySelector('#messaging-reply-to-message-id');
+        const replyName = document.querySelector('#messaging-reply-name');
+        const replyPreview = document.querySelector('#messaging-reply-preview');
+        const cancelReply = document.querySelector('#messaging-cancel-reply');
+        const clearReply = () => { if (replyInput) replyInput.value = ''; if (replyState) replyState.hidden = true; };
+        const selectReply = (row) => {
+            if (!row || !replyInput) return;
+            replyInput.value = row.dataset.messageId;
+            replyName.textContent = `Replying to ${row.dataset.senderName || 'message'}`;
+            replyPreview.textContent = row.querySelector('.messaging-bubble p')?.textContent?.trim() || 'Attachment';
+            replyState.hidden = false; messageInput?.focus();
+        };
+        cancelReply?.addEventListener('click', clearReply);
         const senderDeletedText = (payload) => `${payload.sender_name || 'This user'} deleted a message`;
         const setEditActionVisibility = (hasBody) => {
             const editAction = actionsDialog?.querySelector('[data-action-edit]');
             if (editAction) editAction.hidden = !hasBody;
+        };
+        const setMobileActionVisibility = (row) => {
+            const isOwn = row?.classList.contains('own');
+            const hasBody = row?.dataset.messageHasBody === 'true';
+            actionsDialog?.querySelector('[data-action-copy]') && (actionsDialog.querySelector('[data-action-copy]').hidden = !hasBody);
+            actionsDialog?.querySelector('[data-action-edit]') && (actionsDialog.querySelector('[data-action-edit]').hidden = !isOwn || !hasBody);
+            actionsDialog?.querySelector('[data-action-unsend]') && (actionsDialog.querySelector('[data-action-unsend]').hidden = !isOwn);
         };
         const renderDeletedMessage = (payload) => {
             const messageRow = thread.querySelector(`[data-message-id="${payload.id}"]`);
@@ -1213,6 +1285,7 @@
             messageRow.className = `messaging-message-row${isOwnMessage ? ' own' : ''}`;
             messageRow.dataset.messageId = String(messageId);
             messageRow.dataset.messageHasBody = String(Boolean(payload.body));
+            messageRow.dataset.senderName = payload.sender_name || 'message';
             if (!isOwnMessage) {
                 const avatar = document.createElement('img');
                 avatar.className = 'messaging-message-avatar';
@@ -1231,7 +1304,15 @@
                 notice.textContent = senderDeletedText(payload);
                 bubble.appendChild(notice);
                 content.appendChild(bubble);
-            } else if (payload.body) {
+            } else if (payload.reply) {
+                const quote = document.createElement('button'); quote.type = 'button'; quote.className = `messaging-reply-quote${payload.reply.unavailable ? ' unavailable' : ''}`;
+                if (!payload.reply.unavailable) quote.dataset.replyJump = String(payload.reply.message_id);
+                const title = document.createElement('strong'); title.textContent = payload.reply.unavailable ? 'Message unavailable' : payload.reply.sender_name;
+                quote.appendChild(title);
+                if (!payload.reply.unavailable) { const snippet = document.createElement('span'); snippet.textContent = payload.reply.body || (payload.reply.attachment_count ? 'Attachment' : 'Message'); quote.appendChild(snippet); }
+                content.appendChild(quote);
+            }
+            if (!payload.is_deleted && payload.body) {
                 const bubble = document.createElement('article');
                 bubble.className = `messaging-bubble${isOwnMessage ? ' own' : ''}`;
                 const body = document.createElement('p');
@@ -1265,6 +1346,7 @@
                 meta.appendChild(edited);
             }
             messageRow.appendChild(meta);
+            if (!payload.is_deleted) { const reply = document.createElement('button'); reply.type = 'button'; reply.className = 'messaging-reply-action'; reply.dataset.replyMessage = String(messageId); reply.setAttribute('aria-label', 'Reply to message'); reply.innerHTML = '<i class="bi bi-reply-fill" aria-hidden="true"></i>'; messageRow.appendChild(reply); }
             thread.appendChild(messageRow);
             renderedMessageIds.add(messageId);
             lastMessageId = Math.max(lastMessageId, messageId);
@@ -1310,6 +1392,10 @@
         };
 
         thread.addEventListener('click', (event) => {
+            const replyJump = event.target.closest('[data-reply-jump]');
+            if (replyJump) { const target = thread.querySelector(`[data-message-id="${replyJump.dataset.replyJump}"]`); if (target) { target.scrollIntoView({ behavior: 'smooth', block: 'center' }); target.classList.add('messaging-message-target'); window.setTimeout(() => target.classList.remove('messaging-message-target'), 1800); } return; }
+            const replyAction = event.target.closest('[data-reply-message]');
+            if (replyAction) { selectReply(replyAction.closest('.messaging-message-row')); return; }
             const history = event.target.closest('[data-history-message]');
             if (history) {
                 const url = thread.dataset.historyUrlTemplate.replace('/0/', `/${history.dataset.historyMessage}/`);
@@ -1344,13 +1430,15 @@
         let touchStart = null;
         thread.addEventListener('pointerdown', (event) => {
             if (!mobileBreakpoint.matches || event.pointerType !== 'touch' || event.target.closest('a, button')) return;
-            const row = event.target.closest('.messaging-message-row.own[data-message-id]');
+            const row = event.target.closest('.messaging-message-row[data-message-id]');
             if (!row) return;
-            touchStart = { x: event.clientX, y: event.clientY, id: row.dataset.messageId, hasBody: row.dataset.messageHasBody === 'true' };
-            longPressTimer = window.setTimeout(() => { actionMessageId = Number(touchStart.id); setEditActionVisibility(touchStart.hasBody); actionsDialog?.showModal(); longPressTimer = null; }, 600);
+            row.classList.add('is-held');
+            touchStart = { x: event.clientX, y: event.clientY, id: row.dataset.messageId, row, swiping:false, armed:false };
+            longPressTimer = window.setTimeout(() => { actionMessageId = Number(touchStart.id); setMobileActionVisibility(row); actionsDialog?.showModal(); longPressTimer = null; }, 450);
         });
-        thread.addEventListener('pointermove', (event) => { if (touchStart && Math.hypot(event.clientX - touchStart.x, event.clientY - touchStart.y) > 10) { clearTimeout(longPressTimer); longPressTimer = null; } });
-        ['pointerup', 'pointercancel'].forEach((type) => thread.addEventListener(type, () => { clearTimeout(longPressTimer); longPressTimer = null; touchStart = null; }));
+        thread.addEventListener('pointermove', (event) => { if (!touchStart) return; const dx=event.clientX-touchStart.x, dy=event.clientY-touchStart.y; if (!touchStart.swiping && Math.hypot(dx,dy)>10) { clearTimeout(longPressTimer); longPressTimer=null; } if (dx>8 && Math.abs(dx)>Math.abs(dy)) { touchStart.swiping=true; const move=Math.min(68, dx*.72); touchStart.row.classList.add('is-reply-swiping'); touchStart.row.querySelector('.messaging-message-content').style.transform=`translateX(${move}px)`; touchStart.armed=move>=50; } });
+        ['pointerup', 'pointercancel'].forEach((type) => thread.addEventListener(type, () => { if (touchStart) { const state=touchStart; state.row.classList.remove('is-held','is-reply-swiping'); state.row.querySelector('.messaging-message-content').style.transform=''; if (state.swiping && state.armed) selectReply(state.row); } clearTimeout(longPressTimer); longPressTimer=null; touchStart=null; }));
+        actionsDialog?.querySelector('[data-action-copy]')?.addEventListener('click', async () => { const text=thread.querySelector(`[data-message-id="${actionMessageId}"] .messaging-bubble > p`)?.textContent || ''; try { await navigator.clipboard.writeText(text); } catch (_) { const input=document.createElement('textarea'); input.value=text; document.body.append(input); input.select(); document.execCommand('copy'); input.remove(); } actionsDialog.close(); });
         const cancelEditing = () => { stopTyping('cancel edit'); editingMessageId = null; if (editState) editState.hidden = true; composeForm?.reset(); clearAttachmentPreview(); resizeMessageInput(); };
         cancelEdit?.addEventListener('click', cancelEditing);
         document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && editingMessageId) cancelEditing(); });
@@ -1360,6 +1448,7 @@
             unsendDialog?.showModal();
             unsendCancel?.focus();
         });
+        actionsDialog?.querySelector('[data-action-reply]')?.addEventListener('click', () => { selectReply(thread.querySelector(`[data-message-id="${actionMessageId}"]`)); actionsDialog.close(); });
         actionsDialog?.querySelector('[data-action-edit]')?.addEventListener('click', () => {
             const row = thread.querySelector(`[data-message-id="${actionMessageId}"]`);
             const text = row?.querySelector('.messaging-bubble > p')?.textContent?.trim();
@@ -1441,6 +1530,7 @@
                 } else {
                     appendMessage(payload, true);
                     refreshSharedLinks();
+                    clearReply();
                 }
                 composeForm.reset();
                 clearAttachmentPreview();
@@ -1492,6 +1582,8 @@
                     messageRevisionCursor = payload.revision_cursor;
                 }
                 if (payload.messages.length || payload.deleted_messages?.length || updatedMessages.length) refreshSharedLinks();
+                if (payload.other_read_message_id) updateSeenMarker(payload.other_read_message_id);
+                if (payload.messages.length) markVisibleRead();
                 if (payload.messages.some((message) => message.sender_id !== currentUserId)) {
                     document.dispatchEvent(new CustomEvent('messages:unread-changed'));
                 }
@@ -1508,6 +1600,7 @@
             if (!document.hidden) {
                 window.clearTimeout(pollTimer);
                 pollForMessages();
+                markVisibleRead();
             }
         });
         window.addEventListener('pagehide', () => {

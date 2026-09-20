@@ -14,7 +14,7 @@ import uuid
 from apps.accounts.models import User
 
 from .forms import CONDITION_CHOICES, PRODUCT_CONDITIONS, SERVICE_CONDITIONS, ListingForm, MessageForm
-from .models import Category, Conversation, ConversationTypingState, ConversationUserState, Listing, ListingImage, Message, MessageAttachment, MessageRevision, SavedItem
+from .models import Category, Conversation, ConversationReadState, ConversationTypingState, ConversationUserState, Listing, ListingImage, Message, MessageAttachment, MessageRevision, SavedItem
 from apps.messaging.link_previews import get_link_preview
 from apps.messaging.message_urls import extract_meaningful_message_urls
 from urllib.parse import urlparse
@@ -130,6 +130,18 @@ def _message_payload(message):
     } for attachment in message.attachments.all()]
     if message.attachment and not attachments:
         attachments = [{'url': message.attachment.url, 'name': message.attachment.name.rsplit('/', 1)[-1], 'is_image': message.attachment_is_image, 'is_video': False}]
+    reply = None
+    if message.replied_to_id:
+        original = message.replied_to
+        if original.is_deleted:
+            reply = {'message_id': original.pk, 'unavailable': True}
+        else:
+            reply = {
+                'message_id': original.pk, 'unavailable': False,
+                'sender_name': f'{original.sender.first_name} {original.sender.last_name}'.strip() or original.sender.email,
+                'body': original.body[:180],
+                'attachment_count': original.attachments.count() or (1 if original.attachment else 0),
+            }
     return {
         'id': message.pk,
         'body': message.body,
@@ -139,10 +151,34 @@ def _message_payload(message):
         'attachments': attachments,
         'created_at': message.created_at.isoformat(),
         'sender_id': message.sender_id,
+        'sender_name': f'{message.sender.first_name} {message.sender.last_name}'.strip() or message.sender.email,
         'sender_avatar_url': message.sender.avatar_url,
         'is_edited': message.is_edited,
         'edited_at': message.edited_at.isoformat() if message.edited_at else '',
+        'reply': reply,
     }
+
+
+def _other_read_cursor(conversation, user):
+    other_id = conversation.seller_id if conversation.buyer_id == user.id else conversation.buyer_id
+    state = ConversationReadState.objects.filter(conversation=conversation, user_id=other_id).select_related('last_read_message').first()
+    return state.last_read_message_id if state else None
+
+
+def _mark_conversation_read(conversation, user, message):
+    """Advance only this user's cursor; this is intentionally idempotent."""
+    if not message or message.conversation_id != conversation.id:
+        return None
+    with transaction.atomic():
+        state, _ = ConversationReadState.objects.select_for_update().get_or_create(conversation=conversation, user=user)
+        current = state.last_read_message
+        if current and (message.created_at, message.pk) <= (current.created_at, current.pk):
+            return state
+        state.last_read_message = message
+        state.last_read_at = timezone.now()
+        state.save(update_fields=['last_read_message', 'last_read_at'])
+        conversation.messages.filter(is_read=False, created_at__lte=message.created_at).exclude(sender=user).update(is_read=True)
+    return state
 
 
 def _latest_visible_revision_id(conversation, user):
@@ -154,10 +190,11 @@ def _latest_visible_revision_id(conversation, user):
     return revisions.order_by('-pk').values_list('pk', flat=True).first() or 0
 
 
-def _save_message_with_attachments(form, conversation, sender, files):
+def _save_message_with_attachments(form, conversation, sender, files, replied_to=None):
     message = form.save(commit=False)
     message.conversation = conversation
     message.sender = sender
+    message.replied_to = replied_to
     # New multi-file uploads live in MessageAttachment; retain Message.attachment
     # solely for existing records and backwards compatibility.
     message.attachment = None
@@ -796,7 +833,14 @@ def conversation_detail(request, conversation_id):
     if request.method == 'POST':
         form = MessageForm(request.POST, request.FILES)
         if form.is_valid():
-            message = _save_message_with_attachments(form, conversation, request.user, request.FILES)
+            reply_id = request.POST.get('reply_to_message_id')
+            replied_to = None
+            if reply_id:
+                try:
+                    replied_to = Message.objects.select_related('sender').get(pk=int(reply_id), conversation=conversation)
+                except (TypeError, ValueError, Message.DoesNotExist):
+                    return JsonResponse({'error': 'The reply target is not in this conversation.'}, status=400)
+            message = _save_message_with_attachments(form, conversation, request.user, request.FILES, replied_to)
             conversation.save(update_fields=['updated_at'])
             if request.headers.get('x-requested-with') == 'XMLHttpRequest':
                 return JsonResponse(_message_payload(message))
@@ -809,8 +853,19 @@ def conversation_detail(request, conversation_id):
         form = MessageForm()
     participant = conversation.seller if conversation.buyer_id == request.user.id else conversation.buyer
     media, files, links = _conversation_resources(conversation, request.user)
-    visible_messages = _visible_messages_for_user(conversation, request.user).select_related('sender').prefetch_related('attachments')
+    visible_messages = _visible_messages_for_user(conversation, request.user).select_related('sender', 'replied_to__sender').prefetch_related('attachments', 'replied_to__attachments')
     visible_messages.exclude(sender=request.user).filter(is_read=False).update(is_read=True)
+    newest_visible = visible_messages.order_by('-created_at', '-pk').first()
+    if newest_visible:
+        _mark_conversation_read(conversation, request.user, newest_visible)
+    other_cursor = _other_read_cursor(conversation, request.user)
+    seen_message_id = None
+    if other_cursor:
+        cursor = Message.objects.filter(pk=other_cursor).first()
+        if cursor:
+            seen_message_id = visible_messages.filter(sender=request.user).filter(
+                Q(created_at__lt=cursor.created_at) | Q(created_at=cursor.created_at, pk__lte=cursor.pk)
+            ).order_by('-created_at', '-pk').values_list('pk', flat=True).first()
     return render(
         request,
         'messaging/messaging.html',
@@ -828,6 +883,8 @@ def conversation_detail(request, conversation_id):
             'chat_files': files,
             'chat_links': links,
             'message_revision_cursor': _latest_visible_revision_id(conversation, request.user),
+            'other_read_message_id': other_cursor,
+            'seen_message_id': seen_message_id,
         },
     )
 
@@ -851,7 +908,7 @@ def conversation_new_messages(request, conversation_id):
         revision_after = max(int(request.GET.get('revision_after', 0)), 0)
     except (TypeError, ValueError):
         revision_after = 0
-    new_messages = list(conversation.messages.filter(pk__gt=after_id).select_related('sender').prefetch_related('attachments'))
+    new_messages = list(conversation.messages.filter(pk__gt=after_id).select_related('sender', 'replied_to__sender').prefetch_related('attachments', 'replied_to__attachments'))
     conversation.messages.filter(
         pk__in=[message.pk for message in new_messages], is_read=False,
     ).exclude(sender=request.user).update(is_read=True)
@@ -881,7 +938,22 @@ def conversation_new_messages(request, conversation_id):
         'updated_messages': [_message_payload(message) for message in changed_messages.values()],
         'revision_cursor': revision_cursor,
         'other_user_typing': _other_participant_typing(conversation, request.user),
+        'other_read_message_id': _other_read_cursor(conversation, request.user),
     })
+
+
+@login_required
+def conversation_read(request, conversation_id):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Read updates must use POST.'}, status=405)
+    conversation = get_object_or_404(Conversation.objects.filter(Q(buyer=request.user) | Q(seller=request.user)), pk=conversation_id)
+    try:
+        message_id = int(request.POST.get('last_read_message_id', 0))
+    except (TypeError, ValueError):
+        return JsonResponse({'error': 'A valid message is required.'}, status=400)
+    message = get_object_or_404(Message, pk=message_id, conversation=conversation)
+    state = _mark_conversation_read(conversation, request.user, message)
+    return JsonResponse({'ok': True, 'last_read_message_id': state.last_read_message_id if state else None})
 
 
 @login_required
