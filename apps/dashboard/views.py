@@ -538,6 +538,9 @@ def setup_buyer_dashboard(request):
         items = _rank_listings_for_buyer(listings, request.user)
         item_count = len(items)
 
+    if seller_profile is not None:
+        seller_profile['listing_count'] = item_count
+
     context = {
         'items': items,
         'categories': _category_context(),

@@ -1,7 +1,7 @@
 {% load static %}
 
 <nav id="navbar">
-    <button type="button" id="categories-menu-btn" class="hamburger-btn" aria-label="Toggle categories menu" aria-expanded="false" aria-controls="categories-menu">
+    <button type="button" id="categories-menu-btn" class="hamburger-btn" aria-label="Open navigation" aria-expanded="false" aria-controls="categories-menu">
         <span></span>
         <span></span>
         <span></span>
@@ -31,6 +31,7 @@
             autocomplete="off"
             aria-label="Search products or services"
         >
+        <button class="navbar-mobile-search-submit" type="button" aria-label="Search marketplace" title="Search marketplace"><i class="bi bi-search" aria-hidden="true"></i></button>
     </form>
 
     <div class="navbar-actions">
@@ -93,6 +94,14 @@
 
 <div id="categories-menu" class="categories-menu" aria-hidden="true">
     <div class="categories-menu-content">
+        <nav class="mobile-primary-links" aria-label="Mobile navigation">
+            <a href="{% url 'dashboard:buyer' %}"><i class="bi bi-shop" aria-hidden="true"></i>Shop</a>
+            {% if request.user.is_authenticated %}
+            <a href="{% url 'dashboard:seller' %}"><i class="bi bi-box-seam" aria-hidden="true"></i>My products</a>
+            {% else %}
+            <a href="{% url 'login' %}"><i class="bi bi-box-arrow-in-right" aria-hidden="true"></i>Login</a>
+            {% endif %}
+        </nav>
         <h3>Browse Categories</h3>
         <ul class="categories-menu-list">
             {% for category in categories %}
