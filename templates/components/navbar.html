@@ -40,7 +40,7 @@
         </a>
 
         {% if request.user.is_authenticated %}
-        <a href="{% url 'dashboard:conversation_list' %}" class="navbar-icon-btn" aria-label="Messages" data-unread-count-url="{% url 'dashboard:unread_message_count' %}">
+        <a href="{% url 'dashboard:conversation_list' %}" class="navbar-icon-btn" aria-label="Messages" data-unread-count-url="{% url 'dashboard:unread_message_count' %}" data-notification-socket-path="/ws/notifications/">
             <i class="bi bi-chat-dots"></i>
             <span class="navbar-badge navbar-message-badge" data-message-unread-badge{% if not unread_message_count %} hidden{% endif %}>{% if unread_message_count > 99 %}99+{% else %}{{ unread_message_count }}{% endif %}</span>
         </a>

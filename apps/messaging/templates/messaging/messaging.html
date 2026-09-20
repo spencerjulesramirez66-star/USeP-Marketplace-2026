@@ -4,7 +4,7 @@
 {% block title %}Messages | USeP Marketplace{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/messaging.css' %}">
+<link rel="stylesheet" href="{% static 'css/messaging.css' %}?v=20260920-message-search-single-pill">
 {% endblock %}
 
 {% block content %}
@@ -25,7 +25,7 @@
 
             <label class="messaging-search" for="message-search">
                 <i class="bi bi-search" aria-hidden="true"></i>
-                <input id="message-search" type="search" placeholder="Search messages" autocomplete="off">
+                <input id="message-search" type="search" placeholder="Search sellers or listings" autocomplete="off" data-search-url="{% url 'dashboard:conversation_search' %}">
             </label>
 
             <nav class="messaging-tabs" aria-label="Message filters">
@@ -33,6 +33,7 @@
                 <a class="messaging-tab" href="{% url 'dashboard:buyer' %}">Browse marketplace</a>
             </nav>
 
+            <div class="conversation-search-results" id="conversation-search-results" hidden aria-live="polite"></div>
             <div class="conversation-list" id="conversation-list">
                 {% for group in conversation_groups %}
                 <details class="conversation-group" data-participant-id="{{ group.participant.id }}"{% if selected_conversation and selected_conversation in group.conversations %} open{% endif %}>
@@ -55,6 +56,7 @@
         {% if conversation %}
         <section class="messaging-chat" aria-label="Conversation with {% if conversation.buyer_id == request.user.id %}{{ conversation.seller.first_name }} {{ conversation.seller.last_name }}{% else %}{{ conversation.buyer.first_name }} {{ conversation.buyer.last_name }}{% endif %}">
             <header class="messaging-chat-header">
+                <div class="messaging-chat-header-content" id="messaging-chat-header-content">
                 <button class="messaging-mobile-back" type="button" aria-label="Back to conversations" title="Back to conversations"><i class="bi bi-arrow-left" aria-hidden="true"></i></button>
                 {% if conversation.buyer_id == request.user.id %}
                 <img class="messaging-chat-avatar" src="{{ conversation.seller.avatar_url }}" alt="">
@@ -67,13 +69,26 @@
                 {% endif %}
                     <p>{{ conversation.listing.title }} · {{ conversation.listing.price_label }}</p>
                 </div>
-                <button class="messaging-chat-delete-menu" type="button" data-conversation-options="{{ conversation.id }}" aria-label="Conversation options" title="Conversation options"><i class="bi bi-three-dots" aria-hidden="true"></i></button><button class="messaging-chat-info" type="button" id="messaging-details-toggle" aria-label="Show conversation details" aria-controls="messaging-details" aria-expanded="false" title="Conversation details"><i class="bi bi-info-circle" aria-hidden="true"></i></button>
+                <button class="messaging-chat-info" type="button" id="messaging-details-toggle" aria-label="Show conversation details" aria-controls="messaging-details" aria-expanded="false" title="Conversation details"><i class="bi bi-info-circle" aria-hidden="true"></i></button>
+                </div>
+                <div class="messaging-message-search-header" id="messaging-message-search-header" hidden>
+                    <div class="messaging-message-search-controls"><div class="messaging-message-search-field"><i class="bi bi-search" aria-hidden="true"></i><input type="search" id="messaging-message-search-input" placeholder="Search messages" autocomplete="off"></div><span class="messaging-message-search-counter" id="messaging-message-search-counter" hidden aria-live="polite"></span><span class="messaging-message-search-navigation" aria-label="Search match navigation"><button class="messaging-message-search-nav-button" type="button" id="messaging-message-search-previous" aria-label="Previous matching message" title="Previous matching message" hidden disabled><i class="bi bi-chevron-up" aria-hidden="true"></i></button><button class="messaging-message-search-nav-button" type="button" id="messaging-message-search-next" aria-label="Next matching message" title="Next matching message" hidden disabled><i class="bi bi-chevron-down" aria-hidden="true"></i></button></span><button type="button" id="messaging-message-search-close" aria-label="Close message search" title="Close message search"><i class="bi bi-x-lg" aria-hidden="true"></i></button></div>
+                </div>
             </header>
+
+            <section class="messaging-message-search-panel" id="messaging-message-search-panel" data-search-url="{% url 'dashboard:conversation_message_search' conversation.id %}" hidden aria-label="Search in conversation">
+                <p class="messaging-message-search-status" id="messaging-message-search-status">Type at least 2 characters to search.</p>
+                <div class="messaging-message-search-results" id="messaging-message-search-results"></div>
+            </section>
 
             <aside class="messaging-details" id="messaging-details" aria-label="Conversation details" hidden>
                 <div class="messaging-details-header">
                     <h2>Conversation details</h2>
-                    <button class="messaging-details-close" type="button" aria-label="Close conversation details" title="Close"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                    <div class="messaging-details-header-actions">
+                        <button class="messaging-chat-search" type="button" id="messaging-message-search-toggle" aria-label="Search in conversation" aria-controls="messaging-message-search-panel" aria-expanded="false" title="Search in conversation"><i class="bi bi-search" aria-hidden="true"></i></button>
+                        <button class="messaging-chat-delete-menu" type="button" data-conversation-options="{{ conversation.id }}" aria-label="More conversation options" title="More conversation options"><i class="bi bi-three-dots" aria-hidden="true"></i></button>
+                        <button class="messaging-details-close" type="button" aria-label="Close conversation details" title="Close conversation details"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                    </div>
                 </div>
                 <a class="messaging-profile messaging-profile-link" href="{% url 'dashboard:buyer' %}?seller={{ chat_participant.id }}">
                     <img src="{{ chat_participant.avatar_url }}" alt="">
@@ -153,6 +168,7 @@
                     {% endif %}
                 </div>
                 {% endfor %}
+                <div class="messaging-thread-bottom" aria-hidden="true"></div>
             </div>
 
             <div class="messaging-typing-area">
@@ -205,12 +221,41 @@
     document.addEventListener('DOMContentLoaded', () => {
         const search = document.querySelector('#message-search');
         const conversationList = document.querySelector('#conversation-list');
+        const conversationSearchResults = document.querySelector('#conversation-search-results');
         const messagingLayout = document.querySelector('.messaging-layout');
-        if (search) search.addEventListener('input', () => {
-            const query = search.value.trim().toLowerCase();
-            document.querySelectorAll('.conversation-row').forEach((row) => {
-                row.hidden = query && !row.dataset.conversationSearch.toLowerCase().includes(query);
+        let conversationSearchTimer = null;
+        let conversationSearchController = null;
+        const renderConversationSearch = (payload) => {
+            if (!conversationSearchResults) return;
+            conversationSearchResults.replaceChildren();
+            if (!payload.results.length) {
+                const empty = document.createElement('p'); empty.className = 'messaging-search-empty'; empty.textContent = `No conversations found for “${payload.query}”`; conversationSearchResults.append(empty); return;
+            }
+            payload.results.forEach((item) => {
+                const result = document.createElement('a'); result.className = 'conversation-search-result'; result.href = item.url;
+                const avatar = document.createElement('img'); avatar.src = item.participant_avatar_url; avatar.alt = '';
+                const copy = document.createElement('span'); copy.className = 'conversation-search-result-copy';
+                const participant = document.createElement('strong'); participant.textContent = item.participant_name;
+                const listing = document.createElement('span'); listing.textContent = item.listing_title;
+                copy.append(participant, listing); result.append(avatar, copy);
+                if (item.unread_count) { const badge = document.createElement('em'); badge.textContent = item.unread_count > 99 ? '99+' : String(item.unread_count); result.append(badge); }
+                conversationSearchResults.append(result);
             });
+        };
+        if (search) search.addEventListener('input', () => {
+            const query = search.value.trim();
+            window.clearTimeout(conversationSearchTimer);
+            conversationSearchController?.abort();
+            if (query.length < 2) { conversationSearchResults.hidden = true; conversationList.hidden = false; return; }
+            conversationList.hidden = true; conversationSearchResults.hidden = false; conversationSearchResults.textContent = 'Searching conversations…';
+            conversationSearchTimer = window.setTimeout(async () => {
+                conversationSearchController = new AbortController();
+                try {
+                    const response = await fetch(`${search.dataset.searchUrl}?q=${encodeURIComponent(query)}`, { headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, signal: conversationSearchController.signal });
+                    if (!response.ok || search.value.trim() !== query) return;
+                    renderConversationSearch(await response.json());
+                } catch (error) { if (error.name !== 'AbortError') conversationSearchResults.textContent = 'Conversation search is unavailable.'; }
+            }, 300);
         });
 
         const debugMessaging = (...args) => { if (window.MESSAGES_DEBUG) console.debug(...args); };
@@ -366,7 +411,6 @@
                     empty.innerHTML = '<i class="bi bi-chat-square-text" aria-hidden="true"></i><strong>No conversations yet</strong><span>Message a seller from a marketplace listing to start chatting.</span>';
                     conversationList.append(empty);
                 }
-                if (search?.value) search.dispatchEvent(new Event('input'));
             } catch (_) {
                 // Keep the existing sidebar usable and try again on the next cycle.
             } finally {
@@ -476,7 +520,10 @@
             detailsToggle.setAttribute('aria-expanded', String(open));
             if (open) { stopTyping?.(); refreshSharedLinks(); }
         };
-        detailsToggle?.addEventListener('click', () => setDetailsOpen(details.hidden));
+        detailsToggle?.addEventListener('click', () => {
+            if (messageSearchModeActive) { showMessageSearch(); return; }
+            setDetailsOpen(details.hidden);
+        });
         detailsClose?.addEventListener('click', () => setDetailsOpen(false));
         document.addEventListener('click', (event) => {
             if (!details || details.hidden || details.contains(event.target) || detailsToggle?.contains(event.target)) return;
@@ -550,25 +597,177 @@
         const attachmentWarning = document.querySelector('#messaging-attachment-warning');
         const messageInput = composeForm?.querySelector('textarea[name="body"]');
         const maxAttachmentSize = Number(composeForm?.dataset.maxAttachmentSize) || 0;
+        const threadBottom = thread?.querySelector('.messaging-thread-bottom');
         let pendingAttachments = [];
         let isSubmitting = false;
         const scrollToLatest = () => {
             if (!thread) return;
+            threadBottom?.scrollIntoView({ block: 'end', inline: 'nearest' });
             thread.scrollTop = thread.scrollHeight;
             requestAnimationFrame(() => {
+                threadBottom?.scrollIntoView({ block: 'end', inline: 'nearest' });
                 thread.scrollTop = thread.scrollHeight;
             });
         };
-        scrollToLatest();
-        if (thread) thread.querySelectorAll('img').forEach((image) => {
-            if (!image.complete) image.addEventListener('load', scrollToLatest, { once: true });
-        });
+        const targetMessageId = new URLSearchParams(window.location.search).get('target_message');
+        const focusMessage = (messageId) => {
+            const row = thread?.querySelector(`[data-message-id="${messageId}"]`);
+            if (!row) return false;
+            row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            row.classList.remove('messaging-message-target');
+            requestAnimationFrame(() => row.classList.add('messaging-message-target'));
+            window.setTimeout(() => row.classList.remove('messaging-message-target'), 2000);
+            return true;
+        };
+        if (targetMessageId) requestAnimationFrame(() => focusMessage(targetMessageId));
+        else {
+            scrollToLatest();
+            requestAnimationFrame(() => requestAnimationFrame(scrollToLatest));
+            if (thread) thread.querySelectorAll('img').forEach((image) => {
+                if (!image.complete) image.addEventListener('load', scrollToLatest, { once: true });
+            });
+        }
 
         const resizeMessageInput = () => {
             if (!messageInput) return;
             messageInput.style.height = 'auto';
             messageInput.style.height = `${Math.min(messageInput.scrollHeight, 120)}px`;
         };
+        const messageSearchToggle = document.querySelector('#messaging-message-search-toggle');
+        const messageSearchHeader = document.querySelector('#messaging-message-search-header');
+        const normalChatHeader = document.querySelector('#messaging-chat-header-content');
+        const messageSearchPanel = document.querySelector('#messaging-message-search-panel');
+        const messageSearchInput = document.querySelector('#messaging-message-search-input');
+        const messageSearchClose = document.querySelector('#messaging-message-search-close');
+        const messageSearchPrevious = document.querySelector('#messaging-message-search-previous');
+        const messageSearchNext = document.querySelector('#messaging-message-search-next');
+        const messageSearchCounter = document.querySelector('#messaging-message-search-counter');
+        const messageSearchStatus = document.querySelector('#messaging-message-search-status');
+        const messageSearchResults = document.querySelector('#messaging-message-search-results');
+        let messageSearchTimer = null;
+        let messageSearchController = null;
+        let messageSearchModeActive = false;
+        let messageSearchResultsVisible = false;
+        let selectedMessageSearchResultId = null;
+        let messageSearchMatchIds = [];
+        let currentMatchIndex = -1;
+        let messageSearchResultsScrollTop = 0;
+        const appendHighlightedText = (container, value, query) => {
+            const lowerValue = value.toLowerCase(); const lowerQuery = query.toLowerCase(); let cursor = 0; let match = lowerValue.indexOf(lowerQuery);
+            while (match !== -1) { container.append(document.createTextNode(value.slice(cursor, match))); const mark = document.createElement('mark'); mark.textContent = value.slice(match, match + query.length); container.append(mark); cursor = match + query.length; match = lowerValue.indexOf(lowerQuery, cursor); }
+            container.append(document.createTextNode(value.slice(cursor)));
+        };
+        const updateMessageSearchNavigation = () => {
+            const hasMatches = messageSearchMatchIds.length > 0;
+            const hasSelection = currentMatchIndex >= 0;
+            messageSearchCounter.hidden = !hasMatches;
+            messageSearchPrevious.hidden = !hasMatches;
+            messageSearchNext.hidden = !hasMatches;
+            messageSearchCounter.textContent = hasSelection ? `${currentMatchIndex + 1}/${messageSearchMatchIds.length}` : `${messageSearchMatchIds.length} results`;
+            messageSearchPrevious.disabled = !hasSelection || currentMatchIndex >= messageSearchMatchIds.length - 1;
+            messageSearchNext.disabled = !hasSelection || currentMatchIndex <= 0;
+        };
+        const renderMessageSearch = (payload) => {
+            messageSearchMatchIds = payload.match_ids || payload.results.map((item) => item.id);
+            if (!messageSearchMatchIds.includes(selectedMessageSearchResultId)) {
+                selectedMessageSearchResultId = null;
+                currentMatchIndex = -1;
+            }
+            updateMessageSearchNavigation();
+            messageSearchResults.replaceChildren();
+            messageSearchStatus.textContent = payload.count ? `${payload.count} match${payload.count === 1 ? '' : 'es'}` : `No messages found for “${payload.query}”`;
+            payload.results.forEach((item) => {
+                const result = document.createElement('button'); result.type = 'button'; result.className = 'messaging-message-search-result';
+                const sender = document.createElement('strong'); sender.textContent = item.sender_name;
+                const snippet = document.createElement('span'); appendHighlightedText(snippet, item.snippet, payload.query);
+                const time = document.createElement('time'); time.dateTime = item.created_at; time.textContent = new Date(item.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+                if (item.id === selectedMessageSearchResultId) result.classList.add('is-selected');
+                result.append(sender, snippet, time); result.addEventListener('click', () => selectMessageSearchResult(item.id)); messageSearchResults.append(result);
+            });
+        };
+        const showMessageSearchResults = () => {
+            if (!messageSearchModeActive || !messageSearchPanel || messageSearchResultsVisible) return;
+            messageSearchResultsVisible = true;
+            messageSearchPanel.hidden = false;
+            requestAnimationFrame(() => { messageSearchResults.scrollTop = messageSearchResultsScrollTop; });
+        };
+        const showMessageSearch = () => {
+            if (!messageSearchPanel || !messageSearchHeader || !normalChatHeader) return;
+            setDetailsOpen(false);
+            messageSearchModeActive = true;
+            messageSearchResultsVisible = true;
+            normalChatHeader.hidden = true;
+            messageSearchHeader.hidden = false;
+            messageSearchPanel.hidden = false;
+            messageSearchToggle?.setAttribute('aria-expanded', 'true');
+            requestAnimationFrame(() => { messageSearchResults.scrollTop = messageSearchResultsScrollTop; messageSearchInput?.focus(); });
+        };
+        const selectMessageSearchResult = (messageId) => {
+            if (!messageSearchPanel || messageSearchPanel.hidden) return;
+            selectedMessageSearchResultId = messageId;
+            currentMatchIndex = messageSearchMatchIds.indexOf(messageId);
+            updateMessageSearchNavigation();
+            messageSearchResultsScrollTop = messageSearchResults.scrollTop;
+            messageSearchInput?.blur();
+            messageSearchPanel.classList.add('is-closing');
+            window.setTimeout(() => {
+                messageSearchPanel.hidden = true;
+                messageSearchPanel.classList.remove('is-closing');
+                messageSearchResultsVisible = false;
+                focusMessage(messageId);
+            }, 180);
+        };
+        const navigateMessageSearchMatch = (direction) => {
+            const targetIndex = currentMatchIndex + direction;
+            if (targetIndex < 0 || targetIndex >= messageSearchMatchIds.length) return;
+            currentMatchIndex = targetIndex;
+            selectedMessageSearchResultId = messageSearchMatchIds[targetIndex];
+            updateMessageSearchNavigation();
+            focusMessage(selectedMessageSearchResultId);
+        };
+        const closeMessageSearch = () => {
+            if (!messageSearchModeActive || !messageSearchHeader || !normalChatHeader) return;
+            if (!messageSearchPanel.hidden) messageSearchPanel.classList.add('is-closing');
+            messageSearchHeader.classList.add('is-closing');
+            window.setTimeout(() => {
+                messageSearchPanel.hidden = true;
+                messageSearchPanel.classList.remove('is-closing');
+                messageSearchHeader.hidden = true;
+                messageSearchHeader.classList.remove('is-closing');
+                normalChatHeader.hidden = false;
+                messageSearchModeActive = false;
+                messageSearchResultsVisible = false;
+                selectedMessageSearchResultId = null;
+                messageSearchMatchIds = [];
+                currentMatchIndex = -1;
+                messageSearchResultsScrollTop = 0;
+                messageSearchController?.abort();
+                messageSearchInput.value = '';
+                messageSearchResults.replaceChildren();
+                messageSearchStatus.textContent = 'Type at least 2 characters to search.';
+                updateMessageSearchNavigation();
+                messageSearchToggle?.setAttribute('aria-expanded', 'false');
+            }, 180);
+        };
+        messageSearchToggle?.addEventListener('click', showMessageSearch);
+        messageSearchClose?.addEventListener('click', closeMessageSearch);
+        messageSearchPrevious?.addEventListener('click', () => navigateMessageSearchMatch(1));
+        messageSearchNext?.addEventListener('click', () => navigateMessageSearchMatch(-1));
+        messageSearchInput?.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeMessageSearch(); });
+        messageSearchInput?.addEventListener('focus', () => {
+            showMessageSearchResults();
+        });
+        messageSearchInput?.addEventListener('input', () => {
+            const query = messageSearchInput.value.trim(); window.clearTimeout(messageSearchTimer); messageSearchController?.abort();
+            showMessageSearchResults();
+            selectedMessageSearchResultId = null;
+            messageSearchMatchIds = [];
+            currentMatchIndex = -1;
+            updateMessageSearchNavigation();
+            if (query.length < 2) { messageSearchResults.replaceChildren(); messageSearchStatus.textContent = 'Type at least 2 characters to search.'; return; }
+            messageSearchStatus.textContent = 'Searching messages…';
+            messageSearchTimer = window.setTimeout(async () => { messageSearchController = new AbortController(); try { const response = await fetch(`${messageSearchPanel.dataset.searchUrl}?q=${encodeURIComponent(query)}`, { headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, signal: messageSearchController.signal }); if (!response.ok || messageSearchInput.value.trim() !== query) return; renderMessageSearch(await response.json()); } catch (error) { if (error.name !== 'AbortError') messageSearchStatus.textContent = 'Message search is unavailable.'; } }, 300);
+        });
         const renderAttachmentPreviews = () => {
             attachmentPreview.replaceChildren();
             attachmentPreview.hidden = !pendingAttachments.length;
@@ -911,12 +1110,16 @@
         const loadLinkPreview = async (messageRow, text) => {
             const url = firstPreviewUrl(text);
             if (!url || messageRow.dataset.previewRequested) return;
+            const shouldKeepAtLatest = !targetMessageId && (
+                thread.scrollHeight - thread.scrollTop - thread.clientHeight < 96
+            );
             messageRow.dataset.previewRequested = 'true';
             try {
                 const response = await fetch(`${thread.dataset.linkPreviewUrl}?url=${encodeURIComponent(url)}`);
                 if (!response.ok) return;
                 const payload = await response.json();
                 renderLinkPreview(messageRow, payload.preview);
+                if (shouldKeepAtLatest) scrollToLatest();
             } catch (_) {
                 // Leave the normal clickable URL in place when metadata is unavailable.
             }
