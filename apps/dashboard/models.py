@@ -235,6 +235,9 @@ class Message(models.Model):
 	)
 	body = models.TextField(max_length=2000)
 	attachment = models.FileField(upload_to='messages/', blank=True, null=True)
+	replied_to = models.ForeignKey(
+		'self', blank=True, null=True, on_delete=models.SET_NULL, related_name='replies',
+	)
 	created_at = models.DateTimeField(auto_now_add=True)
 	updated_at = models.DateTimeField(auto_now=True)
 	is_deleted = models.BooleanField(default=False)
@@ -279,6 +282,19 @@ class ConversationUserState(models.Model):
 	class Meta:
 		constraints = [
 			models.UniqueConstraint(fields=['conversation', 'user'], name='unique_conversation_user_state'),
+		]
+
+
+class ConversationReadState(models.Model):
+	"""The furthest message a participant has actually viewed in a conversation."""
+	conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name='read_states')
+	user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='conversation_read_states')
+	last_read_message = models.ForeignKey(Message, blank=True, null=True, on_delete=models.SET_NULL, related_name='+')
+	last_read_at = models.DateTimeField(blank=True, null=True)
+
+	class Meta:
+		constraints = [
+			models.UniqueConstraint(fields=['conversation', 'user'], name='unique_conversation_read_state'),
 		]
 
 

@@ -939,6 +939,22 @@
 .messaging-edit-state { display: flex; justify-content: space-between; align-items: center; color: var(--color-primary); font-size: .82rem; font-weight: 700; }
 .messaging-edit-state[hidden] { display: none; }
 .messaging-edit-state button { border: 0; color: var(--color-primary); background: transparent; cursor: pointer; }
+.messaging-reply-state { display:flex; align-items:center; justify-content:space-between; gap:.75rem; margin-bottom:.45rem; padding:.55rem .7rem; border-left:3px solid var(--color-primary); border-radius:.45rem; background:#fff7ed; animation:messaging-reply-in 180ms cubic-bezier(.2,0,0,1); }
+.messaging-reply-state[hidden] { display:none; }
+.messaging-reply-state span { display:grid; min-width:0; gap:.1rem; font-size:.75rem; color:var(--color-primary); }
+.messaging-reply-state em { overflow:hidden; color:#64748b; font-style:normal; text-overflow:ellipsis; white-space:nowrap; }
+.messaging-reply-state button,.messaging-reply-action { border:0; background:transparent; color:#718096; cursor:pointer; }
+.messaging-reply-action { order:2; align-self:center; flex:0 0 34px; width:34px; height:34px; padding:.3rem; border-radius:50%; opacity:0; transform:translateX(-3px); transition:opacity 140ms cubic-bezier(.2,0,0,1),transform 140ms cubic-bezier(.2,0,0,1),background-color 140ms cubic-bezier(.2,0,0,1); }
+.messaging-message-row.own .messaging-reply-action { order:0; transform:translateX(3px); }
+.messaging-message-row:hover .messaging-reply-action,.messaging-reply-action:focus-visible { opacity:1; transform:none; color:var(--color-primary); background:#fff1e8; outline:0; }
+.messaging-reply-quote { display:grid; width:100%; gap:.14rem; margin:0 0 .45rem; padding:.45rem .55rem; border:0; border-left:3px solid #cbd5e1; border-radius:.45rem; color:#64748b; background:#f8fafc; text-align:left; cursor:pointer; }
+.messaging-reply-quote strong { color:#475569; font-size:.72rem; }.messaging-reply-quote span { overflow:hidden; font-size:.75rem; text-overflow:ellipsis; white-space:nowrap; }.messaging-reply-quote.unavailable { cursor:default; }
+.messaging-seen-avatar { order:2; width:16px; height:16px; flex:0 0 16px; margin:0 7px 1px 4px; border:1px solid #fff; border-radius:50%; object-fit:cover; align-self:flex-end; }
+.messaging-seen-avatar.is-seen-enter { animation:messaging-reply-in 160ms cubic-bezier(.2,0,0,1); }
+@media (max-width:760px) { .messaging-message-row[data-message-id] .messaging-message-content { touch-action:pan-y; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; } .messaging-message-row.is-held .messaging-message-content { transform:scale(.975); } .messaging-message-row.is-reply-swiping .messaging-message-content { transition:none; } }
+@keyframes messaging-reply-in { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:none; } }
+@media (max-width:760px) { .messaging-reply-action { display:none; } .messaging-message-row.messaging-swipe-reply .messaging-message-content { transform:translateX(12px); } }
+@media (prefers-reduced-motion:reduce) { .messaging-reply-state { animation:none; }.messaging-reply-action { transition:none; } }
 .messaging-action-sheet section { display: grid; gap: .45rem; padding: 1.25rem; }
 .messaging-action-sheet h2 { margin: 0 0 .3rem; font-size: 1rem; }
 .messaging-action-sheet button { padding: .7rem; border: 0; border-radius: .5rem; background: #f8fafc; color: var(--color-text); text-align: left; cursor: pointer; }
@@ -1507,11 +1523,19 @@
     }
 
     #navbar .navbar-brand .site-logo {
-        width: 34px;
+        width: 28px;
+        height: 28px;
     }
 
     #navbar .navbar-site-name {
-        display: none;
+        display: block;
+        overflow: visible;
+        flex: 0 0 auto;
+        color: #fff;
+        font-size: 0.82rem;
+        font-weight: 700;
+        text-overflow: clip;
+        white-space: nowrap;
     }
 
     #navbar .navbar-actions {
