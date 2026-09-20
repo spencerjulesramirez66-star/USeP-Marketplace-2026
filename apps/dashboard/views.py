@@ -2,21 +2,29 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.cache import never_cache
 from django.db import transaction
-from django.db.models import Count, F, OuterRef, Q, Subquery
+from django.db.models import Count, Exists, F, OuterRef, Q, Subquery
 from django.http import Http404, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from datetime import timedelta
+import logging
+import uuid
 
 from apps.accounts.models import User
 
 from .forms import CONDITION_CHOICES, PRODUCT_CONDITIONS, SERVICE_CONDITIONS, ListingForm, MessageForm
-from .models import Category, Conversation, ConversationUserState, Listing, ListingImage, Message, MessageRevision, SavedItem
+from .models import Category, Conversation, ConversationTypingState, ConversationUserState, Listing, ListingImage, Message, MessageAttachment, MessageRevision, SavedItem
 from apps.messaging.link_previews import get_link_preview
 from apps.messaging.message_urls import extract_meaningful_message_urls
 from urllib.parse import urlparse
 
 
+logger = logging.getLogger(__name__)
+
+
+# Relative weight of each signal in the "Recommended for you" ranking.
+# Tunable without touching the scoring logic itself.
 RECOMMENDATION_WEIGHTS = {
     'popularity': 0.5,
     'recency': 0.2,
@@ -40,6 +48,24 @@ def _visible_messages_for_user(conversation, user):
     return messages.filter(pk__gt=cutoff) if cutoff else messages
 
 
+def _other_participant_typing(conversation, user):
+    other_user_id = conversation.seller_id if user.id == conversation.buyer_id else conversation.buyer_id
+    last_activity_at = ConversationTypingState.objects.filter(
+        conversation=conversation,
+        user_id=other_user_id,
+    ).values_list('last_activity_at', flat=True).first()
+    now = timezone.now()
+    result = bool(last_activity_at and last_activity_at >= now - timedelta(seconds=3))
+    age_seconds = (now - last_activity_at).total_seconds() if last_activity_at else None
+    logger.warning(
+        '[TYPE-SERVER-READ] conversation=%s viewer=%s other=%s last_activity_at=%s now=%s age_seconds=%s freshness_limit=3 result=%s',
+        conversation.pk, user.pk, other_user_id,
+        last_activity_at.isoformat() if last_activity_at else 'NULL', now.isoformat(),
+        round(age_seconds, 3) if age_seconds is not None else 'NULL', result,
+    )
+    return result
+
+
 def _visible_participant_messages_for(user):
     """All messages visible to a user across their conversations, without N+1 state lookups."""
     state = ConversationUserState.objects.filter(conversation_id=OuterRef('conversation_id'), user=user)
@@ -55,14 +81,18 @@ def _conversation_resources(conversation, user):
     media = []
     files = []
     links = []
-    for message in _visible_messages_for_user(conversation, user).filter(is_deleted=False):
-        if message.attachment:
+    for message in _visible_messages_for_user(conversation, user).filter(is_deleted=False).prefetch_related('attachments'):
+        message_attachments = list(message.attachments.all())
+        if message.attachment and not message_attachments:
+            message_attachments = [message]
+        for attachment in message_attachments:
             resource = {
-                'url': message.attachment.url,
-                'name': message.attachment.name.rsplit('/', 1)[-1],
-                'is_image': message.attachment_is_image,
+                'url': attachment.file.url if hasattr(attachment, 'file') else attachment.attachment.url,
+                'name': (attachment.file.name if hasattr(attachment, 'file') else attachment.attachment.name).rsplit('/', 1)[-1],
+                'is_image': attachment.is_image if hasattr(attachment, 'is_image') else attachment.attachment_is_image,
+                'is_video': attachment.is_video if hasattr(attachment, 'is_video') else False,
             }
-            (media if resource['is_image'] else files).append(resource)
+            (media if resource['is_image'] or resource['is_video'] else files).append(resource)
         links.extend(extract_meaningful_message_urls(message.body))
     return media, files, [_link_card(link) for link in dict.fromkeys(links)]
 
@@ -92,18 +122,50 @@ def _message_payload(message):
             'sender_name': sender_name,
             'created_at': message.created_at.isoformat(),
         }
+    attachments = [{
+        'url': attachment.file.url,
+        'name': attachment.file.name.rsplit('/', 1)[-1],
+        'is_image': attachment.is_image,
+        'is_video': attachment.is_video,
+    } for attachment in message.attachments.all()]
+    if message.attachment and not attachments:
+        attachments = [{'url': message.attachment.url, 'name': message.attachment.name.rsplit('/', 1)[-1], 'is_image': message.attachment_is_image, 'is_video': False}]
     return {
         'id': message.pk,
         'body': message.body,
         'attachment_url': message.attachment.url if message.attachment else '',
         'attachment_name': message.attachment.name.rsplit('/', 1)[-1] if message.attachment else '',
         'attachment_is_image': message.attachment_is_image,
+        'attachments': attachments,
         'created_at': message.created_at.isoformat(),
         'sender_id': message.sender_id,
         'sender_avatar_url': message.sender.avatar_url,
         'is_edited': message.is_edited,
         'edited_at': message.edited_at.isoformat() if message.edited_at else '',
     }
+
+
+def _latest_visible_revision_id(conversation, user):
+    """Return the revision cursor represented by the currently rendered chat."""
+    revisions = MessageRevision.objects.filter(message__conversation=conversation)
+    cutoff = _clear_cutoff_for(conversation, user)
+    if cutoff:
+        revisions = revisions.filter(message_id__gt=cutoff)
+    return revisions.order_by('-pk').values_list('pk', flat=True).first() or 0
+
+
+def _save_message_with_attachments(form, conversation, sender, files):
+    message = form.save(commit=False)
+    message.conversation = conversation
+    message.sender = sender
+    # New multi-file uploads live in MessageAttachment; retain Message.attachment
+    # solely for existing records and backwards compatibility.
+    message.attachment = None
+    message.save()
+    MessageAttachment.objects.bulk_create([
+        MessageAttachment(message=message, file=attachment) for attachment in files.getlist('attachments')
+    ])
+    return message
 
 
 def _unread_message_count(user):
@@ -377,6 +439,10 @@ def delete_listing(request, listing_id):
 
 
 def _buyer_affinity_categories(user):
+    """Category IDs a buyer has shown interest in: saved or messaged about.
+    Returns an empty set for anonymous visitors or buyers with no history,
+    which naturally reduces the ranking below to popularity + recency only.
+    """
     if not user.is_authenticated:
         return set()
     saved_categories = SavedItem.objects.filter(buyer=user).values_list('listing__category_id', flat=True)
@@ -385,8 +451,23 @@ def _buyer_affinity_categories(user):
 
 
 def _rank_listings_for_buyer(listings, user):
-    # score = 0.5 * popularity + 0.2 * recency + 0.3 * affinity
+    """Score and order listings for the "Recommended for you" feed.
 
+    score = 0.5 * popularity + 0.2 * recency + 0.3 * affinity
+
+    - popularity: views normalized against the highest view count in this
+      result set, so no single outlier listing skews everything else.
+    - recency: 1 / (1 + days_since_created), a soft decay rather than a
+      hard cutoff, so a brand-new listing with 0 views still ranks
+      reasonably instead of sinking to the bottom.
+    - affinity: 1 if the listing's category matches one the buyer has
+      saved or messaged about before, else 0.
+
+    Evaluates the queryset once into a list and scores in Python. Simple
+    and portable across DB backends; if the catalog grows large enough
+    for this to matter, move the popularity/recency math into the query
+    itself and keep only affinity lookups in Python.
+    """
     listings = list(listings)
     if not listings:
         return listings
@@ -414,6 +495,14 @@ def setup_buyer_dashboard(request):
     category_slug = request.GET.get('category', 'all').strip().lower()
     seller_id = request.GET.get('seller')
     listings = Listing.objects.filter(status=Listing.Status.ACTIVE).select_related('seller', 'category')
+    if request.user.is_authenticated:
+        cart_membership = SavedItem.objects.filter(
+            buyer=request.user,
+            listing_id=OuterRef('pk'),
+        )
+        # The shared card can render the authoritative cart state without a
+        # separate query for every listing.
+        listings = listings.annotate(is_in_cart=Exists(cart_membership))
 
     if query:
         listings = listings.filter(
@@ -544,8 +633,11 @@ def toggle_saved_item(request, item_slug):
         elif listing.status == Listing.Status.ACTIVE:
             SavedItem.objects.create(buyer=request.user, listing=listing)
             messages.success(request, 'Listing saved for later.')
+            saved = True
         else:
             messages.error(request, 'This product is no longer available.')
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'saved': SavedItem.objects.filter(buyer=request.user, listing=listing).exists(), 'cart_count': request.user.saved_items.count()})
     return redirect(request.POST.get('next') or listing.get_absolute_url())
 
 
@@ -577,13 +669,10 @@ def start_conversation(request, item_slug):
         seller=listing.seller,
         listing=listing,
     )
-    if request.method == 'POST' and (request.POST.get('body', '').strip() or request.FILES.get('attachment')):
+    if request.method == 'POST' and (request.POST.get('body', '').strip() or request.FILES.getlist('attachments')):
         form = MessageForm(request.POST, request.FILES)
         if form.is_valid():
-            message = form.save(commit=False)
-            message.conversation = conversation
-            message.sender = request.user
-            message.save()
+            message = _save_message_with_attachments(form, conversation, request.user, request.FILES)
             conversation.save(update_fields=['updated_at'])
             messages.success(request, 'Message sent to the seller.')
         else:
@@ -625,10 +714,7 @@ def conversation_detail(request, conversation_id):
     if request.method == 'POST':
         form = MessageForm(request.POST, request.FILES)
         if form.is_valid():
-            message = form.save(commit=False)
-            message.conversation = conversation
-            message.sender = request.user
-            message.save()
+            message = _save_message_with_attachments(form, conversation, request.user, request.FILES)
             conversation.save(update_fields=['updated_at'])
             if request.headers.get('x-requested-with') == 'XMLHttpRequest':
                 return JsonResponse(_message_payload(message))
@@ -641,7 +727,7 @@ def conversation_detail(request, conversation_id):
         form = MessageForm()
     participant = conversation.seller if conversation.buyer_id == request.user.id else conversation.buyer
     media, files, links = _conversation_resources(conversation, request.user)
-    visible_messages = _visible_messages_for_user(conversation, request.user).select_related('sender')
+    visible_messages = _visible_messages_for_user(conversation, request.user).select_related('sender').prefetch_related('attachments')
     visible_messages.exclude(sender=request.user).filter(is_read=False).update(is_read=True)
     return render(
         request,
@@ -659,13 +745,15 @@ def conversation_detail(request, conversation_id):
             'chat_media': media,
             'chat_files': files,
             'chat_links': links,
+            'message_revision_cursor': _latest_visible_revision_id(conversation, request.user),
         },
     )
 
 
 @login_required
+@never_cache
 def conversation_new_messages(request, conversation_id):
-    """Return new messages plus existing messages that were unsent."""
+    """Return new messages and changed existing messages for one active chat."""
     conversation = get_object_or_404(
         Conversation.objects.filter(Q(buyer=request.user) | Q(seller=request.user)),
         pk=conversation_id,
@@ -677,17 +765,94 @@ def conversation_new_messages(request, conversation_id):
 
     cutoff = _clear_cutoff_for(conversation, request.user) or 0
     after_id = max(after_id, cutoff)
-    new_messages = list(conversation.messages.filter(pk__gt=after_id).select_related('sender'))
+    try:
+        revision_after = max(int(request.GET.get('revision_after', 0)), 0)
+    except (TypeError, ValueError):
+        revision_after = 0
+    new_messages = list(conversation.messages.filter(pk__gt=after_id).select_related('sender').prefetch_related('attachments'))
     conversation.messages.filter(
         pk__in=[message.pk for message in new_messages], is_read=False,
     ).exclude(sender=request.user).update(is_read=True)
     deleted_messages = _visible_messages_for_user(conversation, request.user).filter(is_deleted=True).select_related('sender')
-    edited_messages = _visible_messages_for_user(conversation, request.user).filter(is_edited=True, is_deleted=False).select_related('sender')
+    revisions = MessageRevision.objects.filter(
+        message__conversation=conversation,
+        message__is_deleted=False,
+        pk__gt=revision_after,
+    )
+    if cutoff:
+        revisions = revisions.filter(message_id__gt=cutoff)
+    revisions = list(revisions.select_related('message__sender').prefetch_related('message__attachments').order_by('pk'))
+    # One message may have changed several times between polls. Return its
+    # current state once, while the highest revision ID remains a durable,
+    # server-issued cursor for the next poll.
+    changed_messages = {}
+    for revision in revisions:
+        # A message created after ``after_id`` is already returned with its
+        # latest body in ``messages``. It must not be patched as a second
+        # change event during the same response.
+        if revision.message_id <= after_id:
+            changed_messages[revision.message_id] = revision.message
+    revision_cursor = revisions[-1].pk if revisions else revision_after
     return JsonResponse({
         'messages': [_message_payload(message) for message in new_messages],
         'deleted_messages': [_message_payload(message) for message in deleted_messages],
-        'updated_messages': [_message_payload(message) for message in edited_messages],
+        'updated_messages': [_message_payload(message) for message in changed_messages.values()],
+        'revision_cursor': revision_cursor,
+        'other_user_typing': _other_participant_typing(conversation, request.user),
     })
+
+
+@login_required
+def conversation_typing(request, conversation_id):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Typing updates must use POST.'}, status=405)
+    conversation = get_object_or_404(Conversation.objects.filter(Q(buyer=request.user) | Q(seller=request.user)), pk=conversation_id)
+    raw_sequence = request.POST.get('sequence', 0)
+    try:
+        sequence = max(int(raw_sequence), 0)
+    except (TypeError, ValueError):
+        logger.warning(
+            '[TYPE-SERVER-WRITE] conversation=%s user=%s typing=%s incoming_sequence=%s accepted=false reason=invalid_sequence now=%s',
+            conversation.pk, request.user.pk, request.POST.get('typing') == '1', raw_sequence, timezone.now().isoformat(),
+        )
+        return JsonResponse({'error': 'A valid typing sequence is required.'}, status=400)
+    requested_typing = request.POST.get('typing') == '1'
+    raw_client_session_id = request.POST.get('client_session_id', '')
+    try:
+        client_session_id = str(uuid.UUID(raw_client_session_id))
+    except (AttributeError, TypeError, ValueError):
+        logger.warning(
+            '[TYPE-SERVER-WRITE] conversation=%s user=%s typing=%s incoming_sequence=%s accepted=false reason=invalid_client_session',
+            conversation.pk, request.user.pk, requested_typing, sequence,
+        )
+        return JsonResponse({'error': 'A valid typing client session is required.'}, status=400)
+    with transaction.atomic():
+        state, _ = ConversationTypingState.objects.select_for_update().get_or_create(
+            conversation=conversation,
+            user=request.user,
+        )
+        previous_sequence = state.last_sequence
+        previous_client_session_id = state.client_session_id
+        last_activity_before = state.last_activity_at
+        is_new_client_session = client_session_id != state.client_session_id
+        # A browser serializes requests within a page session. Page-local
+        # sequences intentionally restart after a reload, so a new validated
+        # client session replaces the previous ordering namespace.
+        accepted = is_new_client_session or sequence > state.last_sequence
+        if accepted:
+            state.client_session_id = client_session_id
+            state.last_sequence = sequence
+            state.last_activity_at = timezone.now() if requested_typing else None
+            state.save(update_fields=['client_session_id', 'last_sequence', 'last_activity_at'])
+        logger.warning(
+            '[TYPE-SERVER-WRITE] conversation=%s user=%s typing=%s client_session=%s previous_client_session=%s incoming_sequence=%s previous_sequence=%s accepted=%s reason=%s last_activity_before=%s last_activity_after=%s now=%s',
+            conversation.pk, request.user.pk, requested_typing,
+            client_session_id, previous_client_session_id or 'NULL', sequence, previous_sequence,
+            accepted, 'new_client_session' if is_new_client_session else ('accepted' if accepted else 'stale_sequence'),
+            last_activity_before.isoformat() if last_activity_before else 'NULL',
+            state.last_activity_at.isoformat() if state.last_activity_at else 'NULL', timezone.now().isoformat(),
+        )
+    return JsonResponse({'ok': True, 'sequence': sequence})
 
 
 @login_required
@@ -743,13 +908,16 @@ def edit_message(request, conversation_id, message_id):
     body = (request.POST.get('body') or '').strip()
     if not body or len(body) > 2000:
         return JsonResponse({'error': 'Message text must be between 1 and 2000 characters.'}, status=400)
+    revision = None
     if body != message.body:
         with transaction.atomic():
-            MessageRevision.objects.create(message=message, body=message.body, editor=request.user)
+            revision = MessageRevision.objects.create(message=message, body=message.body, editor=request.user)
             message.body, message.is_edited, message.edited_at = body, True, timezone.now()
             message.save(update_fields=['body', 'is_edited', 'edited_at', 'updated_at'])
-            conversation.save(update_fields=['updated_at'])
-    return JsonResponse(_message_payload(message))
+    payload = _message_payload(message)
+    if revision:
+        payload['revision_cursor'] = revision.pk
+    return JsonResponse(payload)
 
 
 @login_required

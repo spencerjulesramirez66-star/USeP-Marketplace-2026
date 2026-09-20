@@ -75,17 +75,17 @@
                     <h2>Conversation details</h2>
                     <button class="messaging-details-close" type="button" aria-label="Close conversation details" title="Close"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
                 </div>
-                <div class="messaging-profile">
+                <a class="messaging-profile messaging-profile-link" href="{% url 'dashboard:buyer' %}?seller={{ chat_participant.id }}">
                     <img src="{{ chat_participant.avatar_url }}" alt="">
                     <h3>{{ chat_participant.first_name }} {{ chat_participant.last_name }}</h3>
                     <p>{{ chat_participant.email }}</p>
                     {% if chat_participant.is_seller %}<span><i class="bi bi-shop" aria-hidden="true"></i> Marketplace seller</span>{% endif %}
-                </div>
+                </a>
                 <div class="messaging-details-section">
                     <div class="messaging-section-heading"><h3><i class="bi bi-images" aria-hidden="true"></i> Media</h3><span>{{ chat_media|length }}</span></div>
                     <div class="messaging-media-grid">
                     {% for attachment in chat_media %}
-                    <button class="messaging-media-item" type="button" data-media-url="{{ attachment.url }}" data-media-name="{{ attachment.name }}"><img src="{{ attachment.url }}" alt="{{ attachment.name }}"><span>{{ attachment.name }}</span></button>
+                    {% if attachment.is_video %}<a class="messaging-media-item" href="{{ attachment.url }}" target="_blank" rel="noopener"><video muted preload="metadata"><source src="{{ attachment.url }}"></video><span>{{ attachment.name }}</span></a>{% else %}<button class="messaging-media-item" type="button" data-media-url="{{ attachment.url }}" data-media-name="{{ attachment.name }}"><img src="{{ attachment.url }}" alt="{{ attachment.name }}"><span>{{ attachment.name }}</span></button>{% endif %}
                     {% empty %}<p class="messaging-details-empty">No images shared yet.</p>{% endfor %}
                     </div>
                 </div>
@@ -104,7 +104,7 @@
                 </div>
             </aside>
 
-            <div class="messaging-thread" data-poll-url="{% url 'dashboard:conversation_new_messages' conversation.id %}" data-links-url="{% url 'dashboard:conversation_links' conversation.id %}" data-link-preview-url="{% url 'dashboard:link_preview' %}" data-delete-url-template="{% url 'dashboard:delete_message' conversation.id 0 %}" data-edit-url-template="{% url 'dashboard:edit_message' conversation.id 0 %}" data-history-url-template="{% url 'dashboard:message_history' conversation.id 0 %}" data-clear-url="{% url 'dashboard:clear_conversation' conversation.id %}">
+            <div class="messaging-thread" data-poll-url="{% url 'dashboard:conversation_new_messages' conversation.id %}" data-typing-url="{% url 'dashboard:conversation_typing' conversation.id %}" data-links-url="{% url 'dashboard:conversation_links' conversation.id %}" data-link-preview-url="{% url 'dashboard:link_preview' %}" data-delete-url-template="{% url 'dashboard:delete_message' conversation.id 0 %}" data-edit-url-template="{% url 'dashboard:edit_message' conversation.id 0 %}" data-history-url-template="{% url 'dashboard:message_history' conversation.id 0 %}" data-clear-url="{% url 'dashboard:clear_conversation' conversation.id %}" data-revision-cursor="{{ message_revision_cursor }}">
                 <section class="messaging-listing-context" aria-label="Listing being discussed">
                     <img src="{{ conversation.listing.conversation_image_url }}" alt="{{ conversation.listing.title }}">
                     <div class="messaging-listing-context-copy">
@@ -124,37 +124,47 @@
                     <span>Keep meetups in public campus locations.</span>
                 </div>
                 {% for message in conversation_messages %}
-                <div class="messaging-message-row{% if message.sender_id == request.user.id %} own{% endif %}" data-message-id="{{ message.id }}">
+                <div class="messaging-message-row{% if message.sender_id == request.user.id %} own{% endif %}" data-message-id="{{ message.id }}" data-message-has-body="{% if message.body %}true{% else %}false{% endif %}">
                     {% if message.sender_id != request.user.id %}<img class="messaging-message-avatar" src="{{ message.sender.avatar_url }}" alt="">{% endif %}
-                    <article class="messaging-bubble{% if message.sender_id == request.user.id %} own{% endif %}{% if message.is_deleted %} messaging-bubble-deleted{% endif %}">
+                    <div class="messaging-message-content">
                     {% if message.is_deleted %}
-                    <p class="messaging-deleted-notice">{% if message.sender.first_name or message.sender.last_name %}{{ message.sender.first_name }} {{ message.sender.last_name }}{% else %}{{ message.sender.email }}{% endif %} deleted a message</p>
+                    <article class="messaging-bubble{% if message.sender_id == request.user.id %} own{% endif %} messaging-bubble-deleted"><p class="messaging-deleted-notice">{% if message.sender.first_name or message.sender.last_name %}{{ message.sender.first_name }} {{ message.sender.last_name }}{% else %}{{ message.sender.email }}{% endif %} deleted a message</p></article>
                     {% else %}
-                    <p>{{ message.body|message_links }}</p>
-                    {% if message.attachment %}
+                    {% if message.body %}<article class="messaging-bubble{% if message.sender_id == request.user.id %} own{% endif %}"><p>{{ message.body|message_links }}</p></article>{% endif %}
+                    {% if message.attachments.all or message.attachment %}
+                    <div class="messaging-attachment-bubbles">
+                    {% for attachment in message.attachments.all %}
+                        {% if attachment.is_image %}<a class="messaging-attachment-bubble messaging-image-attachment" href="{{ attachment.file.url }}" target="_blank" rel="noopener noreferrer"><img src="{{ attachment.file.url }}" alt="{{ attachment.file.name|cut:'messages/' }}"></a>
+                        {% elif attachment.is_video %}<a class="messaging-attachment-bubble messaging-file-attachment" href="{{ attachment.file.url }}" target="_blank" rel="noopener noreferrer"><i class="bi bi-play-circle" aria-hidden="true"></i><span>{{ attachment.file.name|cut:'messages/' }}</span></a>
+                        {% else %}<a class="messaging-attachment-bubble messaging-file-attachment" href="{{ attachment.file.url }}" target="_blank" rel="noopener noreferrer"><i class="bi bi-paperclip" aria-hidden="true"></i><span>{{ attachment.file.name|cut:'messages/' }}</span></a>{% endif %}
+                    {% empty %}{% if message.attachment %}
                         {% if message.attachment_is_image %}
-                        <a class="messaging-image-attachment" href="{{ message.attachment.url }}" target="_blank" rel="noopener"><img src="{{ message.attachment.url }}" alt="{{ message.attachment.name|cut:'messages/' }}"></a>
+                        <a class="messaging-attachment-bubble messaging-image-attachment" href="{{ message.attachment.url }}" target="_blank" rel="noopener noreferrer"><img src="{{ message.attachment.url }}" alt="{{ message.attachment.name|cut:'messages/' }}"></a>
                         {% else %}
-                        <a class="messaging-attachment" href="{{ message.attachment.url }}" target="_blank" rel="noopener"><i class="bi bi-paperclip" aria-hidden="true"></i> {{ message.attachment.name|cut:'messages/' }}</a>
+                        <a class="messaging-attachment-bubble messaging-file-attachment" href="{{ message.attachment.url }}" target="_blank" rel="noopener noreferrer"><i class="bi bi-paperclip" aria-hidden="true"></i><span>{{ message.attachment.name|cut:'messages/' }}</span></a>
                         {% endif %}
+                    {% endif %}{% endfor %}</div>
                     {% endif %}
                     {% endif %}
-                    </article>
+                    </div>
                     <span class="messaging-message-meta"><time datetime="{{ message.created_at|date:'c' }}">{{ message.created_at|date:"M j, g:i A" }}</time>{% if message.is_edited %}<span aria-hidden="true"> · </span><button class="messaging-edited-indicator" type="button" data-history-message="{{ message.id }}">Edited</button>{% endif %}</span>
                     {% if message.sender_id == request.user.id and not message.is_deleted %}
-                    <button class="messaging-message-action" type="button" data-message-options="{{ message.id }}" aria-label="Message options" title="Message options"><i class="bi bi-three-dots" aria-hidden="true"></i></button>
+                    <button class="messaging-message-action" type="button" data-message-options="{{ message.id }}" data-message-has-body="{% if message.body %}true{% else %}false{% endif %}" aria-label="Message options" title="Message options"><i class="bi bi-three-dots" aria-hidden="true"></i></button>
                     {% endif %}
                 </div>
                 {% endfor %}
+                <div class="messaging-typing" role="status" aria-live="polite" hidden><span></span><span></span><span></span><i>{{ chat_participant.first_name }} is typing…</i></div>
             </div>
 
-            <form method="post" class="messaging-compose-form" enctype="multipart/form-data" data-current-user="{{ request.user.id }}">
+            <form method="post" class="messaging-compose-form" enctype="multipart/form-data" data-current-user="{{ request.user.id }}" data-max-attachment-size="{{ message_form.max_attachment_size_bytes }}">
                 {% csrf_token %}
                 <div class="messaging-edit-state" id="messaging-edit-state" hidden><span>Editing message</span><button type="button" id="messaging-cancel-edit" aria-label="Cancel editing">Cancel</button></div>
                 <div class="messaging-attachment-preview" id="messaging-attachment-preview" hidden></div>
+                <div class="messaging-attachment-warning" id="messaging-attachment-warning" role="alert" hidden></div>
                 <div class="messaging-compose-controls">
-                    <label class="messaging-attach-button" for="message-attachment" aria-label="Attach a file" title="Attach a file"><i class="bi bi-paperclip" aria-hidden="true"></i></label>
-                    <input class="messaging-attachment-input" id="message-attachment" name="attachment" type="file" accept=".pdf,image/gif,image/jpeg,image/png,image/webp">
+                    <div class="messaging-attachment-menu-wrap"><button class="messaging-attach-button" id="messaging-attachment-toggle" type="button" aria-label="Add attachment" title="Add attachment" aria-expanded="false"><i class="bi bi-plus-lg" aria-hidden="true"></i></button><div class="messaging-attachment-menu" id="messaging-attachment-menu" hidden><button type="button" data-attachment-picker="file"><i class="bi bi-file-earmark" aria-hidden="true"></i> Upload file</button><button type="button" data-attachment-picker="media"><i class="bi bi-image" aria-hidden="true"></i> Image / Video</button></div></div>
+                    <input class="messaging-attachment-input" id="message-attachment" name="attachments" type="file" multiple accept="application/pdf,.doc,.docx,.txt,.zip,.xlsx,.pptx">
+                    <input class="messaging-attachment-input" id="message-media-attachment" type="file" multiple accept="image/*,video/mp4,video/webm,video/quicktime">
                     {{ message_form.body }}
                     <button type="submit" aria-label="Send message" title="Send message"><i class="bi bi-send-fill" aria-hidden="true"></i></button>
                 </div>
@@ -200,13 +210,18 @@
             });
         });
 
+        const debugMessaging = (...args) => { if (window.MESSAGES_DEBUG) console.debug(...args); };
         const formatSidebarTime = (value) => new Date(value).toLocaleDateString([], { month: 'short', day: 'numeric' });
-        const addUnreadBadge = (parent, count) => {
-            if (!count) return;
-            const badge = document.createElement('span');
-            badge.className = 'conversation-unread-badge';
-            badge.textContent = String(count);
-            parent.append(badge);
+        const setText = (element, value) => { if (element && element.textContent !== value) element.textContent = value; };
+        const patchUnreadBadge = (parent, count, before = null) => {
+            let badge = parent.querySelector(':scope > .conversation-unread-badge');
+            if (!count) { badge?.remove(); return; }
+            if (!badge) {
+                badge = document.createElement('span');
+                badge.className = 'conversation-unread-badge';
+                parent.insertBefore(badge, before);
+            }
+            setText(badge, String(count));
         };
         const createConversationRow = (item, participant, activeConversationId) => {
             const wrap = document.createElement('div');
@@ -223,7 +238,7 @@
             const preview = document.createElement('span'); preview.textContent = item.preview || 'Listing conversation';
             copy.append(title, preview);
             row.append(image, copy);
-            addUnreadBadge(row, item.unread_count);
+            patchUnreadBadge(row, item.unread_count);
             const time = document.createElement('time'); time.dateTime = item.updated_at; time.textContent = formatSidebarTime(item.updated_at);
             row.append(time);
             const options = document.createElement('button');
@@ -234,22 +249,83 @@
             wrap.append(row, options);
             return wrap;
         };
-        const updateConversationGroup = (groupElement, group, activeConversationId) => {
-            const wasOpen = groupElement.open;
-            const isNew = !groupElement.dataset.participantId;
+        const enableGroupToggleAnimation = (groupElement) => {
+            if (groupElement.dataset.toggleAnimationBound) return;
+            groupElement.dataset.toggleAnimationBound = 'true';
+            groupElement.addEventListener('toggle', () => {
+                groupElement.classList.toggle('is-expanding', groupElement.open);
+                window.setTimeout(() => groupElement.classList.remove('is-expanding'), 220);
+            });
+        };
+        const createConversationGroup = (group) => {
+            const groupElement = document.createElement('details');
+            groupElement.className = 'conversation-group is-new-participant';
             groupElement.dataset.participantId = String(group.participant.id);
             const summary = document.createElement('summary');
-            if (group.unread_count) summary.classList.add('has-unread');
-            const avatar = document.createElement('img'); avatar.className = 'conversation-avatar'; avatar.src = group.participant.avatar; avatar.alt = '';
+            const avatar = document.createElement('img'); avatar.className = 'conversation-avatar'; avatar.alt = '';
             const copy = document.createElement('span'); copy.className = 'conversation-row-copy';
-            const name = document.createElement('strong'); name.textContent = group.participant.name;
-            const count = document.createElement('span'); count.textContent = `${group.conversations.length} ${group.conversations.length === 1 ? 'inquiry' : 'inquiries'}`;
-            copy.append(name, count);
-            summary.append(avatar, copy);
-            addUnreadBadge(summary, group.unread_count);
-            const chevron = document.createElement('i'); chevron.className = 'bi bi-chevron-down'; chevron.setAttribute('aria-hidden', 'true'); summary.append(chevron);
-            groupElement.replaceChildren(summary, ...group.conversations.map((item) => createConversationRow(item, group.participant, activeConversationId)));
-            groupElement.open = wasOpen || (isNew && Boolean(group.unread_count));
+            copy.append(document.createElement('strong'), document.createElement('span'));
+            const chevron = document.createElement('i'); chevron.className = 'bi bi-chevron-down'; chevron.setAttribute('aria-hidden', 'true');
+            summary.append(avatar, copy, chevron);
+            groupElement.append(summary);
+            groupElement.addEventListener('animationend', () => groupElement.classList.remove('is-new-participant'), { once: true });
+            enableGroupToggleAnimation(groupElement);
+            return groupElement;
+        };
+        const patchConversationRow = (wrap, item, participant, activeConversationId) => {
+            const row = wrap.querySelector('.conversation-row');
+            row.href = item.url;
+            row.dataset.conversationId = String(item.id);
+            row.dataset.conversationSearch = `${item.listing_title} ${participant.name}`;
+            row.classList.toggle('active', Number(item.id) === activeConversationId);
+            row.classList.toggle('has-unread', Boolean(item.unread_count));
+            const image = row.querySelector('.conversation-avatar');
+            if (image.src !== new URL(item.listing_image, window.location.origin).href) image.src = item.listing_image;
+            const copy = row.querySelector('.conversation-row-copy');
+            setText(copy.querySelector('strong'), item.listing_title);
+            setText(copy.querySelector('span'), item.preview || 'Listing conversation');
+            const time = row.querySelector('time');
+            if (time.dateTime !== item.updated_at) { time.dateTime = item.updated_at; setText(time, formatSidebarTime(item.updated_at)); }
+            patchUnreadBadge(row, item.unread_count, time);
+        };
+        const patchConversationGroup = (groupElement, group, activeConversationId) => {
+            enableGroupToggleAnimation(groupElement);
+            groupElement.dataset.participantId = String(group.participant.id);
+            const summary = groupElement.querySelector(':scope > summary');
+            const avatar = summary.querySelector('.conversation-avatar');
+            if (avatar.src !== new URL(group.participant.avatar, window.location.origin).href) avatar.src = group.participant.avatar;
+            const copy = summary.querySelector('.conversation-row-copy');
+            setText(copy.querySelector('strong'), group.participant.name);
+            setText(copy.querySelector('span'), `${group.conversations.length} ${group.conversations.length === 1 ? 'inquiry' : 'inquiries'}`);
+            summary.classList.toggle('has-unread', Boolean(group.unread_count));
+            patchUnreadBadge(summary, group.unread_count, summary.querySelector('.bi-chevron-down'));
+
+            let reference = summary.nextElementSibling;
+            const incomingIds = new Set(group.conversations.map((item) => String(item.id)));
+            group.conversations.forEach((item) => {
+                let row = groupElement.querySelector(`.conversation-row[data-conversation-id="${item.id}"]`);
+                let wrap = row?.closest('.conversation-row-wrap');
+                if (!wrap) {
+                    wrap = createConversationRow(item, group.participant, activeConversationId);
+                    wrap.classList.add('is-new-conversation');
+                    wrap.addEventListener('animationend', () => wrap.classList.remove('is-new-conversation'), { once: true });
+                    debugMessaging('[sidebar] insert conversation', item.id);
+                } else {
+                    patchConversationRow(wrap, item, group.participant, activeConversationId);
+                }
+                if (wrap !== reference) {
+                    groupElement.insertBefore(wrap, reference);
+                    if (row) debugMessaging('[sidebar] move conversation', item.id);
+                }
+                reference = wrap.nextElementSibling;
+            });
+            groupElement.querySelectorAll('.conversation-row').forEach((row) => {
+                if (!incomingIds.has(row.dataset.conversationId)) {
+                    debugMessaging('[sidebar] remove conversation', row.dataset.conversationId);
+                    row.closest('.conversation-row-wrap')?.remove();
+                }
+            });
+            debugMessaging('[sidebar] patch participant', group.participant.id);
         };
         let sidebarPollTimer = null;
         let sidebarPollInFlight = false;
@@ -265,16 +341,17 @@
                     detail: { count: payload.total_unread_count },
                 }));
                 const activeConversationId = Number(document.querySelector('.conversation-row.active')?.dataset.conversationId || 0);
-                const previousScrollTop = conversationList.scrollTop;
                 conversationList.querySelector('.conversation-empty')?.remove();
+                let groupReference = conversationList.firstElementChild;
                 (payload.groups || []).forEach((group) => {
                     let groupElement = conversationList.querySelector(`[data-participant-id="${group.participant.id}"]`);
                     if (!groupElement) {
-                        groupElement = document.createElement('details');
-                        groupElement.className = 'conversation-group';
+                        groupElement = createConversationGroup(group);
+                        debugMessaging('[sidebar] insert participant', group.participant.id);
                     }
-                    updateConversationGroup(groupElement, group, activeConversationId);
-                    conversationList.append(groupElement);
+                    patchConversationGroup(groupElement, group, activeConversationId);
+                    if (groupElement !== groupReference) conversationList.insertBefore(groupElement, groupReference);
+                    groupReference = groupElement.nextElementSibling;
                 });
                 const participantIds = new Set((payload.groups || []).map((group) => String(group.participant.id)));
                 conversationList.querySelectorAll('.conversation-group').forEach((group) => {
@@ -286,7 +363,6 @@
                     empty.innerHTML = '<i class="bi bi-chat-square-text" aria-hidden="true"></i><strong>No conversations yet</strong><span>Message a seller from a marketplace listing to start chatting.</span>';
                     conversationList.append(empty);
                 }
-                conversationList.scrollTop = previousScrollTop;
                 if (search?.value) search.dispatchEvent(new Event('input'));
             } catch (_) {
                 // Keep the existing sidebar usable and try again on the next cycle.
@@ -395,7 +471,7 @@
             if (!details || !detailsToggle) return;
             details.hidden = !open;
             detailsToggle.setAttribute('aria-expanded', String(open));
-            if (open) refreshSharedLinks();
+            if (open) { stopTyping?.(); refreshSharedLinks(); }
         };
         detailsToggle?.addEventListener('click', () => setDetailsOpen(details.hidden));
         detailsClose?.addEventListener('click', () => setDetailsOpen(false));
@@ -409,6 +485,7 @@
 
         mobileBack?.addEventListener('click', () => {
             if (!mobileBreakpoint.matches) return;
+            stopTyping?.();
             cancelEditing?.();
             messagingPage.classList.remove('messaging-page-chat-open');
             const listUrl = messagingLayout?.dataset.conversationListUrl;
@@ -463,9 +540,14 @@
             }
         });
         const attachmentInput = document.querySelector('#message-attachment');
+        const mediaAttachmentInput = document.querySelector('#message-media-attachment');
+        const attachmentToggle = document.querySelector('#messaging-attachment-toggle');
+        const attachmentMenu = document.querySelector('#messaging-attachment-menu');
         const attachmentPreview = document.querySelector('#messaging-attachment-preview');
+        const attachmentWarning = document.querySelector('#messaging-attachment-warning');
         const messageInput = composeForm?.querySelector('textarea[name="body"]');
-        let previewObjectUrl = null;
+        const maxAttachmentSize = Number(composeForm?.dataset.maxAttachmentSize) || 0;
+        let pendingAttachments = [];
         let isSubmitting = false;
         const scrollToLatest = () => {
             if (!thread) return;
@@ -484,63 +566,230 @@
             messageInput.style.height = 'auto';
             messageInput.style.height = `${Math.min(messageInput.scrollHeight, 120)}px`;
         };
-        const clearAttachmentPreview = () => {
-            if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl);
-            previewObjectUrl = null;
-            attachmentInput.value = '';
+        const renderAttachmentPreviews = () => {
             attachmentPreview.replaceChildren();
-            attachmentPreview.hidden = true;
+            attachmentPreview.hidden = !pendingAttachments.length;
+            pendingAttachments.forEach((file, index) => {
+                const preview = document.createElement('div'); preview.className = 'messaging-attachment-preview-card';
+                if (file.type.startsWith('image/')) { const image = document.createElement('img'); image.className = 'messaging-attachment-preview-image'; image.alt = file.name; image.src = URL.createObjectURL(file); preview.append(image); }
+                else { const icon = document.createElement('i'); icon.className = `bi ${file.type.startsWith('video/') ? 'bi-play-circle' : 'bi-file-earmark-text'} messaging-attachment-preview-icon`; icon.setAttribute('aria-hidden', 'true'); preview.append(icon); }
+                const name = document.createElement('span'); name.className = 'messaging-attachment-preview-name'; name.textContent = file.name; preview.append(name);
+                const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'messaging-attachment-preview-remove'; remove.setAttribute('aria-label', `Remove ${file.name}`); remove.innerHTML = '<i class="bi bi-x-lg" aria-hidden="true"></i>'; remove.addEventListener('click', () => { pendingAttachments.splice(index, 1); renderAttachmentPreviews(); }); preview.append(remove);
+                attachmentPreview.append(preview);
+            });
         };
+        const clearAttachmentPreview = () => {
+            pendingAttachments = []; renderAttachmentPreviews();
+        };
+        const clearAttachmentWarning = () => {
+            if (!attachmentWarning) return;
+            attachmentWarning.replaceChildren();
+            attachmentWarning.hidden = true;
+        };
+        const showAttachmentWarning = (messages) => {
+            if (!attachmentWarning) return;
+            attachmentWarning.replaceChildren();
+            messages.forEach((message) => {
+                const line = document.createElement('span');
+                line.textContent = message;
+                attachmentWarning.appendChild(line);
+            });
+            attachmentWarning.hidden = !messages.length;
+        };
+        const maxAttachmentSizeLabel = () => `${Math.round(maxAttachmentSize / (1024 * 1024))} MB`;
 
         if (!attachmentInput || !attachmentPreview) return;
 
         resizeMessageInput();
-        messageInput?.addEventListener('input', resizeMessageInput);
+        const typingIndicator = thread?.querySelector('.messaging-typing');
+        const typingConversationId = thread?.dataset.pollUrl?.match(/messages\/(\d+)\/new/)?.[1] || 'unknown';
+        const typingElementState = () => {
+            if (!typingIndicator) return { exists: false };
+            const style = window.getComputedStyle(typingIndicator);
+            return {
+                exists: true,
+                hidden: typingIndicator.hidden,
+                hasHiddenAttribute: typingIndicator.hasAttribute('hidden'),
+                display: style.display,
+                visibility: style.visibility,
+                opacity: style.opacity,
+            };
+        };
+        const typingLog = (prefix, event, details = {}) => {
+            console.log(`${prefix} ${event}`, {
+                conversation: typingConversationId,
+                time: new Date().toISOString(),
+                ...details,
+            });
+        };
+        if (typingIndicator) {
+            new MutationObserver((mutations) => {
+                mutations.forEach((mutation) => typingLog('[TYPE-DOM-MUTATION]', 'ATTRIBUTE', {
+                    attribute: mutation.attributeName,
+                    oldValue: mutation.oldValue,
+                    state: typingElementState(),
+                }));
+            }).observe(typingIndicator, {
+                attributes: true,
+                attributeOldValue: true,
+                attributeFilter: ['hidden', 'class', 'style'],
+            });
+        }
+        const TYPING_THROTTLE_MS = 1000;
+        const TYPING_IDLE_MS = 2500;
+        const OTHER_TYPING_UI_TIMEOUT_MS = 4000;
+        let typingTimer = null;
+        let otherTypingExpiryTimer = null;
+        let lastTypingActivityPost = 0;
+        let typingSequence = 0;
+        const createTypingClientSessionId = () => {
+            if (window.crypto?.randomUUID) return window.crypto.randomUUID();
+            const bytes = new Uint8Array(16);
+            if (window.crypto?.getRandomValues) window.crypto.getRandomValues(bytes);
+            else for (let index = 0; index < bytes.length; index += 1) bytes[index] = Math.floor(Math.random() * 256);
+            bytes[6] = (bytes[6] & 0x0f) | 0x40;
+            bytes[8] = (bytes[8] & 0x3f) | 0x80;
+            const hex = [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+            return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+        };
+        const typingClientSessionId = createTypingClientSessionId();
+        let typingActive = false;
+        let typingRequestQueue = Promise.resolve();
+        let debugLastTypingTrueAt = null;
+        const queueTypingState = (typing, reason) => {
+            if (!thread?.dataset.typingUrl) return Promise.resolve();
+            const sequence = ++typingSequence;
+            const body = `typing=${typing ? '1' : '0'}&sequence=${sequence}&client_session_id=${encodeURIComponent(typingClientSessionId)}`;
+            typingLog('[TYPE-SENDER]', 'QUEUE', { typing, reason, sequence, clientSession: typingClientSessionId });
+            typingRequestQueue = typingRequestQueue.catch(() => {}).then(async () => {
+                debugMessaging(`[typing] ${typing ? 'ACTIVITY' : 'STOP'} POST`, { sequence, reason });
+                try {
+                    typingLog('[TYPE-SENDER]', 'REQUEST', { typing, reason, sequence });
+                    const response = await fetch(thread.dataset.typingUrl, {
+                        method: 'POST', credentials: 'same-origin',
+                        headers: { 'X-CSRFToken': composeForm.querySelector('[name=csrfmiddlewaretoken]').value, 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body,
+                    });
+                    typingLog('[TYPE-SENDER]', 'RESPONSE', { typingSent: typing, reason, sequence, status: response.status, ok: response.ok });
+                } catch (error) {
+                    typingLog('[TYPE-SENDER]', 'ERROR', { typingSent: typing, reason, sequence, error: String(error) });
+                    // Freshness remains authoritative even when an explicit stop cannot be delivered.
+                }
+            });
+            return typingRequestQueue;
+        };
+        const stopTyping = (reason = 'stop') => {
+            window.clearTimeout(typingTimer);
+            typingTimer = null;
+            typingLog('[TYPE-SENDER]', 'STOP', { reason, wasActive: typingActive, nextSequence: typingSequence + 1 });
+            if (!typingActive) return;
+            typingActive = false;
+            lastTypingActivityPost = 0;
+            queueTypingState(false, reason);
+        };
+        const setOtherTyping = (typing) => {
+            if (!typingIndicator) return;
+            const hadExpiryTimer = Boolean(otherTypingExpiryTimer);
+            typingLog('[TYPE-UI]', 'BEFORE', {
+                requestedState: typing,
+                expiryTimerExists: hadExpiryTimer,
+                state: typingElementState(),
+            });
+            const changed = typingIndicator.hidden === Boolean(typing);
+            typingIndicator.hidden = !typing;
+            if (hadExpiryTimer) {
+                typingLog('[TYPE-EXPIRY]', 'CLEAR', { reason: typing ? 'new-true-confirmation' : 'server-false' });
+            }
+            window.clearTimeout(otherTypingExpiryTimer);
+            otherTypingExpiryTimer = null;
+            if (typing) {
+                const previousTrueConfirmation = debugLastTypingTrueAt;
+                debugLastTypingTrueAt = Date.now();
+                typingLog('[TYPE-UI]', 'TRUE CONFIRMATION', {
+                    previousTrueConfirmation,
+                    elapsedSincePreviousMs: previousTrueConfirmation ? debugLastTypingTrueAt - previousTrueConfirmation : null,
+                });
+                const scheduledAt = new Date().toISOString();
+                typingLog('[TYPE-EXPIRY]', 'SCHEDULE', {
+                    delay: OTHER_TYPING_UI_TIMEOUT_MS,
+                    trigger: 'server-true',
+                    previousTimerExisted: hadExpiryTimer,
+                });
+                // A failed chat poll must not leave a previously visible
+                // indicator on screen forever. Successful true responses
+                // renew this UI deadline while the other user is active.
+                otherTypingExpiryTimer = window.setTimeout(() => {
+                    typingLog('[TYPE-EXPIRY]', 'FIRED', {
+                        scheduledAt,
+                        currentConversation: typingConversationId,
+                        stateBefore: typingElementState(),
+                    });
+                    typingIndicator.hidden = true;
+                    typingLog('[TYPE-EXPIRY]', 'AFTER HIDE', { state: typingElementState() });
+                    debugMessaging('[typing] UI expiry');
+                }, OTHER_TYPING_UI_TIMEOUT_MS);
+            }
+            debugMessaging('[typing] POLL RESULT', typing);
+            typingLog('[TYPE-UI]', 'AFTER', {
+                requestedState: typing,
+                expiryTimerExists: Boolean(otherTypingExpiryTimer),
+                state: typingElementState(),
+            });
+            if (typing && changed && thread.scrollHeight - thread.scrollTop - thread.clientHeight < 96) scrollToLatest();
+        };
+        messageInput?.addEventListener('input', () => {
+            resizeMessageInput();
+            typingLog('[TYPE-SENDER]', 'INPUT', { valueLength: messageInput.value.length, editing: Boolean(editingMessageId) });
+            if (editingMessageId) { stopTyping('editing'); return; }
+            const hasText = Boolean(messageInput.value.trim());
+            window.clearTimeout(typingTimer);
+            if (!hasText) { stopTyping('empty input'); return; }
+            debugMessaging('[typing] INPUT');
+            const now = Date.now();
+            if (!typingActive || now - lastTypingActivityPost >= TYPING_THROTTLE_MS) {
+                typingActive = true;
+                lastTypingActivityPost = now;
+                queueTypingState(true, 'input');
+            }
+            typingLog('[TYPE-SENDER]', 'IDLE TIMER SCHEDULED', { delay: TYPING_IDLE_MS });
+            typingTimer = window.setTimeout(() => {
+                typingLog('[TYPE-SENDER]', 'IDLE TIMER FIRED');
+                stopTyping('idle');
+            }, TYPING_IDLE_MS);
+        });
+        messageInput?.addEventListener('blur', () => stopTyping('blur'));
         messageInput?.addEventListener('keydown', (event) => {
             if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
             event.preventDefault();
             if (!isSubmitting) composeForm.requestSubmit();
         });
 
-        attachmentInput.addEventListener('change', () => {
-            const file = attachmentInput.files[0];
-            if (previewObjectUrl) URL.revokeObjectURL(previewObjectUrl);
-            previewObjectUrl = null;
-            attachmentPreview.replaceChildren();
-            attachmentPreview.hidden = !file;
-            if (!file) return;
-
-            const preview = document.createElement('div');
-            preview.className = 'messaging-attachment-preview-card';
-            const isImage = file.type.startsWith('image/');
-            if (isImage) {
-                const image = document.createElement('img');
-                image.className = 'messaging-attachment-preview-image';
-                image.alt = file.name;
-                previewObjectUrl = URL.createObjectURL(file);
-                image.src = previewObjectUrl;
-                preview.appendChild(image);
+        const addPickedAttachments = (input) => {
+            const selectedFiles = [...input.files];
+            const oversizedFiles = maxAttachmentSize
+                ? selectedFiles.filter((file) => file.size > maxAttachmentSize)
+                : [];
+            const acceptedFiles = maxAttachmentSize
+                ? selectedFiles.filter((file) => file.size <= maxAttachmentSize)
+                : selectedFiles;
+            pendingAttachments.push(...acceptedFiles);
+            renderAttachmentPreviews();
+            if (oversizedFiles.length) {
+                showAttachmentWarning(oversizedFiles.map((file) => `${file.name} is too large. Maximum file size is ${maxAttachmentSizeLabel()}.`));
             } else {
-                const icon = document.createElement('i');
-                icon.className = 'bi bi-file-earmark-text messaging-attachment-preview-icon';
-                icon.setAttribute('aria-hidden', 'true');
-                preview.appendChild(icon);
+                clearAttachmentWarning();
             }
-
-            const name = document.createElement('span');
-            name.className = 'messaging-attachment-preview-name';
-            name.textContent = file.name;
-            preview.appendChild(name);
-
-            const remove = document.createElement('button');
-            remove.type = 'button';
-            remove.className = 'messaging-attachment-preview-remove';
-            remove.setAttribute('aria-label', 'Remove attachment');
-            remove.title = 'Remove attachment';
-            remove.innerHTML = '<i class="bi bi-x-lg" aria-hidden="true"></i>';
-            remove.addEventListener('click', clearAttachmentPreview);
-            preview.appendChild(remove);
-            attachmentPreview.appendChild(preview);
+            input.value = '';
+        };
+        attachmentInput.addEventListener('change', () => addPickedAttachments(attachmentInput));
+        mediaAttachmentInput?.addEventListener('change', () => addPickedAttachments(mediaAttachmentInput));
+        const closeAttachmentMenu = () => { attachmentMenu.hidden = true; attachmentToggle.setAttribute('aria-expanded', 'false'); };
+        attachmentToggle?.addEventListener('click', () => { stopTyping('attachment menu'); const open = attachmentMenu.hidden; attachmentMenu.hidden = !open; attachmentToggle.setAttribute('aria-expanded', String(open)); });
+        attachmentMenu?.addEventListener('click', (event) => { const option = event.target.closest('[data-attachment-picker]'); if (!option) return; closeAttachmentMenu(); (option.dataset.attachmentPicker === 'media' ? mediaAttachmentInput : attachmentInput).click(); });
+        document.addEventListener('click', (event) => { if (!attachmentMenu?.hidden && !event.target.closest('.messaging-attachment-menu-wrap')) closeAttachmentMenu(); });
+        document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeAttachmentMenu(); });
+        document.addEventListener('click', (event) => {
+            if (event.target.closest('.conversation-row')) stopTyping('conversation switch');
         });
 
         const appendLinkedText = (container, text) => {
@@ -675,6 +924,7 @@
             [...thread.querySelectorAll('[data-message-id]')].map((row) => Number(row.dataset.messageId))
         );
         let lastMessageId = Math.max(0, ...renderedMessageIds);
+        let messageRevisionCursor = Number(thread.dataset.revisionCursor) || 0;
         const unsendDialog = document.querySelector('#messaging-unsend-dialog');
         const actionsDialog = document.querySelector('#messaging-actions-dialog');
         const unsendConfirm = unsendDialog?.querySelector('.messaging-unsend-confirm');
@@ -686,31 +936,60 @@
         const editState = document.querySelector('#messaging-edit-state');
         const cancelEdit = document.querySelector('#messaging-cancel-edit');
         const senderDeletedText = (payload) => `${payload.sender_name || 'This user'} deleted a message`;
+        const setEditActionVisibility = (hasBody) => {
+            const editAction = actionsDialog?.querySelector('[data-action-edit]');
+            if (editAction) editAction.hidden = !hasBody;
+        };
         const renderDeletedMessage = (payload) => {
             const messageRow = thread.querySelector(`[data-message-id="${payload.id}"]`);
-            const bubble = messageRow?.querySelector('.messaging-bubble');
-            if (!messageRow || !bubble) return false;
-            const time = bubble.querySelector('time');
-            bubble.replaceChildren();
-            bubble.classList.add('messaging-bubble-deleted');
+            const content = messageRow?.querySelector('.messaging-message-content');
+            if (!messageRow || !content) return false;
+            content.replaceChildren();
+            const bubble = document.createElement('article');
+            bubble.className = `messaging-bubble${messageRow.classList.contains('own') ? ' own' : ''} messaging-bubble-deleted`;
             const notice = document.createElement('p');
             notice.className = 'messaging-deleted-notice';
             notice.textContent = senderDeletedText(payload);
             bubble.appendChild(notice);
-            if (time) bubble.appendChild(time);
+            content.appendChild(bubble);
+            messageRow.dataset.messageHasBody = 'false';
             messageRow.querySelector('.messaging-message-action')?.remove();
             delete messageRow.dataset.previewRequested;
             return true;
         };
-        const addDeleteAction = (messageRow, messageId) => {
+        const addDeleteAction = (messageRow, messageId, hasBody) => {
             const action = document.createElement('button');
             action.type = 'button';
             action.className = 'messaging-message-action';
             action.dataset.messageOptions = String(messageId);
+            action.dataset.messageHasBody = String(hasBody);
             action.setAttribute('aria-label', 'Message options');
             action.title = 'Message options';
             action.innerHTML = '<i class="bi bi-three-dots" aria-hidden="true"></i>';
             messageRow.appendChild(action);
+        };
+        const createAttachmentBubble = (attachment, wasNearBottom) => {
+            const attachmentLink = document.createElement('a');
+            attachmentLink.href = attachment.url;
+            attachmentLink.target = '_blank';
+            attachmentLink.rel = 'noopener noreferrer';
+            if (attachment.is_image) {
+                attachmentLink.className = 'messaging-attachment-bubble messaging-image-attachment';
+                const image = document.createElement('img');
+                image.src = attachment.url;
+                image.alt = attachment.name || 'Attachment';
+                if (wasNearBottom) image.addEventListener('load', scrollToLatest, { once: true });
+                attachmentLink.appendChild(image);
+                return attachmentLink;
+            }
+            attachmentLink.className = 'messaging-attachment-bubble messaging-file-attachment';
+            const icon = document.createElement('i');
+            icon.className = `bi ${attachment.is_video ? 'bi-play-circle' : 'bi-paperclip'}`;
+            icon.setAttribute('aria-hidden', 'true');
+            const name = document.createElement('span');
+            name.textContent = attachment.name || 'Attachment';
+            attachmentLink.append(icon, name);
+            return attachmentLink;
         };
         const appendMessage = (payload, forceScroll = false) => {
             const messageId = Number(payload.id);
@@ -724,11 +1003,10 @@
             const wasNearBottom = forceScroll || (
                 thread.scrollHeight - thread.scrollTop - thread.clientHeight < 96
             );
-            const bubble = document.createElement('article');
-            bubble.className = `messaging-bubble${isOwnMessage ? ' own' : ''}`;
             const messageRow = document.createElement('div');
             messageRow.className = `messaging-message-row${isOwnMessage ? ' own' : ''}`;
             messageRow.dataset.messageId = String(messageId);
+            messageRow.dataset.messageHasBody = String(Boolean(payload.body));
             if (!isOwnMessage) {
                 const avatar = document.createElement('img');
                 avatar.className = 'messaging-message-avatar';
@@ -736,54 +1014,92 @@
                 avatar.alt = '';
                 messageRow.appendChild(avatar);
             }
-            messageRow.appendChild(bubble);
+            const content = document.createElement('div');
+            content.className = 'messaging-message-content';
             if (payload.is_deleted) {
+                const bubble = document.createElement('article');
+                bubble.className = `messaging-bubble${isOwnMessage ? ' own' : ''} messaging-bubble-deleted`;
                 bubble.classList.add('messaging-bubble-deleted');
                 const notice = document.createElement('p');
                 notice.className = 'messaging-deleted-notice';
                 notice.textContent = senderDeletedText(payload);
                 bubble.appendChild(notice);
+                content.appendChild(bubble);
             } else if (payload.body) {
+                const bubble = document.createElement('article');
+                bubble.className = `messaging-bubble${isOwnMessage ? ' own' : ''}`;
                 const body = document.createElement('p');
                 appendLinkedText(body, payload.body);
                 bubble.appendChild(body);
+                content.appendChild(bubble);
             }
-            if (!payload.is_deleted && payload.attachment_url) {
-                if (payload.attachment_is_image) {
-                    const imageLink = document.createElement('a');
-                    imageLink.className = 'messaging-image-attachment';
-                    imageLink.href = payload.attachment_url;
-                    imageLink.target = '_blank';
-                    imageLink.rel = 'noopener';
-                    const image = document.createElement('img');
-                    image.src = payload.attachment_url;
-                    image.alt = payload.attachment_name;
-                    if (wasNearBottom) image.addEventListener('load', scrollToLatest, { once: true });
-                    imageLink.appendChild(image);
-                    bubble.appendChild(imageLink);
-                } else {
-                    const fileLink = document.createElement('a');
-                    fileLink.className = 'messaging-attachment';
-                    fileLink.href = payload.attachment_url;
-                    fileLink.target = '_blank';
-                    fileLink.rel = 'noopener';
-                    fileLink.innerHTML = '<i class="bi bi-paperclip" aria-hidden="true"></i> ';
-                    fileLink.append(payload.attachment_name);
-                    bubble.appendChild(fileLink);
-                }
+            const attachments = payload.attachments?.length ? payload.attachments : (payload.attachment_url ? [{ url: payload.attachment_url, name: payload.attachment_name, is_image: payload.attachment_is_image }] : []);
+            if (!payload.is_deleted && attachments.length) {
+                const attachmentBubbles = document.createElement('div');
+                attachmentBubbles.className = 'messaging-attachment-bubbles';
+                attachments.forEach((attachment) => attachmentBubbles.appendChild(createAttachmentBubble(attachment, wasNearBottom)));
+                content.appendChild(attachmentBubbles);
             }
+            messageRow.appendChild(content);
+            const meta = document.createElement('span');
+            meta.className = 'messaging-message-meta';
             const time = document.createElement('time');
             time.dateTime = payload.created_at;
             time.textContent = new Date(payload.created_at).toLocaleString([], {
                 month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
             });
-            bubble.appendChild(time);
+            meta.appendChild(time);
+            if (payload.is_edited) {
+                meta.append(' · ');
+                const edited = document.createElement('button');
+                edited.type = 'button';
+                edited.className = 'messaging-edited-indicator';
+                edited.dataset.historyMessage = String(messageId);
+                edited.textContent = 'Edited';
+                meta.appendChild(edited);
+            }
+            messageRow.appendChild(meta);
             thread.appendChild(messageRow);
             renderedMessageIds.add(messageId);
             lastMessageId = Math.max(lastMessageId, messageId);
-            if (isOwnMessage && !payload.is_deleted) addDeleteAction(messageRow, messageId);
+            if (isOwnMessage && !payload.is_deleted) addDeleteAction(messageRow, messageId, Boolean(payload.body));
             if (!payload.is_deleted) loadLinkPreview(messageRow, payload.body || '');
             if (wasNearBottom) scrollToLatest();
+            return true;
+        };
+        const patchUpdatedMessage = (payload) => {
+            const messageRow = thread.querySelector(`[data-message-id="${payload.id}"]`);
+            const content = messageRow?.querySelector('.messaging-message-content');
+            if (!messageRow || !content || payload.is_deleted) return false;
+
+            let bubble = [...content.children].find((element) => element.classList.contains('messaging-bubble'));
+            if (!bubble) {
+                bubble = document.createElement('article');
+                bubble.className = `messaging-bubble${messageRow.classList.contains('own') ? ' own' : ''}`;
+                content.insertBefore(bubble, content.firstChild);
+            }
+            let body = bubble.querySelector('p');
+            if (!body) {
+                body = document.createElement('p');
+                bubble.prepend(body);
+            }
+            body.replaceChildren();
+            appendLinkedText(body, payload.body || '');
+            bubble.querySelectorAll('.messaging-link-preview').forEach((preview) => preview.remove());
+            delete messageRow.dataset.previewRequested;
+            messageRow.dataset.messageHasBody = String(Boolean(payload.body));
+
+            const meta = messageRow.querySelector('.messaging-message-meta');
+            if (payload.is_edited && meta && !meta.querySelector('.messaging-edited-indicator')) {
+                meta.append(document.createTextNode(' · '));
+                const edited = document.createElement('button');
+                edited.type = 'button';
+                edited.className = 'messaging-edited-indicator';
+                edited.dataset.historyMessage = String(payload.id);
+                edited.textContent = 'Edited';
+                meta.appendChild(edited);
+            }
+            loadLinkPreview(messageRow, payload.body || '');
             return true;
         };
 
@@ -796,7 +1112,7 @@
                     const row = history.closest('.messaging-message-row'); const stack = document.createElement('div'); stack.className = 'messaging-inline-history';
                     const hide = document.createElement('button'); hide.type = 'button'; hide.className = 'messaging-hide-edits'; hide.textContent = 'Hide edits'; hide.addEventListener('click', () => stack.remove()); stack.appendChild(hide);
                     payload.history.slice(0, -1).forEach((body) => { const bubble = document.createElement('p'); bubble.className = 'messaging-history-bubble'; bubble.textContent = body; stack.appendChild(bubble); });
-                    row.insertBefore(stack, row.querySelector('.messaging-bubble'));
+                    row.insertBefore(stack, row.querySelector('.messaging-message-content'));
                 });
                 return;
             }
@@ -804,6 +1120,7 @@
             if (options) {
                 actionMessageId = Number(options.dataset.messageOptions);
                 deleteTrigger = options;
+                setEditActionVisibility(options.dataset.messageHasBody === 'true');
                 actionsDialog?.showModal();
                 return;
             }
@@ -823,12 +1140,12 @@
             if (!mobileBreakpoint.matches || event.pointerType !== 'touch' || event.target.closest('a, button')) return;
             const row = event.target.closest('.messaging-message-row.own[data-message-id]');
             if (!row) return;
-            touchStart = { x: event.clientX, y: event.clientY, id: row.dataset.messageId };
-            longPressTimer = window.setTimeout(() => { actionMessageId = Number(touchStart.id); actionsDialog?.showModal(); longPressTimer = null; }, 600);
+            touchStart = { x: event.clientX, y: event.clientY, id: row.dataset.messageId, hasBody: row.dataset.messageHasBody === 'true' };
+            longPressTimer = window.setTimeout(() => { actionMessageId = Number(touchStart.id); setEditActionVisibility(touchStart.hasBody); actionsDialog?.showModal(); longPressTimer = null; }, 600);
         });
         thread.addEventListener('pointermove', (event) => { if (touchStart && Math.hypot(event.clientX - touchStart.x, event.clientY - touchStart.y) > 10) { clearTimeout(longPressTimer); longPressTimer = null; } });
         ['pointerup', 'pointercancel'].forEach((type) => thread.addEventListener(type, () => { clearTimeout(longPressTimer); longPressTimer = null; touchStart = null; }));
-        const cancelEditing = () => { editingMessageId = null; if (editState) editState.hidden = true; composeForm?.reset(); clearAttachmentPreview(); resizeMessageInput(); };
+        const cancelEditing = () => { stopTyping('cancel edit'); editingMessageId = null; if (editState) editState.hidden = true; composeForm?.reset(); clearAttachmentPreview(); resizeMessageInput(); };
         cancelEdit?.addEventListener('click', cancelEditing);
         document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && editingMessageId) cancelEditing(); });
         actionsDialog?.querySelector('[data-action-unsend]')?.addEventListener('click', () => {
@@ -841,6 +1158,7 @@
             const row = thread.querySelector(`[data-message-id="${actionMessageId}"]`);
             const text = row?.querySelector('.messaging-bubble > p')?.textContent?.trim();
             if (!text || !messageInput) return;
+            stopTyping('edit message');
             actionsDialog.close(); editingMessageId = actionMessageId; messageInput.value = text; editState.hidden = false; resizeMessageInput(); messageInput.focus();
         });
         actionsDialog?.querySelector('[data-action-cancel]')?.addEventListener('click', () => actionsDialog.close());
@@ -883,61 +1201,96 @@
             event.preventDefault();
             if (isSubmitting) return;
             const hasMessage = Boolean(messageInput?.value.trim());
-            const hasAttachment = Boolean(attachmentInput.files.length);
+            const hasAttachment = pendingAttachments.length > 0;
             if (!hasMessage && !hasAttachment) {
                 messageInput?.focus();
                 return;
             }
             isSubmitting = true;
+            stopTyping('send');
             const sendButton = composeForm.querySelector('button[type="submit"]');
             sendButton.disabled = true;
             try {
+                const messageData = new FormData(composeForm);
+                // The pending array is the source of truth.  Building the
+                // multipart field explicitly avoids assigning a synthetic
+                // FileList to an input, which is unreliable across browsers.
+                messageData.delete('attachments');
+                pendingAttachments.forEach((file) => messageData.append('attachments', file, file.name));
                 const response = await fetch(editingMessageId ? thread.dataset.editUrlTemplate.replace('/0/', `/${editingMessageId}/`) : (composeForm.action || window.location.href), {
                     method: 'POST',
-                    body: editingMessageId ? new URLSearchParams({ body: messageInput.value }) : new FormData(composeForm),
+                    body: editingMessageId ? new URLSearchParams({ body: messageInput.value }) : messageData,
                     headers: editingMessageId ? { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': composeForm.querySelector('[name=csrfmiddlewaretoken]').value } : { 'X-Requested-With': 'XMLHttpRequest' },
                 });
                 const payload = await response.json();
                 if (!response.ok) throw new Error(payload.error || 'Message could not be sent.');
-                if (editingMessageId) { editingMessageId = null; editState.hidden = true; window.location.reload(); } else { appendMessage(payload, true); refreshSharedLinks(); }
+                if (editingMessageId) {
+                    editingMessageId = null;
+                    editState.hidden = true;
+                    patchUpdatedMessage(payload);
+                    if (Number.isInteger(payload.revision_cursor) && payload.revision_cursor > messageRevisionCursor) {
+                        messageRevisionCursor = payload.revision_cursor;
+                    }
+                    refreshSharedLinks();
+                } else {
+                    appendMessage(payload, true);
+                    refreshSharedLinks();
+                }
                 composeForm.reset();
                 clearAttachmentPreview();
+                clearAttachmentWarning();
                 resizeMessageInput();
                 messageInput?.focus();
                 scrollToLatest();
             } catch (error) {
-                window.alert(error.message);
+                showAttachmentWarning([error.message || 'Message could not be sent.']);
             } finally {
                 isSubmitting = false;
                 sendButton.disabled = false;
             }
         });
 
+        const ACTIVE_CHAT_POLL_INTERVAL_MS = 1000;
         let pollTimer = null;
         let pollInFlight = false;
-        const schedulePoll = (delay = 2000) => {
+        const schedulePoll = (delay = ACTIVE_CHAT_POLL_INTERVAL_MS) => {
             window.clearTimeout(pollTimer);
             pollTimer = window.setTimeout(pollForMessages, delay);
         };
         const pollForMessages = async () => {
             if (pollInFlight || document.hidden) {
-                schedulePoll(document.hidden ? 5000 : 2000);
+                schedulePoll(document.hidden ? 5000 : ACTIVE_CHAT_POLL_INTERVAL_MS);
                 return;
             }
             pollInFlight = true;
             try {
-                const response = await fetch(`${thread.dataset.pollUrl}?after=${encodeURIComponent(lastMessageId)}`, {
+                const response = await fetch(`${thread.dataset.pollUrl}?after=${encodeURIComponent(lastMessageId)}&revision_after=${encodeURIComponent(messageRevisionCursor)}`, {
                     headers: { 'X-Requested-With': 'XMLHttpRequest' },
                 });
-                if (!response.ok) return;
+                if (!response.ok) {
+                    typingLog('[TYPE-RECEIVER-POLL]', 'FAILED', { status: response.status, statusText: response.statusText });
+                    return;
+                }
                 const payload = await response.json();
+                typingLog('[TYPE-RECEIVER-POLL]', 'RESPONSE', {
+                    status: response.status,
+                    typing: Boolean(payload.other_user_typing),
+                    messageCount: payload.messages?.length || 0,
+                });
+                setOtherTyping(Boolean(payload.other_user_typing));
                 payload.messages.forEach((message) => appendMessage(message));
                 payload.deleted_messages?.forEach((message) => renderDeletedMessage(message));
-                if (payload.messages.length || payload.deleted_messages?.length) refreshSharedLinks();
+                const updatedMessages = payload.updated_messages || [];
+                updatedMessages.forEach((message) => patchUpdatedMessage(message));
+                if (Number.isInteger(payload.revision_cursor) && payload.revision_cursor >= messageRevisionCursor) {
+                    messageRevisionCursor = payload.revision_cursor;
+                }
+                if (payload.messages.length || payload.deleted_messages?.length || updatedMessages.length) refreshSharedLinks();
                 if (payload.messages.some((message) => message.sender_id !== currentUserId)) {
                     document.dispatchEvent(new CustomEvent('messages:unread-changed'));
                 }
-            } catch (_) {
+            } catch (error) {
+                typingLog('[TYPE-RECEIVER-POLL]', 'FAILED', { error: String(error) });
                 // Keep the existing conversation intact and retry on the next interval.
             } finally {
                 pollInFlight = false;
@@ -945,12 +1298,18 @@
             }
         };
         document.addEventListener('visibilitychange', () => {
+            if (document.hidden) stopTyping('hidden');
             if (!document.hidden) {
                 window.clearTimeout(pollTimer);
                 pollForMessages();
             }
         });
-        window.addEventListener('pagehide', () => window.clearTimeout(pollTimer), { once: true });
+        window.addEventListener('pagehide', () => {
+            if (otherTypingExpiryTimer) typingLog('[TYPE-EXPIRY]', 'CLEAR', { reason: 'pagehide' });
+            window.clearTimeout(pollTimer);
+            window.clearTimeout(otherTypingExpiryTimer);
+            stopTyping('pagehide');
+        }, { once: true });
         schedulePoll();
     });
 </script>

@@ -1,4 +1,37 @@
 document.addEventListener('DOMContentLoaded', () => {
+    const renderCartState = (button, inCart) => {
+        const listingTitle = button.dataset.listingTitle || 'listing';
+        button.dataset.inCart = String(inCart);
+        button.classList.toggle('cart-in-cart', inCart);
+        button.innerHTML = `<i class="bi ${inCart ? 'bi-check-lg' : 'bi-cart3'}" aria-hidden="true"></i>`;
+        button.setAttribute('aria-label', inCart ? `Remove ${listingTitle} from cart` : `Add ${listingTitle} to cart`);
+        button.title = inCart ? 'Remove from cart' : 'Add to cart';
+    };
+    document.addEventListener('submit', (event) => {
+        const form = event.target.closest('[data-cart-form]');
+        if (!form) return;
+        event.preventDefault();
+        const button = form.querySelector('button[type="submit"]');
+        if (!button || button.disabled) return;
+        button.disabled = true;
+        button.setAttribute('aria-busy', 'true');
+        fetch(form.action, { method: 'POST', body: new FormData(form), credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then((response) => response.json())
+            .then((payload) => {
+                if (typeof payload.saved !== 'boolean') throw new Error('Cart state could not be updated.');
+                renderCartState(button, payload.saved);
+                button.classList.add(payload.saved ? 'cart-save-success' : 'cart-remove-success');
+                button.removeAttribute('aria-busy');
+                button.disabled = false;
+                const badge = document.querySelector('#navbar-cart-badge'); if (badge) badge.textContent = payload.cart_count;
+                window.setTimeout(() => {
+                    button.classList.remove('cart-save-success', 'cart-remove-success');
+                }, 160);
+            }).catch(() => {
+                button.disabled = false;
+                button.removeAttribute('aria-busy');
+            });
+    });
     const mainImage = document.querySelector('.detail-image');
     const thumbs = document.querySelectorAll('.thumb');
 

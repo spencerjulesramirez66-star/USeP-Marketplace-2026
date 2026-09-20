@@ -29,22 +29,22 @@
                     {% if request.user.id == item.seller_id %}
                     <a class="card-action-link" href="{% url 'dashboard:buyer_detail' item.slug %}">Edit listing</a>
                     {% else %}
-                    <form method="post" action="{% url 'dashboard:toggle_saved_item' item.slug %}">
+                    <form method="post" action="{% url 'dashboard:toggle_saved_item' item.slug %}" data-cart-form>
                         {% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
-                        <button class="save-btn" type="submit" aria-label="Add to cart"><i class="bi bi-cart3"></i></button>
+                        <button class="save-btn{% if item.is_in_cart %} cart-in-cart{% endif %}" type="submit" data-in-cart="{% if item.is_in_cart %}true{% else %}false{% endif %}" data-listing-title="{{ item.title }}" aria-label="{% if item.is_in_cart %}Remove {{ item.title }} from cart{% else %}Add {{ item.title }} to cart{% endif %}" title="{% if item.is_in_cart %}Remove from cart{% else %}Add to cart{% endif %}"><i class="bi {% if item.is_in_cart %}bi-check-lg{% else %}bi-cart3{% endif %}" aria-hidden="true"></i></button>
                     </form>
                     {% endif %}
                 </div>
                 <h3 class="product-title"><a href="{% url 'dashboard:buyer_detail' item.slug %}{% if query %}?q={{ query|urlencode }}{% endif %}{% if selected_category and selected_category != 'all' %}{% if query %}&{% else %}?{% endif %}category={{ selected_category }}{% endif %}" class="product-title-link">{{ item.title }}</a></h3>
                 <p class="product-subtitle">{{ item.condition }} • {{ item.location }}</p>
                 <div class="product-footer">
-                    <div class="seller-info">
+                    <a class="seller-info" href="{% url 'dashboard:buyer' %}?seller={{ item.seller_id }}">
                         <span class="listing-seller-avatar"><img src="{{ item.seller_avatar_url }}" alt="{{ item.seller_name }} profile picture"></span>
                         <div>
                         <strong>{{ item.seller_name }}</strong>
                         <small>{{ item.seller_role }}</small>
                         </div>
-                    </div>
+                    </a>
                     <span class="view-count"><i class="bi bi-eye"></i> {{ item.views }}</span>
                 </div>
                 <div class="product-side-actions">
