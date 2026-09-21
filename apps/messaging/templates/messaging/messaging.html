@@ -151,7 +151,7 @@
                     <div class="messaging-attachment-bubbles">
                     {% for attachment in message.attachments.all %}
                         {% if attachment.is_image %}<a class="messaging-attachment-bubble messaging-image-attachment" href="{{ attachment.file.url }}" data-media-url="{{ attachment.file.url }}" data-media-name="{{ attachment.file.name|cut:'messages/' }}" target="_blank" rel="noopener noreferrer"><img src="{{ attachment.file.url }}" alt="{{ attachment.file.name|cut:'messages/' }}"></a>
-                        {% elif attachment.is_video %}<a class="messaging-attachment-bubble messaging-file-attachment" href="{{ attachment.file.url }}" target="_blank" rel="noopener noreferrer"><i class="bi bi-play-circle" aria-hidden="true"></i><span>{{ attachment.file.name|cut:'messages/' }}</span></a>
+                        {% elif attachment.is_video %}<div class="messaging-attachment-bubble messaging-video-attachment" data-media-url="{{ attachment.file.url }}" data-media-name="{{ attachment.file.name|cut:'messages/' }}"><video src="{{ attachment.file.url }}" controls preload="metadata"></video></div>
                         {% else %}<a class="messaging-attachment-bubble messaging-file-attachment" href="{{ attachment.file.url }}" target="_blank" rel="noopener noreferrer"><i class="bi bi-paperclip" aria-hidden="true"></i><span>{{ attachment.file.name|cut:'messages/' }}</span></a>{% endif %}
                     {% empty %}{% if message.attachment %}
                         {% if message.attachment_is_image %}

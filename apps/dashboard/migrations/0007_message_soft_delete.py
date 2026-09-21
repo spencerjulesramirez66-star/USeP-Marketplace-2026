@@ -5,7 +5,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('dashboard', '0005_message_attachment'),
+        ('dashboard', '0006_message_attachment'),
     ]
 
     operations = [

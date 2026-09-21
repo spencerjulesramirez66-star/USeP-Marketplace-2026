@@ -4,7 +4,7 @@ import django.db.models.deletion
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('dashboard', '0006_message_soft_delete'),
+        ('dashboard', '0007_message_soft_delete'),
         ('accounts', '0001_initial'),
     ]
     operations = [

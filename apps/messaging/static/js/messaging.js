@@ -560,6 +560,27 @@ document.addEventListener('DOMContentLoaded', () => {
   const threadBottom = thread?.querySelector('.messaging-thread-bottom');
   let pendingAttachments = [];
   let isSubmitting = false;
+  // Cloudflare (and most reverse proxies in front of the tunnel) cap total
+  // request body size well below what a few uncompressed phone photos or
+  // PNGs add up to. Downscale/re-encode images client-side before they're
+  // queued, so a batch of attachments stays well under that ceiling.
+  const compressImage = async (file, maxDim = 1600, quality = 0.8) => {
+    if (!file.type.startsWith('image/') || file.type === 'image/gif') return file;
+    try {
+      const bitmap = await createImageBitmap(file);
+      const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(bitmap.width * scale);
+      canvas.height = Math.round(bitmap.height * scale);
+      canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
+      if (!blob || blob.size >= file.size) return file;
+      return new File([blob], file.name.replace(/\.\w+$/, '.jpg'), { type: 'image/jpeg' });
+    } catch (error) {
+      debugMessaging('[attachments] compression skipped', error);
+      return file;
+    }
+  };
   const scrollToLatest = () => {
     if (!thread) return;
     threadBottom?.scrollIntoView({ block: 'end', inline: 'nearest' });
@@ -1076,14 +1097,18 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!isSubmitting) composeForm.requestSubmit();
   });
 
-  const addPickedAttachments = (input) => {
+  const addPickedAttachments = async (input) => {
     const selectedFiles = [...input.files];
+    input.value = '';
+    // Compress before the size check runs, so a large PNG that would have
+    // been rejected can still make it in once it's been re-encoded down.
+    const processedFiles = await Promise.all(selectedFiles.map((file) => compressImage(file)));
     const oversizedFiles = maxAttachmentSize
-      ? selectedFiles.filter((file) => file.size > maxAttachmentSize)
+      ? processedFiles.filter((file) => file.size > maxAttachmentSize)
       : [];
     const acceptedFiles = maxAttachmentSize
-      ? selectedFiles.filter((file) => file.size <= maxAttachmentSize)
-      : selectedFiles;
+      ? processedFiles.filter((file) => file.size <= maxAttachmentSize)
+      : processedFiles;
     pendingAttachments.push(...acceptedFiles);
     renderAttachmentPreviews();
     if (oversizedFiles.length) {
@@ -1095,12 +1120,13 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       clearAttachmentWarning();
     }
-    input.value = '';
   };
-  attachmentInput.addEventListener('change', () => addPickedAttachments(attachmentInput));
-  mediaAttachmentInput?.addEventListener('change', () =>
-    addPickedAttachments(mediaAttachmentInput),
-  );
+  attachmentInput.addEventListener('change', () => {
+    addPickedAttachments(attachmentInput);
+  });
+  mediaAttachmentInput?.addEventListener('change', () => {
+    addPickedAttachments(mediaAttachmentInput);
+  });
   const closeAttachmentMenu = () => {
     attachmentMenu.hidden = true;
     attachmentToggle.setAttribute('aria-expanded', 'false');
@@ -1433,9 +1459,29 @@ document.addEventListener('DOMContentLoaded', () => {
       attachmentLink.appendChild(image);
       return attachmentLink;
     }
+    if (attachment.is_video) {
+      // A <video> element, not a link-with-icon: videos should be playable
+      // inline in the chat, same as images render as inline <img>.
+      const wrap = document.createElement('div');
+      wrap.className = 'messaging-attachment-bubble messaging-video-attachment';
+      wrap.dataset.mediaUrl = attachment.url;
+      wrap.dataset.mediaName = attachment.name || '';
+      const video = document.createElement('video');
+      video.src = attachment.url;
+      video.controls = true;
+      video.preload = 'metadata';
+      // Clicking to open the video fullscreen elsewhere shouldn't also
+      // navigate the surrounding <a> (there isn't one here, but keep the
+      // control clicks from bubbling to any ancestor click handlers, e.g.
+      // a "open lightbox" listener bound higher up the DOM).
+      video.addEventListener('click', (event) => event.stopPropagation());
+      if (wasNearBottom) video.addEventListener('loadedmetadata', scrollToLatest, { once: true });
+      wrap.appendChild(video);
+      return wrap;
+    }
     attachmentLink.className = 'messaging-attachment-bubble messaging-file-attachment';
     const icon = document.createElement('i');
-    icon.className = `bi ${attachment.is_video ? 'bi-play-circle' : 'bi-paperclip'}`;
+    icon.className = 'bi bi-paperclip';
     icon.setAttribute('aria-hidden', 'true');
     const name = document.createElement('span');
     name.textContent = attachment.name || 'Attachment';
@@ -1853,74 +1899,293 @@ document.addEventListener('DOMContentLoaded', () => {
     loadLinkPreview(row, row.querySelector('.messaging-bubble p')?.textContent || '');
   });
 
+  // ---- Optimistic "sending" bubble for new messages ------------------
+  // Text-only sends are fast, but a video attachment can take a long time
+  // to upload. Waiting for the server response before showing anything
+  // (the old behaviour) meant the compose box stayed populated with
+  // whatever was just sent until that slow request finally resolved, and
+  // *then* got wiped by composeForm.reset() — silently discarding
+  // anything the person typed in the meantime. Instead: clear the
+  // compose box immediately (like Messenger/iMessage), drop in a locally
+  // rendered "sending" bubble with a real upload-progress bar, and
+  // reconcile it with the server's copy of the message once the request
+  // finishes. Each send gets its own bubble and its own request, so
+  // queuing up several sends in a row — including more video — just
+  // works, instead of the compose UI being locked for the whole upload.
+  let pendingSendSeq = 0;
+
+  const buildLocalAttachmentPreview = (file, objectUrls) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'messaging-attachment-bubble';
+    if (file.type.startsWith('image/')) {
+      wrap.classList.add('messaging-image-attachment');
+      const image = document.createElement('img');
+      const url = URL.createObjectURL(file);
+      objectUrls.push(url);
+      image.src = url;
+      image.alt = file.name;
+      wrap.appendChild(image);
+    } else if (file.type.startsWith('video/')) {
+      wrap.classList.add('messaging-video-attachment');
+      const video = document.createElement('video');
+      const url = URL.createObjectURL(file);
+      objectUrls.push(url);
+      video.src = url;
+      video.muted = true;
+      video.preload = 'metadata';
+      wrap.appendChild(video);
+    } else {
+      wrap.classList.add('messaging-file-attachment');
+      const icon = document.createElement('i');
+      icon.className = 'bi bi-file-earmark-text';
+      icon.setAttribute('aria-hidden', 'true');
+      const name = document.createElement('span');
+      name.textContent = file.name;
+      wrap.append(icon, name);
+    }
+    return wrap;
+  };
+
+  const createPendingRow = (bodyText, files) => {
+    const objectUrls = [];
+    const row = document.createElement('div');
+    row.className = 'messaging-message-row own pending';
+    row.dataset.pendingId = `pending-${Date.now()}-${pendingSendSeq++}`;
+    const content = document.createElement('div');
+    content.className = 'messaging-message-content';
+    if (bodyText) {
+      const bubble = document.createElement('article');
+      bubble.className = 'messaging-bubble own';
+      const p = document.createElement('p');
+      p.textContent = bodyText;
+      bubble.appendChild(p);
+      content.appendChild(bubble);
+    }
+    if (files.length) {
+      const bubbles = document.createElement('div');
+      bubbles.className = 'messaging-attachment-bubbles';
+      files.forEach((file) => bubbles.appendChild(buildLocalAttachmentPreview(file, objectUrls)));
+      content.appendChild(bubbles);
+    }
+    const status = document.createElement('div');
+    status.className = 'messaging-pending-status';
+    const spinner = document.createElement('span');
+    spinner.className = 'messaging-pending-spinner';
+    spinner.setAttribute('aria-hidden', 'true');
+    const label = document.createElement('span');
+    label.className = 'messaging-pending-text';
+    label.textContent = files.length ? 'Uploading…' : 'Sending…';
+    status.append(spinner, label);
+    content.appendChild(status);
+    row.appendChild(content);
+    if (threadBottom) threadBottom.before(row);
+    else thread.appendChild(row);
+    scrollToLatest();
+    return {
+      row,
+      label,
+      progressBar: null,
+      cleanup: () => objectUrls.forEach((url) => URL.revokeObjectURL(url)),
+    };
+  };
+
+  const markPendingFailed = (pending, message, onRetry) => {
+    const { row, label } = pending;
+    row.classList.add('failed');
+    label.textContent = message || 'Failed to send';
+    row.querySelector('.messaging-pending-progress')?.remove();
+    const status = row.querySelector('.messaging-pending-status');
+    if (status && !status.querySelector('.messaging-pending-retry')) {
+      const retry = document.createElement('button');
+      retry.type = 'button';
+      retry.className = 'messaging-pending-retry';
+      retry.setAttribute('aria-label', 'Retry sending message');
+      retry.title = 'Retry';
+      retry.innerHTML = '<i class="bi bi-arrow-clockwise" aria-hidden="true"></i>';
+      retry.addEventListener('click', onRetry);
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'messaging-pending-remove';
+      remove.setAttribute('aria-label', 'Discard message');
+      remove.title = 'Remove';
+      remove.innerHTML = '<i class="bi bi-x-lg" aria-hidden="true"></i>';
+      remove.addEventListener('click', () => {
+        pending.cleanup();
+        row.remove();
+      });
+      status.append(retry, remove);
+    }
+  };
+
+  // fetch() has no upload-progress signal, so an XHR is used for new-
+  // message sends specifically to drive the progress bar above.
+  const postMessageWithProgress = (url, formData, onProgress) =>
+    new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', url);
+      xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+      xhr.upload.addEventListener('progress', (progressEvent) => {
+        if (progressEvent.lengthComputable && onProgress) {
+          onProgress(progressEvent.loaded / progressEvent.total);
+        }
+      });
+      xhr.addEventListener('load', () => {
+        const contentType = xhr.getResponseHeader('content-type') || '';
+        let payload = null;
+        if (contentType.includes('application/json')) {
+          try {
+            payload = JSON.parse(xhr.responseText);
+          } catch (error) {
+            payload = null;
+          }
+        }
+        if (!payload) {
+          reject(
+            new Error(
+              xhr.status === 413
+                ? 'That upload is too large. Try fewer or smaller files.'
+                : 'Message could not be sent. Please try again.',
+            ),
+          );
+          return;
+        }
+        if (xhr.status >= 200 && xhr.status < 300) resolve(payload);
+        else reject(new Error(payload.error || 'Message could not be sent.'));
+      });
+      xhr.addEventListener('error', () =>
+        reject(new Error('Message could not be sent. Check your connection and try again.')),
+      );
+      xhr.send(formData);
+    });
+
+  const submitNewMessage = async () => {
+    const bodyText = messageInput.value;
+    const trimmedBody = bodyText.trim();
+    const files = pendingAttachments.slice();
+    const replyToId = composeForm.querySelector('[name=reply_to_message_id]')?.value || '';
+    const csrfToken = composeForm.querySelector('[name=csrfmiddlewaretoken]')?.value;
+    const url = composeForm.action || window.location.href;
+
+    const formData = new FormData();
+    if (csrfToken) formData.append('csrfmiddlewaretoken', csrfToken);
+    formData.append('body', bodyText);
+    if (replyToId) formData.append('reply_to_message_id', replyToId);
+    files.forEach((file) => formData.append('attachments', file, file.name));
+
+    // Clear the compose box now, not after the request resolves — see
+    // the note above this block for why that matters for slow uploads.
+    stopTyping('send');
+    composeForm.reset();
+    clearAttachmentPreview();
+    clearAttachmentWarning();
+    clearReply();
+    resizeMessageInput();
+    messageInput?.focus();
+
+    const pending = createPendingRow(trimmedBody, files);
+
+    const attemptSend = async () => {
+      pending.row.classList.remove('failed');
+      pending.row.querySelector('.messaging-pending-retry')?.remove();
+      pending.row.querySelector('.messaging-pending-remove')?.remove();
+      if (files.length) {
+        const progress = document.createElement('div');
+        progress.className = 'messaging-pending-progress';
+        pending.progressBar = document.createElement('div');
+        pending.progressBar.className = 'messaging-pending-progress-bar';
+        progress.appendChild(pending.progressBar);
+        pending.row.querySelector('.messaging-message-content')?.appendChild(progress);
+      }
+      pending.label.textContent = files.length ? 'Uploading…' : 'Sending…';
+      try {
+        const payload = await postMessageWithProgress(url, formData, (fraction) => {
+          if (pending.progressBar) pending.progressBar.style.width = `${Math.round(fraction * 100)}%`;
+          pending.label.textContent =
+            fraction >= 1 ? 'Sending…' : `Uploading… ${Math.round(fraction * 100)}%`;
+        });
+        pending.cleanup();
+        pending.row.remove();
+        appendMessage(payload, true);
+        refreshSharedLinks();
+      } catch (error) {
+        markPendingFailed(pending, error.message, attemptSend);
+      }
+    };
+    await attemptSend();
+  };
+
+  const submitEditedMessage = async () => {
+    try {
+      const response = await fetch(
+        thread.dataset.editUrlTemplate.replace('/0/', `/${editingMessageId}/`),
+        {
+          method: 'POST',
+          body: new URLSearchParams({ body: messageInput.value }),
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': composeForm.querySelector('[name=csrfmiddlewaretoken]').value,
+          },
+        },
+      );
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        throw new Error(
+          response.status === 413
+            ? 'That upload is too large. Try fewer or smaller files.'
+            : 'Message could not be sent. Please try again.',
+        );
+      }
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Message could not be sent.');
+      editingMessageId = null;
+      editState.hidden = true;
+      patchUpdatedMessage(payload);
+      if (
+        Number.isInteger(payload.revision_cursor) &&
+        payload.revision_cursor > messageRevisionCursor
+      ) {
+        messageRevisionCursor = payload.revision_cursor;
+      }
+      refreshSharedLinks();
+      composeForm.reset();
+      clearAttachmentPreview();
+      clearAttachmentWarning();
+      resizeMessageInput();
+      messageInput?.focus();
+      scrollToLatest();
+    } catch (error) {
+      showAttachmentWarning([error.message || 'Message could not be sent.']);
+    }
+  };
+
   if (composeForm && thread)
     composeForm.addEventListener('submit', async (event) => {
       event.preventDefault();
-      if (isSubmitting) return;
+      // Empty messages (no text, no attachment) are never sent or
+      // rendered — bail out before anything touches the network or DOM.
       const hasMessage = Boolean(messageInput?.value.trim());
       const hasAttachment = pendingAttachments.length > 0;
       if (!hasMessage && !hasAttachment) {
         messageInput?.focus();
         return;
       }
-      isSubmitting = true;
-      stopTyping('send');
-      const sendButton = composeForm.querySelector('button[type="submit"]');
-      sendButton.disabled = true;
-      try {
-        const messageData = new FormData(composeForm);
-        // The pending array is the source of truth.  Building the
-        // multipart field explicitly avoids assigning a synthetic
-        // FileList to an input, which is unreliable across browsers.
-        messageData.delete('attachments');
-        pendingAttachments.forEach((file) => messageData.append('attachments', file, file.name));
-        const response = await fetch(
-          editingMessageId
-            ? thread.dataset.editUrlTemplate.replace('/0/', `/${editingMessageId}/`)
-            : composeForm.action || window.location.href,
-          {
-            method: 'POST',
-            body: editingMessageId
-              ? new URLSearchParams({ body: messageInput.value })
-              : messageData,
-            headers: editingMessageId
-              ? {
-                  'X-Requested-With': 'XMLHttpRequest',
-                  'X-CSRFToken': composeForm.querySelector('[name=csrfmiddlewaretoken]').value,
-                }
-              : { 'X-Requested-With': 'XMLHttpRequest' },
-          },
-        );
-        const payload = await response.json();
-        if (!response.ok) throw new Error(payload.error || 'Message could not be sent.');
-        if (editingMessageId) {
-          editingMessageId = null;
-          editState.hidden = true;
-          patchUpdatedMessage(payload);
-          if (
-            Number.isInteger(payload.revision_cursor) &&
-            payload.revision_cursor > messageRevisionCursor
-          ) {
-            messageRevisionCursor = payload.revision_cursor;
-          }
-          refreshSharedLinks();
-        } else {
-          appendMessage(payload, true);
-          refreshSharedLinks();
-          clearReply();
+      if (editingMessageId) {
+        // Edits target one specific message, so keep the original
+        // single-flight lock here — unlike new sends, there's nothing
+        // to gain from letting a second edit submit race the first.
+        if (isSubmitting) return;
+        isSubmitting = true;
+        const sendButton = composeForm.querySelector('button[type="submit"]');
+        sendButton.disabled = true;
+        try {
+          await submitEditedMessage();
+        } finally {
+          isSubmitting = false;
+          sendButton.disabled = false;
         }
-        composeForm.reset();
-        clearAttachmentPreview();
-        clearAttachmentWarning();
-        resizeMessageInput();
-        messageInput?.focus();
-        scrollToLatest();
-      } catch (error) {
-        showAttachmentWarning([error.message || 'Message could not be sent.']);
-      } finally {
-        isSubmitting = false;
-        sendButton.disabled = false;
+        return;
       }
+      await submitNewMessage();
     });
 
   const ACTIVE_CHAT_POLL_INTERVAL_MS = 1000;

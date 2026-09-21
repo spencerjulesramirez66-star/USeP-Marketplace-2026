@@ -13,15 +13,14 @@ import uuid
 
 from apps.accounts.models import User
 
+from attachments import AttachmentRejected, prepare_attachment
 from .forms import CONDITION_CHOICES, PRODUCT_CONDITIONS, SERVICE_CONDITIONS, ListingForm, MessageForm
 from .models import Category, Conversation, ConversationReadState, ConversationTypingState, ConversationUserState, Listing, ListingImage, Message, MessageAttachment, MessageRevision, SavedItem
 from apps.messaging.link_previews import get_link_preview
 from apps.messaging.message_urls import extract_meaningful_message_urls
 from urllib.parse import urlparse
-from file_compress import max_attachment_size, prepare_attachment, validate_attachment_sizes
 
 logger = logging.getLogger(__name__)
-
 
 RECOMMENDATION_WEIGHTS = {
     'popularity': 0.5,
@@ -204,12 +203,15 @@ def _save_message_with_attachments(form, conversation, sender, files, replied_to
     message.replied_to = replied_to
     message.attachment = None
     message.save()
-    MessageAttachment.objects.bulk_create([
-        MessageAttachment(message=message, file=prepare_attachment(attachment))
-        for attachment in files.getlist('attachments')
-    ])
-    return message
 
+    for attachment in files.getlist('attachments'):
+        message_attachment = MessageAttachment(
+            message=message,
+            file=prepare_attachment(attachment),
+        )
+        message_attachment.save()
+
+    return message
 
 def _unread_message_count(user):
     return sum(conversation.unread_count for conversation in _visible_active_conversations_for(user).annotate(
@@ -698,12 +700,13 @@ def start_conversation(request, item_slug):
     )
     if request.method == 'POST' and (request.POST.get('body', '').strip() or request.FILES.getlist('attachments')):
         form = MessageForm(request.POST, request.FILES)
+
         if form.is_valid():
-            size_error = validate_attachment_sizes(request.FILES.getlist('attachments'), max_attachment_size(form))
-            if size_error:
-                messages.error(request, size_error)
-            else:
+            try:
                 _save_message_with_attachments(form, conversation, request.user, request.FILES)
+            except AttachmentRejected as error:
+                messages.error(request, str(error))
+            else:
                 conversation.save(update_fields=['updated_at'])
                 messages.success(request, 'Message sent to the seller.')
         else:
@@ -820,15 +823,13 @@ def conversation_detail(request, conversation_id):
         pk=conversation_id,
     )
     if request.method == 'POST':
+        if not (request.POST.get('body', '').strip() or request.FILES.getlist('attachments')):
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({'error': 'Message cannot be empty.'}, status=400)
+            messages.error(request, 'Message cannot be empty.')
+            return redirect('dashboard:conversation', conversation_id=conversation.pk)
         form = MessageForm(request.POST, request.FILES)
         if form.is_valid():
-            size_error = validate_attachment_sizes(request.FILES.getlist('attachments'), max_attachment_size(form))
-            if size_error:
-                if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-                    return JsonResponse({'error': size_error}, status=400)
-                messages.error(request, size_error)
-                return redirect('dashboard:conversation', conversation_id=conversation.pk)
-
             reply_id = request.POST.get('reply_to_message_id')
             replied_to = None
             if reply_id:
@@ -836,12 +837,19 @@ def conversation_detail(request, conversation_id):
                     replied_to = Message.objects.select_related('sender').get(pk=int(reply_id), conversation=conversation)
                 except (TypeError, ValueError, Message.DoesNotExist):
                     return JsonResponse({'error': 'The reply target is not in this conversation.'}, status=400)
-            message = _save_message_with_attachments(form, conversation, request.user, request.FILES, replied_to)
+            try:
+                message = _save_message_with_attachments(form, conversation, request.user, request.FILES, replied_to)
+            except AttachmentRejected as error:
+                if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                    return JsonResponse({'error': str(error)}, status=400)
+                messages.error(request, str(error))
+                return redirect('dashboard:conversation', conversation_id=conversation.pk)
             conversation.save(update_fields=['updated_at'])
             if request.headers.get('x-requested-with') == 'XMLHttpRequest':
                 return JsonResponse(_message_payload(message))
             messages.success(request, 'Message sent.')
             return redirect('dashboard:conversation', conversation_id=conversation.pk)
+        # ...the rest of the invalid-form handling stays as it is
         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
             return JsonResponse({'error': 'Your message could not be sent. Please check the message and attachment.'}, status=400)
         messages.error(request, 'Your message could not be sent. Please try again.')

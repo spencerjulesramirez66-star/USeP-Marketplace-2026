@@ -37,73 +37,20 @@
             <div class="panel profile-panel">
                 <h2><i class="bi bi-person-vcard"></i> Personal information</h2>
                 <dl class="profile-fields" id="editable-fields" data-update-url="{% url 'update_profile_field' %}">
-
-                    <div class="profile-field" data-field="first_name">
-                        <dt>First name</dt>
-                        <dd>
-                            <div class="toggle-container">
-                                <div class="edit-container">
-                                    <span class="field-value">{{ request.user.first_name }}</span>
-                                    <input type="text" class="toggle-input field-input" name="first_name"
-                                           value="{{ request.user.first_name }}" maxlength="150" hidden>
-                                </div>
-                                <i class="bi bi-pen button-toggle-icon" role="button" tabindex="0" aria-label="Edit first name"></i>
-                            </div>
-                            <small class="field-error" hidden></small>
-                        </dd>
-                    </div>
+                    {% include 'components/profile-field.html' with field='first_name' label='First name' value=request.user.first_name maxlength=150 %}
 
                     {% if request.user.middle_name %}
-                    <div class="profile-field" data-field="middle_name">
-                        <dt>Middle name</dt>
-                        <dd>
-                            <div class="toggle-container">
-                                <div class="edit-container">
-                                    <span class="field-value">{{ request.user.middle_name }}</span>
-                                    <input type="text" class="toggle-input field-input" name="middle_name"
-                                           value="{{ request.user.middle_name }}" maxlength="150" hidden>
-                                </div>
-                                <i class="bi bi-pen button-toggle-icon" role="button" tabindex="0" aria-label="Edit middle name"></i>
-                            </div>
-                            <small class="field-error" hidden></small>
-                        </dd>
-                    </div>
+                        {% include 'components/profile-field.html' with field='middle_name' label='Middle name' value=request.user.middle_name maxlength=150 %}
                     {% endif %}
 
-                    <div class="profile-field" data-field="last_name">
-                        <dt>Last name</dt>
-                        <dd>
-                            <div class="toggle-container">
-                                <div class="edit-container">
-                                    <span class="field-value">{{ request.user.last_name }}</span>
-                                    <input type="text" class="toggle-input field-input" name="last_name"
-                                           value="{{ request.user.last_name }}" maxlength="150" hidden>
-                                </div>
-                                <i class="bi bi-pen button-toggle-icon" role="button" tabindex="0" aria-label="Edit last name"></i>
-                            </div>
-                            <small class="field-error" hidden></small>
-                        </dd>
-                    </div>
+                    {% include 'components/profile-field.html' with field='last_name' label='Last name' value=request.user.last_name maxlength=150 %}
 
                     <div class="profile-field">
                         <dt>Email</dt>
                         <dd>{{ request.user.email }}</dd>
                     </div>
 
-                    <div class="profile-field" data-field="contact_num">
-                        <dt>Contact number</dt>
-                        <dd>
-                            <div class="toggle-container">
-                                <div class="edit-container">
-                                    <span class="field-value">{{ request.user.contact_num }}</span>
-                                    <input type="text" class="toggle-input field-input" name="contact_num"
-                                           value="{{ request.user.contact_num }}" maxlength="20" hidden>
-                                </div>
-                                <i class="bi bi-pen button-toggle-icon" role="button" tabindex="0" aria-label="Edit contact number"></i>
-                            </div>
-                            <small class="field-error" hidden></small>
-                        </dd>
-                    </div>
+                    {% include 'components/profile-field.html' with field='contact_num' label='Contact number' value=request.user.contact_num maxlength=20 %}
 
                     <div class="profile-field">
                         <dt>Member since</dt>

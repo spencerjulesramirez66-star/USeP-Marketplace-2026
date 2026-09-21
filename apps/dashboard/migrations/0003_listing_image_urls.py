@@ -4,13 +4,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('dashboard', '0003_listingimage'),
+        ('dashboard', '0002_seed_categories'),
     ]
 
     operations = [
         migrations.AddField(
             model_name='listing',
-            name='stock_quantity',
-            field=models.PositiveIntegerField(default=0),
+            name='image_urls',
+            field=models.JSONField(blank=True, default=list),
         ),
     ]

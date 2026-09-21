@@ -5,7 +5,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('dashboard', '0002_listing_image_urls'),
+        ('dashboard', '0003_listing_image_urls'),
     ]
 
     operations = [

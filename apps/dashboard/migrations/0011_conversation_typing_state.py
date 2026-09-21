@@ -5,7 +5,7 @@ import django.db.models.deletion
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('dashboard', '0009_message_attachment_collection'),
+        ('dashboard', '0010_message_attachment_collection'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 

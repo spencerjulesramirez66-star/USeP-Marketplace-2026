@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('dashboard', '0011_conversationtypingstate_client_session_id'),
+        ('dashboard', '0012_conversationtypingstate_client_session_id'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 

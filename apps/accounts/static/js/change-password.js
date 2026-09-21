@@ -71,39 +71,17 @@ function checkPasswordMatch() {
 
     if (confirmPassword.value.length === 0) {
         passwordMatch.textContent = "";
-        confirmPassword.classList.remove(
-            "password-valid",
-            "password-invalid"
-        );
-
+        passwordMatch.classList.remove("valid", "invalid");
         return;
     }
 
-    if (
-        password.value ===
-        confirmPassword.value
-    ) {
-        passwordMatch.textContent =
-            "Passwords match.";
-
-        confirmPassword.classList.add(
-            "password-valid"
-        );
-
-        confirmPassword.classList.remove(
-            "password-invalid"
-        );
-
+    if (password.value === confirmPassword.value) {
+        passwordMatch.textContent = "Passwords match.";
+        passwordMatch.classList.add("valid");
+        passwordMatch.classList.remove("invalid");
     } else {
-        passwordMatch.textContent =
-            "Passwords do not match.";
-
-        confirmPassword.classList.add(
-            "password-invalid"
-        );
-
-        confirmPassword.classList.remove(
-            "password-valid"
-        );
+        passwordMatch.textContent = "Passwords do not match.";
+        passwordMatch.classList.add("invalid");
+        passwordMatch.classList.remove("valid");
     }
 }

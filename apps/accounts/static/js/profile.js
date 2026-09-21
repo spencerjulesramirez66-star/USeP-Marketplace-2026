@@ -10,36 +10,33 @@ if (avatarInput && avatarForm) {
     });
 }
 
-// ---------- Inline field editing ----------
-function getCookie(name) {
-    const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
-    return match ? decodeURIComponent(match[2]) : null;
-}
-
+// ---------- Inline field editing (regular form POST, no AJAX) ----------
 const fieldsContainer = document.getElementById("editable-fields");
 
 if (fieldsContainer) {
-    const updateUrl = fieldsContainer.dataset.updateUrl;
-    const csrfToken = getCookie("csrftoken");
+    function setIcon(fieldDiv, editing) {
+        const icon = fieldDiv.querySelector(".button-toggle-icon");
+        icon.classList.toggle("bi-pen", !editing);
+        icon.classList.toggle("bi-check-lg", editing);
+    }
 
     function enterEditMode(fieldDiv) {
         document.querySelectorAll(".profile-field.is-editing").forEach((el) => {
-            if (el !== fieldDiv) exitEditMode(el, false);
+            if (el !== fieldDiv) exitEditMode(el, true);
         });
 
         const input = fieldDiv.querySelector(".toggle-input");
-        const valueSpan = fieldDiv.querySelector(".field-value");
 
-        input.dataset.originalValue = valueSpan.textContent.trim();
+        input.dataset.originalValue = input.value;
         fieldDiv.classList.add("is-editing");
         input.hidden = false;
+        setIcon(fieldDiv, true);
         input.focus();
         input.select();
     }
 
     function exitEditMode(fieldDiv, revert) {
         const input = fieldDiv.querySelector(".toggle-input");
-        const errorEl = fieldDiv.querySelector(".field-error");
 
         if (revert) {
             input.value = input.dataset.originalValue;
@@ -47,52 +44,10 @@ if (fieldsContainer) {
 
         fieldDiv.classList.remove("is-editing");
         input.hidden = true;
-        errorEl.hidden = true;
-        errorEl.textContent = "";
+        setIcon(fieldDiv, false);
     }
 
-    async function saveField(fieldDiv) {
-        const fieldName = fieldDiv.dataset.field;
-        const input = fieldDiv.querySelector(".toggle-input");
-        const valueSpan = fieldDiv.querySelector(".field-value");
-        const errorEl = fieldDiv.querySelector(".field-error");
-        const newValue = input.value.trim();
-
-        if (newValue === input.dataset.originalValue) {
-            exitEditMode(fieldDiv, false);
-            return;
-        }
-
-        input.disabled = true;
-
-        try {
-            const response = await fetch(updateUrl, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/x-www-form-urlencoded",
-                    "X-CSRFToken": csrfToken,
-                },
-                body: new URLSearchParams({ field: fieldName, value: newValue }),
-            });
-
-            const data = await response.json();
-
-            if (response.ok && data.success) {
-                valueSpan.textContent = data.value;
-                input.value = data.value;
-                exitEditMode(fieldDiv, false);
-            } else {
-                errorEl.textContent = data.error || "Could not save. Try again.";
-                errorEl.hidden = false;
-            }
-        } catch (err) {
-            errorEl.textContent = "Network error. Try again.";
-            errorEl.hidden = false;
-        } finally {
-            input.disabled = false;
-        }
-    }
-
+    // Pencil icon: open the editor, or submit the form if already editing
     fieldsContainer.addEventListener("click", (event) => {
         const icon = event.target.closest(".button-toggle-icon");
         if (!icon) return;
@@ -101,7 +56,16 @@ if (fieldsContainer) {
         if (!fieldDiv || !fieldDiv.dataset.field) return;
 
         if (fieldDiv.classList.contains("is-editing")) {
-            saveField(fieldDiv);
+            const form = fieldDiv.querySelector("form");
+            const input = form.querySelector(".toggle-input");
+            const newValue = input.value.trim();
+
+            if (newValue === input.dataset.originalValue) {
+                exitEditMode(fieldDiv, false);
+            } else {
+                input.value = newValue;
+                form.submit();   // real browser navigation, page reloads after the redirect
+            }
         } else {
             enterEditMode(fieldDiv);
         }
@@ -115,31 +79,26 @@ if (fieldsContainer) {
             return;
         }
 
+        // Enter inside the input submits the form natively
         const input = event.target.closest(".toggle-input");
-        if (!input) return;
-
-        const fieldDiv = input.closest(".profile-field");
-
-        if (event.key === "Enter") {
+        if (input && event.key === "Escape") {
             event.preventDefault();
-            saveField(fieldDiv);
-        } else if (event.key === "Escape") {
-            event.preventDefault();
-            exitEditMode(fieldDiv, true);
+            exitEditMode(input.closest(".profile-field"), true);
         }
     });
 
-    fieldsContainer.addEventListener(
-        "focusout",
-        (event) => {
-            const input = event.target.closest(".toggle-input");
-            if (!input) return;
+    // Skip the request if nothing changed
+    fieldsContainer.addEventListener("submit", (event) => {
+        const fieldDiv = event.target.closest(".profile-field");
+        const input = event.target.querySelector(".toggle-input");
+        const newValue = input.value.trim();
 
-            const fieldDiv = input.closest(".profile-field");
-            if (fieldDiv.classList.contains("is-editing")) {
-                saveField(fieldDiv);
-            }
-        },
-        true
-    );
+        if (newValue === input.dataset.originalValue) {
+            event.preventDefault();
+            exitEditMode(fieldDiv, false);
+            return;
+        }
+
+        input.value = newValue;
+    });
 }

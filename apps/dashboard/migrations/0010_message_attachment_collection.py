@@ -3,7 +3,7 @@ import django.db.models.deletion
 
 
 class Migration(migrations.Migration):
-    dependencies = [('dashboard', '0008_conversation_user_state')]
+    dependencies = [('dashboard', '0009_conversation_user_state')]
     operations = [
         migrations.CreateModel(
             name='MessageAttachment',

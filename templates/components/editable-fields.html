@@ -1,0 +1,16 @@
+<div class="profile-field" data-field="{{ field }}">
+    <dt>{{ label }}</dt>
+    <dd>
+        <form method="post" action="{% url 'update_profile_field' %}" class="toggle-container">
+            {% csrf_token %}
+            <input type="hidden" name="field" value="{{ field }}">
+            <div class="edit-container">
+                <span class="field-value">{{ value }}</span>
+                <input type="text" class="toggle-input field-input" name="value"
+                       value="{{ value }}" maxlength="{{ maxlength }}" hidden>
+            </div>
+            <i class="bi bi-pen button-toggle-icon" role="button" tabindex="0"
+               aria-label="Edit {{ label|lower }}"></i>
+        </form>
+    </dd>
+</div>

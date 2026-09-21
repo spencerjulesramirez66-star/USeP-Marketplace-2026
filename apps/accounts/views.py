@@ -44,6 +44,13 @@ ALLOWED_PROFILE_FIELDS = {
     "contact_num": {"max_length": 20, "required": True},
 }
 
+FIELD_LABELS = {
+    "first_name": "First name",
+    "middle_name": "Middle name",
+    "last_name": "Last name",
+    "contact_num": "Contact number",
+}
+
 
 def setup_login_view(request):
 
@@ -549,41 +556,40 @@ def update_profile_field(request):
             window_seconds=UPDATE_PROFILE_FIELD_RATE_WINDOW,
         )
     except RateLimitExceeded:
-        return JsonResponse(
-            {"success": False, "error": "Too many attempts. Please try again later."},
-            status=429,
-        )
+        messages.error(request, "Too many attempts. Please try again later.")
+        return redirect("profile")
 
     field = request.POST.get("field", "")
     value = request.POST.get("value", "").strip()
 
     if field not in ALLOWED_PROFILE_FIELDS:
-        return JsonResponse({"success": False, "error": "Invalid field."}, status=400)
+        messages.error(request, "Invalid field.")
+        return redirect("profile")
 
     rules = ALLOWED_PROFILE_FIELDS[field]
+    label = FIELD_LABELS[field]
 
     if rules["required"] and not value:
-        return JsonResponse(
-            {"success": False, "error": "This field cannot be empty."}, status=400
-        )
+        messages.error(request, f"{label} cannot be empty.")
+        return redirect("profile")
 
     if len(value) > rules["max_length"]:
-        return JsonResponse(
-            {"success": False, "error": "That value is too long."}, status=400
-        )
+        messages.error(request, f"{label} is too long.")
+        return redirect("profile")
 
     if field == "contact_num":
         cleaned = value.replace(" ", "").replace("-", "")
+
         if not cleaned.isdigit():
-            return JsonResponse(
-                {"success": False, "error": "Contact number must contain digits only."},
-                status=400,
-            )
-        value = cleaned
+            messages.error(request, "Contact number must contain digits only.")
+            return redirect("profile")
+
+        value = cleaned[:11]
 
     setattr(request.user, field, value)
     request.user.save(update_fields=[field])
 
     reset(throttle_key)
 
-    return JsonResponse({"success": True, "value": value})
+    messages.success(request, f"{label} updated successfully.")
+    return redirect("profile")
