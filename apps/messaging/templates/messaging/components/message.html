@@ -1,0 +1,62 @@
+{% load message_links %}
+<div class="messaging-message-row{% if message.sender_id == request.user.id %} own{% endif %}"
+     data-message-id="{{ message.id }}"
+     data-message-has-body="{% if message.body %}true{% else %}false{% endif %}"
+     data-sender-name="{% if message.sender.first_name or message.sender.last_name %}{{ message.sender.first_name }} {{ message.sender.last_name }}{% else %}{{ message.sender.email }}{% endif %}">
+    {% if message.sender_id != request.user.id %}<img class="messaging-message-avatar" src="{{ message.sender.avatar_url }}" alt="">{% endif %}
+    <div class="messaging-message-content">
+        {% if message.is_deleted %}
+        <article class="messaging-bubble{% if message.sender_id == request.user.id %} own{% endif %} messaging-bubble-deleted">
+            <p class="messaging-deleted-notice">{% if message.sender.first_name or message.sender.last_name %}{{ message.sender.first_name }} {{ message.sender.last_name }}{% else %}{{ message.sender.email }}{% endif %} deleted a message</p>
+        </article>
+        {% else %}
+            {% if message.replied_to %}
+            {% with replied=message.replied_to replied_image=message.replied_to.attachments.first %}
+            <button class="messaging-reply-quote{% if replied.is_deleted %} unavailable{% endif %}" type="button"{% if not replied.is_deleted %} data-reply-jump="{{ message.replied_to_id }}"{% endif %}>
+                {% if not replied.is_deleted %}
+                    {% if replied_image.is_image %}<img class="messaging-reply-quote-thumb" src="{{ replied_image.file.url }}" alt="">
+                    {% elif replied.attachment_is_image %}<img class="messaging-reply-quote-thumb" src="{{ replied.attachment.url }}" alt="">{% endif %}
+                {% endif %}
+                <span class="messaging-reply-quote-text">
+                    <strong>{% if replied.is_deleted %}Message unavailable{% else %}{{ replied.sender.first_name|default:replied.sender.email }}{% endif %}</strong>
+                    {% if not replied.is_deleted %}<span>{% if replied.body %}{{ replied.body|truncatechars:180 }}{% elif replied_image.is_image or replied.attachment_is_image %}Photo{% else %}Attachment{% endif %}</span>{% endif %}
+                </span>
+            </button>
+            {% endwith %}
+            {% endif %}
+
+            {% if message.body %}<article class="messaging-bubble{% if message.sender_id == request.user.id %} own{% endif %}"><p>{{ message.body|message_links }}</p></article>{% endif %}
+
+            {% if message.attachments.all or message.attachment %}
+            <div class="messaging-attachment-bubbles">
+                {% for attachment in message.attachments.all %}
+                    {% if attachment.is_image %}
+                    <a class="messaging-attachment-bubble messaging-image-attachment" href="{{ attachment.file.url }}" data-media-url="{{ attachment.file.url }}" data-media-name="{{ attachment.file.name|cut:'messages/' }}" target="_blank" rel="noopener noreferrer"><img src="{{ attachment.file.url }}" alt="{{ attachment.file.name|cut:'messages/' }}"></a>
+                    {% elif attachment.is_video %}
+                    <div class="messaging-attachment-bubble messaging-video-attachment" data-media-url="{{ attachment.file.url }}" data-media-name="{{ attachment.file.name|cut:'messages/' }}"><video src="{{ attachment.file.url }}" controls preload="metadata"></video></div>
+                    {% else %}
+                    <a class="messaging-attachment-bubble messaging-file-attachment" href="{{ attachment.file.url }}" target="_blank" rel="noopener noreferrer"><i class="bi bi-paperclip" aria-hidden="true"></i><span>{{ attachment.file.name|cut:'messages/' }}</span></a>
+                    {% endif %}
+                {% empty %}
+                    {% if message.attachment %}
+                        {% if message.attachment_is_image %}
+                        <a class="messaging-attachment-bubble messaging-image-attachment" href="{{ message.attachment.url }}" data-media-url="{{ message.attachment.url }}" data-media-name="{{ message.attachment.name|cut:'messages/' }}" target="_blank" rel="noopener noreferrer"><img src="{{ message.attachment.url }}" alt="{{ message.attachment.name|cut:'messages/' }}"></a>
+                        {% else %}
+                        <a class="messaging-attachment-bubble messaging-file-attachment" href="{{ message.attachment.url }}" target="_blank" rel="noopener noreferrer"><i class="bi bi-paperclip" aria-hidden="true"></i><span>{{ message.attachment.name|cut:'messages/' }}</span></a>
+                        {% endif %}
+                    {% endif %}
+                {% endfor %}
+            </div>
+            {% endif %}
+        {% endif %}
+    </div>
+    <span class="messaging-message-meta">
+        <time datetime="{{ message.created_at|date:'c' }}">{{ message.created_at|date:"M j, g:i A" }}</time>
+        {% if message.is_edited %}<span aria-hidden="true"> · </span><button class="messaging-edited-indicator" type="button" data-history-message="{{ message.id }}">Edited</button>{% endif %}
+    </span>
+    {% if not message.is_deleted %}<button class="messaging-reply-action" type="button" data-reply-message="{{ message.id }}" aria-label="Reply to message" title="Reply"><i class="bi bi-reply-fill" aria-hidden="true"></i></button>{% endif %}
+    {% if message.sender_id == request.user.id and not message.is_deleted %}
+    <button class="messaging-message-action" type="button" data-message-options="{{ message.id }}" data-message-has-body="{% if message.body %}true{% else %}false{% endif %}" aria-label="Message options" title="Message options"><i class="bi bi-three-dots" aria-hidden="true"></i></button>
+    {% endif %}
+    {% if message.id == seen_message_id %}<img class="messaging-seen-avatar" src="{{ chat_participant.avatar_url }}" alt="Seen" title="Seen">{% endif %}
+</div>

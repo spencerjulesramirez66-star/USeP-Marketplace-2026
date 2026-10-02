@@ -1,0 +1,16 @@
+{% comment %}
+Stock quantity stepper, driven by static/js/seller/stock-editor.js.
+   Params: editor_id, category_select (CSS selector of the category <select>)
+   Plus EITHER `field` (a Django BoundField, edit page)
+   OR input_id + input_value (hand-written input, add/manage modals).
+{% endcomment %}
+<div class="stock-editor stock-editor-inline form-group" id="{{ editor_id }}" data-category-select="{{ category_select }}">
+    <label class="form-label" for="{% firstof field.id_for_label input_id %}">{% firstof field.label 'Stock quantity' %}</label>
+    <div class="stepper-control stock-stepper">
+        <button class="stepper-button" type="button" data-step="-1" aria-label="Decrease stock">-</button>
+        {% if field %}{{ field }}{% else %}<input class="form-control" name="stock_quantity" id="{{ input_id }}" type="number" min="0" step="1" value="{{ input_value|default:0 }}">{% endif %}
+        <button class="stepper-button" type="button" data-step="1" aria-label="Increase stock">+</button>
+    </div>
+    <small class="field-hint">For service listings, stock stays at 0.</small>
+    {% for error in field.errors %}<small class="form-error">{{ error }}</small>{% endfor %}
+</div>

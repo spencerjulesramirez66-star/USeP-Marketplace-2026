@@ -71,9 +71,16 @@ class Campus(models.Model):
 
 
 class College(models.Model):
+
     college_name = models.CharField(
         max_length=150,
         unique=True
+    )
+
+    campus = models.ForeignKey(
+        Campus,
+        on_delete=models.PROTECT,
+        related_name='colleges'
     )
 
     def __str__(self):

@@ -12,6 +12,7 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.http import JsonResponse
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.http import JsonResponse
 
 from .models import User, EmailOTP, OTPPurpose
 from .utils import generate_otp, send_otp_email
@@ -544,6 +545,19 @@ def setup_profile_view(request):
     )
 
 
+
+
+def _is_ajax(request):
+    return request.headers.get("X-Requested-With") == "XMLHttpRequest"
+
+
+def _fail(request, message, status=400):
+    if _is_ajax(request):
+        return JsonResponse({"error": message}, status=status)
+    messages.error(request, message)
+    return redirect("profile")
+
+
 @login_required
 @require_POST
 def update_profile_field(request):
@@ -556,40 +570,37 @@ def update_profile_field(request):
             window_seconds=UPDATE_PROFILE_FIELD_RATE_WINDOW,
         )
     except RateLimitExceeded:
-        messages.error(request, "Too many attempts. Please try again later.")
-        return redirect("profile")
+        return _fail(request, "Too many attempts. Please try again later.", status=429)
 
     field = request.POST.get("field", "")
     value = request.POST.get("value", "").strip()
 
     if field not in ALLOWED_PROFILE_FIELDS:
-        messages.error(request, "Invalid field.")
-        return redirect("profile")
+        return _fail(request, "Invalid field.")
 
     rules = ALLOWED_PROFILE_FIELDS[field]
     label = FIELD_LABELS[field]
 
     if rules["required"] and not value:
-        messages.error(request, f"{label} cannot be empty.")
-        return redirect("profile")
+        return _fail(request, f"{label} cannot be empty.")
 
     if len(value) > rules["max_length"]:
-        messages.error(request, f"{label} is too long.")
-        return redirect("profile")
+        return _fail(request, f"{label} is too long.")
 
     if field == "contact_num":
         cleaned = value.replace(" ", "").replace("-", "")
-
         if not cleaned.isdigit():
-            messages.error(request, "Contact number must contain digits only.")
-            return redirect("profile")
-
+            return _fail(request, "Contact number must contain digits only.")
         value = cleaned[:11]
 
     setattr(request.user, field, value)
     request.user.save(update_fields=[field])
 
     reset(throttle_key)
+
+    if _is_ajax(request):
+        # Return the saved (possibly normalised) value so the UI shows exactly what's stored
+        return JsonResponse({"field": field, "value": value})
 
     messages.success(request, f"{label} updated successfully.")
     return redirect("profile")

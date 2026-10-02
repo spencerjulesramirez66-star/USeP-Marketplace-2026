@@ -1,0 +1,37 @@
+{% comment %}
+    components/seller-profile.html
+    Context: seller (dict with name, role, avatar, program, campus, email, contact, listing_count)
+    Optional: show_listing_count, back_link, other_products_count, seller_id
+{% endcomment %}
+{% load static %}
+<div class="seller-profile-content">
+    <img class="seller-avatar"
+         src="{% firstof seller.avatar '' %}{% if not seller.avatar %}{% static 'images/default-avatar.jpg' %}{% endif %}"
+         alt="{{ seller.name }} profile picture"
+         width="64" height="64" loading="lazy">
+
+    <div class="seller-profile-info">
+        <strong class="seller-name">{{ seller.name }}</strong>
+        <small class="seller-role">{{ seller.role }}</small>
+    </div>
+
+    <ul class="seller-profile-details">
+        {% if seller.program %}<li><i class="bi bi-mortarboard" aria-hidden="true"></i> {{ seller.program }}</li>{% endif %}
+        {% if seller.campus %}<li><i class="bi bi-geo-alt" aria-hidden="true"></i> {{ seller.campus }}</li>{% endif %}
+        <li><i class="bi bi-envelope" aria-hidden="true"></i> {{ seller.email }}</li>
+        {% if seller.contact %}<li><i class="bi bi-telephone" aria-hidden="true"></i> {{ seller.contact }}</li>{% endif %}
+        {% if show_listing_count %}
+            <li><i class="bi bi-box-seam" aria-hidden="true"></i> {{ seller.listing_count }} active listing{{ seller.listing_count|pluralize }}</li>
+        {% endif %}
+    </ul>
+
+    {% if back_link %}
+        <a href="{% url 'dashboard:buyer' %}" class="btn btn-sm btn-outline">
+            <i class="bi bi-arrow-left" aria-hidden="true"></i> Back to all listings
+        </a>
+    {% elif other_products_count %}
+        <a href="{% url 'dashboard:buyer' %}?seller={{ seller_id }}" class="btn btn-sm btn-outline">
+            <i class="bi bi-storefront" aria-hidden="true"></i> Other products ({{ other_products_count }})
+        </a>
+    {% endif %}
+</div>

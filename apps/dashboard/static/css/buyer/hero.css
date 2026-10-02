@@ -1,0 +1,40 @@
+/* Marketplace hero banner (dashboard top). */
+.buyer-hero {
+    display: grid;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    padding: 2rem;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 8%, transparent);
+    border-radius: var(--buyer-radius-xl);
+    background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--color-secondary) 15%, var(--color-surface)) 0%,
+        var(--color-surface) 40%,
+        color-mix(in srgb, var(--color-accent) 8%, var(--color-surface)) 100%
+    );
+    box-shadow: 0 12px 22px color-mix(in srgb, var(--color-primary) 6%, transparent);
+}
+
+.buyer-hero h1 {
+    margin: 0;
+    color: var(--color-text);
+    font-size: clamp(2rem, 3vw, 3.25rem);
+}
+
+.buyer-hero > p:not(.eyebrow):not(.hero-actions) {
+    max-width: 38rem;
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: 1.02rem;
+}
+
+.hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin: 0.5rem 0 0;
+}
+
+@media (max-width: 640px) {
+    .buyer-hero { padding: 1.25rem; border-radius: var(--buyer-radius-lg); }
+}

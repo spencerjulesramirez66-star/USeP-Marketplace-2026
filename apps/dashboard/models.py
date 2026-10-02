@@ -101,7 +101,11 @@ class Listing(models.Model):
 
 	@property
 	def conversation_image_url(self):
-		"""The first gallery image for chat context, with the normal fallback."""
+		"""The first gallery image for chat context, with the normal fallback.
+
+		Named for its use in messaging (apps.messaging), which links to
+		Listing via a plain foreign key rather than a back-reference here.
+		"""
 		gallery_image = self.listing_images.all().first()
 		if gallery_image:
 			return gallery_image.image.url
@@ -193,137 +197,9 @@ class SavedItem(models.Model):
 		]
 
 
-class Conversation(models.Model):
-	buyer = models.ForeignKey(
-		settings.AUTH_USER_MODEL,
-		on_delete=models.CASCADE,
-		related_name='buyer_conversations',
-	)
-	seller = models.ForeignKey(
-		settings.AUTH_USER_MODEL,
-		on_delete=models.CASCADE,
-		related_name='seller_conversations',
-	)
-	listing = models.ForeignKey(
-		Listing,
-		on_delete=models.CASCADE,
-		related_name='conversations',
-	)
-	created_at = models.DateTimeField(auto_now_add=True)
-	updated_at = models.DateTimeField(auto_now=True)
-
-	class Meta:
-		ordering = ['-updated_at']
-		constraints = [
-			models.UniqueConstraint(
-				fields=['buyer', 'seller', 'listing'],
-				name='unique_conversation_per_listing',
-			)
-		]
-
-
-class Message(models.Model):
-	conversation = models.ForeignKey(
-		Conversation,
-		on_delete=models.CASCADE,
-		related_name='messages',
-	)
-	sender = models.ForeignKey(
-		settings.AUTH_USER_MODEL,
-		on_delete=models.CASCADE,
-		related_name='sent_marketplace_messages',
-	)
-	body = models.TextField(max_length=2000)
-	attachment = models.FileField(upload_to='messages/', blank=True, null=True)
-	replied_to = models.ForeignKey(
-		'self', blank=True, null=True, on_delete=models.SET_NULL, related_name='replies',
-	)
-	created_at = models.DateTimeField(auto_now_add=True)
-	updated_at = models.DateTimeField(auto_now=True)
-	is_deleted = models.BooleanField(default=False)
-	deleted_at = models.DateTimeField(blank=True, null=True)
-	is_edited = models.BooleanField(default=False)
-	edited_at = models.DateTimeField(blank=True, null=True)
-	is_read = models.BooleanField(default=False)
-
-	class Meta:
-		ordering = ['created_at']
-
-	@property
-	def attachment_is_image(self):
-		return bool(self.attachment and self.attachment.name.lower().endswith(('.gif', '.jpeg', '.jpg', '.png', '.webp')))
-
-
-class MessageAttachment(models.Model):
-	message = models.ForeignKey(Message, on_delete=models.CASCADE, related_name='attachments')
-	file = models.FileField(upload_to='messages/')
-	created_at = models.DateTimeField(auto_now_add=True)
-
-	@property
-	def is_image(self):
-		return self.file.name.lower().endswith(('.gif', '.jpeg', '.jpg', '.png', '.webp'))
-
-	@property
-	def is_video(self):
-		return self.file.name.lower().endswith(('.mp4', '.webm', '.mov'))
-
-
-class ConversationUserState(models.Model):
-	"""A participant's local view boundary for a shared conversation."""
-	conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name='user_states')
-	user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='conversation_states')
-	cleared_through_message = models.ForeignKey(
-		Message, blank=True, null=True, on_delete=models.SET_NULL, related_name='+',
-	)
-	cleared_at = models.DateTimeField(blank=True, null=True)
-	created_at = models.DateTimeField(auto_now_add=True)
-	updated_at = models.DateTimeField(auto_now=True)
-
-	class Meta:
-		constraints = [
-			models.UniqueConstraint(fields=['conversation', 'user'], name='unique_conversation_user_state'),
-		]
-
-
-class ConversationReadState(models.Model):
-	"""The furthest message a participant has actually viewed in a conversation."""
-	conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name='read_states')
-	user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='conversation_read_states')
-	last_read_message = models.ForeignKey(Message, blank=True, null=True, on_delete=models.SET_NULL, related_name='+')
-	last_read_at = models.DateTimeField(blank=True, null=True)
-
-	class Meta:
-		constraints = [
-			models.UniqueConstraint(fields=['conversation', 'user'], name='unique_conversation_read_state'),
-		]
-
-
-class ConversationTypingState(models.Model):
-	"""Ephemeral per-participant activity for a conversation.
-
-	The timestamp, rather than a persistent boolean, is the source of truth for
-	typing.  A stale record is simply not considered typing.
-	"""
-	conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name='typing_states')
-	user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='conversation_typing_states')
-	last_activity_at = models.DateTimeField(blank=True, null=True)
-	# Ordering is scoped to one browser page session. A freshly loaded page
-	# starts its client sequence at one, so it must not inherit an older page's
-	# durable sequence value.
-	client_session_id = models.CharField(max_length=36, blank=True, null=True)
-	last_sequence = models.PositiveIntegerField(default=0)
-
-	class Meta:
-		constraints = [
-			models.UniqueConstraint(fields=['conversation', 'user'], name='unique_conversation_typing_state'),
-		]
-
-
-class MessageRevision(models.Model):
-	message = models.ForeignKey(Message, on_delete=models.CASCADE, related_name='revisions')
-	body = models.TextField(max_length=2000)
-	edited_at = models.DateTimeField(auto_now_add=True)
-	editor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='message_revisions')
-
-	class Meta:
-		ordering = ['edited_at', 'pk']
+# Conversation, Message, MessageAttachment, MessageRevision,
+# ConversationUserState, ConversationReadState and ConversationTypingState
+# have moved to apps.messaging.models. Listing.conversations (the reverse
+# accessor used by delete_listing()'s "archive instead of delete" check) is
+# still created automatically by messaging.Conversation's ForeignKey to this
+# Listing model, so nothing else here needs to change.

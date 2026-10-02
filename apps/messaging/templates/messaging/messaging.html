@@ -4,44 +4,41 @@
 {% block title %}Messages | USeP Marketplace{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/messaging.css' %}?v=20260920-mobile-brand-visible">
+<link rel="stylesheet" href="{% static 'messaging/css/messaging.css' %}">
 {% endblock %}
 
 {% block content %}
 <div class="messaging-page{% if conversation %} messaging-page-chat-open{% endif %}">
     {% include 'components/navbar.html' %}
 
-    <main class="messaging-layout" aria-label="Marketplace messages" data-conversation-list-url="{% url 'dashboard:conversation_list' %}" data-conversation-sidebar-state-url="{% url 'dashboard:conversation_sidebar_state' %}" data-clear-conversation-url-template="{% url 'dashboard:clear_conversation' 0 %}">
+    <main class="messaging-layout" aria-label="Marketplace messages"
+          data-conversation-list-url="{% url 'messaging:conversation_list' %}"
+          data-conversation-sidebar-state-url="{% url 'messaging:conversation_sidebar_state' %}"
+          data-conversation-search-url="{% url 'messaging:conversation_search' %}"
+          data-clear-conversation-url-template="{% url 'messaging:clear_conversation' 0 %}">
         <aside class="messaging-sidebar">
             <div class="messaging-sidebar-heading">
                 <div>
                     <p class="messaging-eyebrow">USeP Marketplace</p>
                     <h1>Messages</h1>
                 </div>
-                <a class="messaging-compose" href="{% url 'dashboard:buyer' %}" aria-label="Find a seller to message" title="Find a seller to message">
-                    <i class="bi bi-pencil-square" aria-hidden="true"></i>
-                </a>
+                <a class="messaging-compose" href="{% url 'dashboard:buyer' %}" aria-label="Find a seller to message" title="Find a seller to message"><i class="bi bi-pencil-square" aria-hidden="true"></i></a>
             </div>
 
             <label class="messaging-search" for="message-search">
                 <i class="bi bi-search" aria-hidden="true"></i>
-                <input id="message-search" type="search" placeholder="Search sellers or listings" autocomplete="off" data-search-url="{% url 'dashboard:conversation_search' %}">
+                <input id="message-search" type="search" placeholder="Search sellers or listings" autocomplete="off">
             </label>
 
             <nav class="messaging-tabs" aria-label="Message filters">
-                <a class="messaging-tab active" href="{% url 'dashboard:conversation_list' %}">All messages</a>
+                <a class="messaging-tab active" href="{% url 'messaging:conversation_list' %}">All messages</a>
                 <a class="messaging-tab" href="{% url 'dashboard:buyer' %}">Browse marketplace</a>
             </nav>
 
             <div class="conversation-search-results" id="conversation-search-results" hidden aria-live="polite"></div>
             <div class="conversation-list" id="conversation-list">
                 {% for group in conversation_groups %}
-                <details class="conversation-group" data-participant-id="{{ group.participant.id }}"{% if selected_conversation and selected_conversation in group.conversations %} open{% endif %}>
-                    <summary{% if group.unread_count %} class="has-unread"{% endif %}><img class="conversation-avatar" src="{{ group.participant.avatar_url }}" alt=""><span class="conversation-row-copy"><strong>{{ group.participant.first_name }} {{ group.participant.last_name }}</strong><span>{{ group.conversations|length }} inquir{{ group.conversations|length|pluralize:"y,ies" }}</span></span>{% if group.unread_count %}<span class="conversation-unread-badge">{{ group.unread_count }}</span>{% endif %}<i class="bi bi-chevron-down" aria-hidden="true"></i></summary>
-                    {% for conversation_item in group.conversations %}
-                    <div class="conversation-row-wrap" ><a class="conversation-row{% if selected_conversation.id == conversation_item.id %} active{% endif %}{% if conversation_item.unread_count %} has-unread{% endif %}" href="{% url 'dashboard:conversation' conversation_item.id %}" data-conversation-id="{{ conversation_item.id }}" data-conversation-search="{{ conversation_item.listing.title }} {{ group.participant.first_name }} {{ group.participant.last_name }}"><img class="conversation-avatar" src="{{ conversation_item.listing.conversation_image_url }}" alt=""><span class="conversation-row-copy"><strong>{{ conversation_item.listing.title }}</strong><span>Listing conversation</span></span>{% if conversation_item.unread_count %}<span class="conversation-unread-badge">{{ conversation_item.unread_count }}</span>{% endif %}<time datetime="{{ conversation_item.updated_at|date:'c' }}">{{ conversation_item.updated_at|date:"M j" }}</time></a><button class="conversation-delete-menu" type="button" data-conversation-options="{{ conversation_item.id }}" aria-label="Conversation options" title="Conversation options"><i class="bi bi-three-dots" aria-hidden="true"></i></button></div>
-                    {% endfor %}
-                </details>
+                    {% include 'messaging/components/conversation_group.html' %}
                 {% empty %}
                 <div class="conversation-empty">
                     <i class="bi bi-chat-square-text" aria-hidden="true"></i>
@@ -57,26 +54,32 @@
         <section class="messaging-chat" aria-label="Conversation with {% if conversation.buyer_id == request.user.id %}{{ conversation.seller.first_name }} {{ conversation.seller.last_name }}{% else %}{{ conversation.buyer.first_name }} {{ conversation.buyer.last_name }}{% endif %}">
             <header class="messaging-chat-header">
                 <div class="messaging-chat-header-content" id="messaging-chat-header-content">
-                <button class="messaging-mobile-back" type="button" aria-label="Back to conversations" title="Back to conversations"><i class="bi bi-arrow-left" aria-hidden="true"></i></button>
-                {% if conversation.buyer_id == request.user.id %}
-                <img class="messaging-chat-avatar" src="{{ conversation.seller.avatar_url }}" alt="">
-                <div>
-                    <h2 tabindex="-1">{{ conversation.seller.first_name }} {{ conversation.seller.last_name }}</h2>
-                {% else %}
-                <img class="messaging-chat-avatar" src="{{ conversation.buyer.avatar_url }}" alt="">
-                <div>
-                    <h2 tabindex="-1">{{ conversation.buyer.first_name }} {{ conversation.buyer.last_name }}</h2>
-                {% endif %}
-                    <p>{{ conversation.listing.title }} · {{ conversation.listing.price_label }}</p>
-                </div>
-                <button class="messaging-chat-info" type="button" id="messaging-details-toggle" aria-label="Show conversation details" aria-controls="messaging-details" aria-expanded="false" title="Conversation details"><i class="bi bi-info-circle" aria-hidden="true"></i></button>
+                    <button class="messaging-mobile-back" type="button" aria-label="Back to conversations" title="Back to conversations"><i class="bi bi-arrow-left" aria-hidden="true"></i></button>
+                    {% if conversation.buyer_id == request.user.id %}
+                    <img class="messaging-chat-avatar" src="{{ conversation.seller.avatar_url }}" alt="">
+                    <div><h2 tabindex="-1">{{ conversation.seller.first_name }} {{ conversation.seller.last_name }}</h2>
+                    {% else %}
+                    <img class="messaging-chat-avatar" src="{{ conversation.buyer.avatar_url }}" alt="">
+                    <div><h2 tabindex="-1">{{ conversation.buyer.first_name }} {{ conversation.buyer.last_name }}</h2>
+                    {% endif %}
+                        <p>{{ conversation.listing.title }} · {{ conversation.listing.price_label }}</p>
+                    </div>
+                    <button class="messaging-chat-info" type="button" id="messaging-details-toggle" aria-label="Show conversation details" aria-controls="messaging-details" aria-expanded="false" title="Conversation details"><i class="bi bi-info-circle" aria-hidden="true"></i></button>
                 </div>
                 <div class="messaging-message-search-header" id="messaging-message-search-header" hidden>
-                    <div class="messaging-message-search-controls"><div class="messaging-message-search-field"><i class="bi bi-search" aria-hidden="true"></i><input type="search" id="messaging-message-search-input" placeholder="Search messages" autocomplete="off"></div><span class="messaging-message-search-counter" id="messaging-message-search-counter" hidden aria-live="polite"></span><span class="messaging-message-search-navigation" aria-label="Search match navigation"><button class="messaging-message-search-nav-button" type="button" id="messaging-message-search-previous" aria-label="Previous matching message" title="Previous matching message" hidden disabled><i class="bi bi-chevron-up" aria-hidden="true"></i></button><button class="messaging-message-search-nav-button" type="button" id="messaging-message-search-next" aria-label="Next matching message" title="Next matching message" hidden disabled><i class="bi bi-chevron-down" aria-hidden="true"></i></button></span><button type="button" id="messaging-message-search-close" aria-label="Close message search" title="Close message search"><i class="bi bi-x-lg" aria-hidden="true"></i></button></div>
+                    <div class="messaging-message-search-controls">
+                        <div class="messaging-message-search-field"><i class="bi bi-search" aria-hidden="true"></i><input type="search" id="messaging-message-search-input" placeholder="Search messages" autocomplete="off"></div>
+                        <span class="messaging-message-search-counter" id="messaging-message-search-counter" hidden aria-live="polite"></span>
+                        <span class="messaging-message-search-navigation" aria-label="Search match navigation">
+                            <button class="messaging-message-search-nav-button" type="button" id="messaging-message-search-previous" aria-label="Previous matching message" title="Previous matching message" hidden disabled><i class="bi bi-chevron-up" aria-hidden="true"></i></button>
+                            <button class="messaging-message-search-nav-button" type="button" id="messaging-message-search-next" aria-label="Next matching message" title="Next matching message" hidden disabled><i class="bi bi-chevron-down" aria-hidden="true"></i></button>
+                        </span>
+                        <button type="button" id="messaging-message-search-close" aria-label="Close message search" title="Close message search"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                    </div>
                 </div>
             </header>
 
-            <section class="messaging-message-search-panel" id="messaging-message-search-panel" data-search-url="{% url 'dashboard:conversation_message_search' conversation.id %}" hidden aria-label="Search in conversation">
+            <section class="messaging-message-search-panel" id="messaging-message-search-panel" data-search-url="{% url 'messaging:conversation_message_search' conversation.id %}" hidden aria-label="Search in conversation">
                 <p class="messaging-message-search-status" id="messaging-message-search-status">Type at least 2 characters to search.</p>
                 <div class="messaging-message-search-results" id="messaging-message-search-results"></div>
             </section>
@@ -100,15 +103,15 @@
                     <div class="messaging-section-heading"><h3><i class="bi bi-images" aria-hidden="true"></i> Media</h3><span>{{ chat_media|length }}</span></div>
                     <div class="messaging-media-grid">
                     {% for attachment in chat_media %}
-                    {% if attachment.is_video %}<a class="messaging-media-item" href="{{ attachment.url }}" target="_blank" rel="noopener"><video muted preload="metadata"><source src="{{ attachment.url }}"></video><span>{{ attachment.name }}</span></a>{% else %}<button class="messaging-media-item" type="button" data-media-url="{{ attachment.url }}" data-media-name="{{ attachment.name }}"><img src="{{ attachment.url }}" alt="{{ attachment.name }}"><span>{{ attachment.name }}</span></button>{% endif %}
+                        {% if attachment.is_video %}<a class="messaging-media-item" href="{{ attachment.url }}" target="_blank" rel="noopener"><video muted preload="metadata"><source src="{{ attachment.url }}"></video><span>{{ attachment.name }}</span></a>
+                        {% else %}<button class="messaging-media-item" type="button" data-media-url="{{ attachment.url }}" data-media-name="{{ attachment.name }}"><img src="{{ attachment.url }}" alt="{{ attachment.name }}"><span>{{ attachment.name }}</span></button>{% endif %}
                     {% empty %}<p class="messaging-details-empty">No images shared yet.</p>{% endfor %}
                     </div>
                 </div>
                 <div class="messaging-details-section">
                     <div class="messaging-section-heading"><h3><i class="bi bi-file-earmark-text" aria-hidden="true"></i> Files</h3><span>{{ chat_files|length }}</span></div>
                     {% for attachment in chat_files %}
-                    <a class="messaging-resource" href="{{ attachment.url }}" target="_blank" rel="noopener"><i class="bi bi-file-earmark-text" aria-hidden="true"></i><span>{{ attachment.name }}</span>
-                    </a>
+                    <a class="messaging-resource" href="{{ attachment.url }}" target="_blank" rel="noopener"><i class="bi bi-file-earmark-text" aria-hidden="true"></i><span>{{ attachment.name }}</span></a>
                     {% empty %}<p class="messaging-details-empty">No files shared yet.</p>{% endfor %}
                 </div>
                 <div class="messaging-details-section" data-shared-links-section>
@@ -119,7 +122,19 @@
                 </div>
             </aside>
 
-            <div class="messaging-thread" data-poll-url="{% url 'dashboard:conversation_new_messages' conversation.id %}" data-read-url="{% url 'dashboard:conversation_read' conversation.id %}" data-other-avatar="{{ chat_participant.avatar_url }}" data-typing-url="{% url 'dashboard:conversation_typing' conversation.id %}" data-links-url="{% url 'dashboard:conversation_links' conversation.id %}" data-link-preview-url="{% url 'dashboard:link_preview' %}" data-delete-url-template="{% url 'dashboard:delete_message' conversation.id 0 %}" data-edit-url-template="{% url 'dashboard:edit_message' conversation.id 0 %}" data-history-url-template="{% url 'dashboard:message_history' conversation.id 0 %}" data-clear-url="{% url 'dashboard:clear_conversation' conversation.id %}" data-revision-cursor="{{ message_revision_cursor }}">
+            <div class="messaging-thread"
+                 data-poll-url="{% url 'messaging:conversation_new_messages' conversation.id %}"
+                 data-read-url="{% url 'messaging:conversation_read' conversation.id %}"
+                 data-other-avatar="{{ chat_participant.avatar_url }}"
+                 data-typing-url="{% url 'messaging:conversation_typing' conversation.id %}"
+                 data-links-url="{% url 'messaging:conversation_links' conversation.id %}"
+                 data-link-preview-url="{% url 'messaging:link_preview' %}"
+                 data-delete-url-template="{% url 'messaging:delete_message' conversation.id 0 %}"
+                 data-edit-url-template="{% url 'messaging:edit_message' conversation.id 0 %}"
+                 data-history-url-template="{% url 'messaging:message_history' conversation.id 0 %}"
+                 data-clear-url="{% url 'messaging:clear_conversation' conversation.id %}"
+                 data-last-message-id="{{ last_message_id }}"
+                 data-server-time="{{ server_time }}">
                 <section class="messaging-listing-context" aria-label="Listing being discussed">
                     <img src="{{ conversation.listing.conversation_image_url }}" alt="{{ conversation.listing.title }}">
                     <div class="messaging-listing-context-copy">
@@ -139,37 +154,7 @@
                     <span>Keep meetups in public campus locations.</span>
                 </div>
                 {% for message in conversation_messages %}
-                <div class="messaging-message-row{% if message.sender_id == request.user.id %} own{% endif %}" data-message-id="{{ message.id }}" data-message-has-body="{% if message.body %}true{% else %}false{% endif %}" data-sender-name="{% if message.sender.first_name or message.sender.last_name %}{{ message.sender.first_name }} {{ message.sender.last_name }}{% else %}{{ message.sender.email }}{% endif %}">
-                    {% if message.sender_id != request.user.id %}<img class="messaging-message-avatar" src="{{ message.sender.avatar_url }}" alt="">{% endif %}
-                    <div class="messaging-message-content">
-                    {% if message.is_deleted %}
-                    <article class="messaging-bubble{% if message.sender_id == request.user.id %} own{% endif %} messaging-bubble-deleted"><p class="messaging-deleted-notice">{% if message.sender.first_name or message.sender.last_name %}{{ message.sender.first_name }} {{ message.sender.last_name }}{% else %}{{ message.sender.email }}{% endif %} deleted a message</p></article>
-                    {% else %}
-                    {% if message.replied_to %}{% with replied=message.replied_to replied_image=message.replied_to.attachments.first %}<button class="messaging-reply-quote{% if replied.is_deleted %} unavailable{% endif %}" type="button"{% if not replied.is_deleted %} data-reply-jump="{{ message.replied_to_id }}"{% endif %}>{% if not replied.is_deleted %}{% if replied_image.is_image %}<img class="messaging-reply-quote-thumb" src="{{ replied_image.file.url }}" alt="">{% elif replied.attachment_is_image %}<img class="messaging-reply-quote-thumb" src="{{ replied.attachment.url }}" alt="">{% endif %}{% endif %}<span class="messaging-reply-quote-text"><strong>{% if replied.is_deleted %}Message unavailable{% else %}{{ replied.sender.first_name|default:replied.sender.email }}{% endif %}</strong>{% if not replied.is_deleted %}<span>{% if replied.body %}{{ replied.body|truncatechars:180 }}{% elif replied_image.is_image or replied.attachment_is_image %}Photo{% else %}Attachment{% endif %}</span>{% endif %}</span></button>{% endwith %}{% endif %}
-                    {% if message.body %}<article class="messaging-bubble{% if message.sender_id == request.user.id %} own{% endif %}"><p>{{ message.body|message_links }}</p></article>{% endif %}
-                    {% if message.attachments.all or message.attachment %}
-                    <div class="messaging-attachment-bubbles">
-                    {% for attachment in message.attachments.all %}
-                        {% if attachment.is_image %}<a class="messaging-attachment-bubble messaging-image-attachment" href="{{ attachment.file.url }}" data-media-url="{{ attachment.file.url }}" data-media-name="{{ attachment.file.name|cut:'messages/' }}" target="_blank" rel="noopener noreferrer"><img src="{{ attachment.file.url }}" alt="{{ attachment.file.name|cut:'messages/' }}"></a>
-                        {% elif attachment.is_video %}<div class="messaging-attachment-bubble messaging-video-attachment" data-media-url="{{ attachment.file.url }}" data-media-name="{{ attachment.file.name|cut:'messages/' }}"><video src="{{ attachment.file.url }}" controls preload="metadata"></video></div>
-                        {% else %}<a class="messaging-attachment-bubble messaging-file-attachment" href="{{ attachment.file.url }}" target="_blank" rel="noopener noreferrer"><i class="bi bi-paperclip" aria-hidden="true"></i><span>{{ attachment.file.name|cut:'messages/' }}</span></a>{% endif %}
-                    {% empty %}{% if message.attachment %}
-                        {% if message.attachment_is_image %}
-                        <a class="messaging-attachment-bubble messaging-image-attachment" href="{{ message.attachment.url }}" data-media-url="{{ message.attachment.url }}" data-media-name="{{ message.attachment.name|cut:'messages/' }}" target="_blank" rel="noopener noreferrer"><img src="{{ message.attachment.url }}" alt="{{ message.attachment.name|cut:'messages/' }}"></a>
-                        {% else %}
-                        <a class="messaging-attachment-bubble messaging-file-attachment" href="{{ message.attachment.url }}" target="_blank" rel="noopener noreferrer"><i class="bi bi-paperclip" aria-hidden="true"></i><span>{{ message.attachment.name|cut:'messages/' }}</span></a>
-                        {% endif %}
-                    {% endif %}{% endfor %}</div>
-                    {% endif %}
-                    {% endif %}
-                    </div>
-                    <span class="messaging-message-meta"><time datetime="{{ message.created_at|date:'c' }}">{{ message.created_at|date:"M j, g:i A" }}</time>{% if message.is_edited %}<span aria-hidden="true"> · </span><button class="messaging-edited-indicator" type="button" data-history-message="{{ message.id }}">Edited</button>{% endif %}</span>
-                    {% if not message.is_deleted %}<button class="messaging-reply-action" type="button" data-reply-message="{{ message.id }}" aria-label="Reply to message" title="Reply"><i class="bi bi-reply-fill" aria-hidden="true"></i></button>{% endif %}
-                    {% if message.sender_id == request.user.id and not message.is_deleted %}
-                    <button class="messaging-message-action" type="button" data-message-options="{{ message.id }}" data-message-has-body="{% if message.body %}true{% else %}false{% endif %}" aria-label="Message options" title="Message options"><i class="bi bi-three-dots" aria-hidden="true"></i></button>
-                    {% endif %}
-                    {% if message.id == seen_message_id %}<img class="messaging-seen-avatar" src="{{ chat_participant.avatar_url }}" alt="Seen" title="Seen">{% endif %}
-                </div>
+                    {% include 'messaging/components/message.html' %}
                 {% endfor %}
                 <div class="messaging-thread-bottom" aria-hidden="true"></div>
             </div>
@@ -186,7 +171,13 @@
                 <div class="messaging-attachment-preview" id="messaging-attachment-preview" hidden></div>
                 <div class="messaging-attachment-warning" id="messaging-attachment-warning" role="alert" hidden></div>
                 <div class="messaging-compose-controls">
-                    <div class="messaging-attachment-menu-wrap"><button class="messaging-attach-button" id="messaging-attachment-toggle" type="button" aria-label="Add attachment" title="Add attachment" aria-expanded="false"><i class="bi bi-plus-lg" aria-hidden="true"></i></button><div class="messaging-attachment-menu" id="messaging-attachment-menu" hidden><button type="button" data-attachment-picker="file"><i class="bi bi-file-earmark" aria-hidden="true"></i> Upload file</button><button type="button" data-attachment-picker="media"><i class="bi bi-image" aria-hidden="true"></i> Image / Video</button></div></div>
+                    <div class="messaging-attachment-menu-wrap">
+                        <button class="messaging-attach-button" id="messaging-attachment-toggle" type="button" aria-label="Add attachment" title="Add attachment" aria-expanded="false"><i class="bi bi-plus-lg" aria-hidden="true"></i></button>
+                        <div class="messaging-attachment-menu" id="messaging-attachment-menu" hidden>
+                            <button type="button" data-attachment-picker="file"><i class="bi bi-file-earmark" aria-hidden="true"></i> Upload file</button>
+                            <button type="button" data-attachment-picker="media"><i class="bi bi-image" aria-hidden="true"></i> Image / Video</button>
+                        </div>
+                    </div>
                     <input class="messaging-attachment-input" id="message-attachment" name="attachments" type="file" multiple accept="application/pdf,.doc,.docx,.txt,.zip,.xlsx,.pptx">
                     <input class="messaging-attachment-input" id="message-media-attachment" type="file" multiple accept="image/*,video/mp4,video/webm,video/quicktime">
                     {{ message_form.body }}
@@ -205,14 +196,12 @@
         {% endif %}
     </main>
 </div>
+
 <dialog class="messaging-unsend-dialog" id="messaging-unsend-dialog" aria-labelledby="messaging-unsend-title" aria-describedby="messaging-unsend-description">
     <form method="dialog">
         <h2 id="messaging-unsend-title">Unsend message?</h2>
         <p id="messaging-unsend-description">This message will be removed for everyone in this conversation.</p>
-        <div class="messaging-unsend-actions">
-            <button type="submit" value="cancel">Cancel</button>
-            <button type="button" class="messaging-unsend-confirm">Unsend</button>
-        </div>
+        <div class="messaging-unsend-actions"><button type="submit" value="cancel">Cancel</button><button type="button" class="messaging-unsend-confirm">Unsend</button></div>
     </form>
 </dialog>
 <dialog class="messaging-unsend-dialog messaging-action-sheet" id="messaging-actions-dialog" aria-labelledby="messaging-actions-title"><section><h2 id="messaging-actions-title">Message options</h2><button type="button" data-action-reply>Reply</button><button type="button" data-action-copy>Copy</button><button type="button" data-action-edit>Edit</button><button type="button" data-action-unsend>Unsend</button><button type="button" data-action-cancel>Cancel</button></section></dialog>
@@ -222,5 +211,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/messaging.js' %}?v=20260920-mobile-brand-visible" defer></script>
+<script type="module" src="{% static 'messaging/js/main.js' %}"></script>
 {% endblock %}

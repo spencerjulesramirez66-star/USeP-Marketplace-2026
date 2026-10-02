@@ -1,71 +1,51 @@
-{% load static %}
-<div class="feed-header">
-    <div>
-        {% if seller_filter and seller_profile %}
+{% comment %}
+    buyer/product-feed.html
+    Context: items, query, selected_category, categories, seller_filter, seller_profile
+             detail_querystring (optional, e.g. "?q=lamp&category=dorm" built once in the view)
+{% endcomment %}
+<header class="feed-header">
+    {% if seller_filter and seller_profile %}
         <p class="eyebrow">Seller storefront</p>
         <h2>Products by {{ seller_profile.name }}</h2>
-        {% elif query %}
+    {% elif query %}
         <p class="eyebrow">Search</p>
         <h2>Results for &ldquo;{{ query }}&rdquo;</h2>
-        {% elif selected_category and selected_category != 'all' %}
+    {% elif selected_category and selected_category != 'all' %}
         <p class="eyebrow">Browsing</p>
         <h2>{% for category in categories %}{% if category.slug == selected_category %}{{ category.label }}{% endif %}{% endfor %}</h2>
-        {% else %}
+    {% else %}
         <p class="eyebrow">Fresh listings</p>
         <h2>Recommended for you</h2>
-        {% endif %}
-    </div>
-</div>
+    {% endif %}
+</header>
 
 <div class="product-grid">
     {% for item in items %}
-        <article class="product-card" data-item-slug="{{ item.slug }}" data-item-title="{{ item.title }}" data-item-price="{{ item.price_label }}" data-item-seller="{{ item.seller_name }}">
-            <a class="product-image-link" href="{% url 'dashboard:buyer_detail' item.slug %}{% if query %}?q={{ query|urlencode }}{% endif %}{% if selected_category and selected_category != 'all' %}{% if query %}&{% else %}?{% endif %}category={{ selected_category }}{% endif %}">
-                <div class="listing-product-media"><div class="product-image" style="background-image: url('{{ item.image_url }}');"></div></div>
+        {% url 'dashboard:buyer_detail' item.slug as detail_url %}
+        <article class="product-card">
+            <a class="product-image-link" href="{{ detail_url }}{{ detail_querystring }}">
+                <img class="product-image" src="{{ item.image_url }}" alt="{{ item.title }}" loading="lazy">
             </a>
+
             <div class="product-content">
-                <div class="product-meta-row">
-                    <span class="product-price">{{ item.price_label }}</span>
-                    {% if request.user.id == item.seller_id %}
-                    <a class="card-action-link" href="{% url 'dashboard:buyer_detail' item.slug %}">Edit listing</a>
-                    {% else %}
-                    <form method="post" action="{% url 'dashboard:toggle_saved_item' item.slug %}" data-cart-form>
-                        {% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
-                        <button class="save-btn{% if item.is_in_cart %} cart-in-cart{% endif %}" type="submit" data-in-cart="{% if item.is_in_cart %}true{% else %}false{% endif %}" data-listing-title="{{ item.title }}" aria-label="{% if item.is_in_cart %}Remove {{ item.title }} from cart{% else %}Add {{ item.title }} to cart{% endif %}" title="{% if item.is_in_cart %}Remove from cart{% else %}Add to cart{% endif %}"><i class="bi {% if item.is_in_cart %}bi-check-lg{% else %}bi-cart3{% endif %}" aria-hidden="true"></i></button>
-                    </form>
-                    {% endif %}
-                </div>
-                <div class="product-mobile-summary">
-                    <span class="product-mobile-price">{{ item.price_label }}</span>
-                    <span class="product-mobile-separator" aria-hidden="true">&middot;</span>
-                    <a href="{% url 'dashboard:buyer_detail' item.slug %}{% if query %}?q={{ query|urlencode }}{% endif %}{% if selected_category and selected_category != 'all' %}{% if query %}&{% else %}?{% endif %}category={{ selected_category }}{% endif %}" class="product-mobile-title">{{ item.title }}</a>
-                </div>
+                <p class="product-price">{{ item.price_label }}</p>
+                <h3 class="product-title">
+                    <a href="{{ detail_url }}{{ detail_querystring }}">{{ item.title }}</a>
+                </h3>
                 {% if item.status == 'SOLD' or item.status == 'ARCHIVED' %}
-                <span class="product-mobile-status">{{ item.get_status_display }}</span>
+                    <p class="product-status">{{ item.get_status_display }}</p>
                 {% endif %}
-                <h3 class="product-title"><a href="{% url 'dashboard:buyer_detail' item.slug %}{% if query %}?q={{ query|urlencode }}{% endif %}{% if selected_category and selected_category != 'all' %}{% if query %}&{% else %}?{% endif %}category={{ selected_category }}{% endif %}" class="product-title-link">{{ item.title }}</a></h3>
-                <p class="product-subtitle">{{ item.condition }} • {{ item.location }}</p>
+                <p class="product-subtitle">{{ item.condition }} &bull; {{ item.location }}</p>
+
                 <div class="product-footer">
                     <a class="seller-info" href="{% url 'dashboard:buyer' %}?seller={{ item.seller_id }}">
-                        <span class="listing-seller-avatar"><img src="{{ item.seller_avatar_url }}" alt="{{ item.seller_name }} profile picture"></span>
-                        <div>
-                        <strong>{{ item.seller_name }}</strong>
-                        <small>{{ item.seller_role }}</small>
-                        </div>
+                        <img class="listing-seller-avatar" src="{{ item.seller_avatar_url }}" alt="" width="32" height="32" loading="lazy">
+                        <span>
+                            <strong>{{ item.seller_name }}</strong>
+                            <small>{{ item.seller_role }}</small>
+                        </span>
                     </a>
-                    <span class="view-count"><i class="bi bi-eye"></i> {{ item.views }}</span>
-                </div>
-                <div class="product-side-actions">
-                    {% if request.user.id != item.seller_id %}
-                        {% if request.user.is_authenticated %}
-                        <form method="post" action="{% url 'dashboard:start_conversation' item.slug %}">
-                            {% csrf_token %}
-                            <button type="submit" class="mini-message-btn">Message seller</button>
-                        </form>
-                        {% else %}
-                        <a class="mini-message-btn" href="{% url 'login' %}?next={{ request.get_full_path|urlencode }}">Message seller</a>
-                        {% endif %}
-                    {% endif %}
+                    <span class="view-count"><i class="bi bi-eye" aria-hidden="true"></i> {{ item.views }}</span>
                 </div>
             </div>
         </article>

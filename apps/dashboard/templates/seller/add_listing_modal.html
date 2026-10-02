@@ -1,0 +1,88 @@
+<div class="modal-overlay" id="add-listing-modal" hidden>
+    <div class="modal-dialog modal-dialog-wide">
+        <div class="modal-header">
+            <h2>Add a new listing</h2>
+            <button class="modal-close" type="button" data-close-modal="add-listing-modal" aria-label="Close">&times;</button>
+        </div>
+
+        <form class="add-listing-layout" id="add-listing-form" method="post" action="{% url 'dashboard:create_listing' %}" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            <div class="listing-type-tabs" role="tablist" aria-label="Listing type">
+                <button type="button" class="type-tab active" data-type="product" role="tab" aria-selected="true">
+                    <i class="bi bi-box-seam" aria-hidden="true"></i> Sell a product
+                </button>
+                <button type="button" class="type-tab" data-type="service" role="tab" aria-selected="false">
+                    <i class="bi bi-tools" aria-hidden="true"></i> Offer a service
+                </button>
+            </div>
+
+            <section class="add-form-panel">
+                <div class="form-group">
+                    <label class="form-label" for="listing-name">Item name <span class="required">*</span></label>
+                    <input class="form-control" name="title" id="listing-name" placeholder="e.g. Engineering textbook (3rd Edition)" required>
+                </div>
+
+                <div class="field-row">
+                    <div class="form-group">
+                        <label class="form-label" for="listing-category">Category <span class="required">*</span></label>
+                        <select class="form-control" name="category" id="listing-category" required>
+                            <option value="" selected disabled>Choose a category</option>
+                            {% for category in categories %}{% if category.id %}<option value="{{ category.id }}" data-slug="{{ category.slug }}"{% if category.id == selected_id %} selected{% endif %}>{{ category.label }}</option>{% endif %}{% endfor %}
+                        </select>
+                        <small class="field-hint">Selecting "Services" hides stock quantity below.</small>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="listing-price">Price (PHP) <span class="required">*</span></label>
+                        <input class="form-control" name="price" id="listing-price" type="number" min="0" step="0.01" placeholder="0.00" required>
+                        <small class="field-hint">Numbers only, e.g. 250 or 250.50.</small>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="listing-condition">Condition or availability <span class="required">*</span></label>
+                    <select class="form-control" name="condition" id="listing-condition" required>
+                        {% for choice in condition_options %}<option value="{{ choice.value }}" data-type="{{ choice.type }}">{{ choice.value }}</option>{% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="listing-location">Meetup location</label>
+                    <input class="form-control" name="location" id="listing-location" placeholder="e.g. USeP campus library">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="listing-description">Description <span class="required">*</span></label>
+                    <textarea class="form-control" name="description" id="listing-description" rows="5" placeholder="Tell buyers what they should know..." required></textarea>
+                    <small class="field-hint">Mention condition details, inclusions, or how the service works.</small>
+                </div>
+
+                {% include 'seller/stock_editor.html' with editor_id='add-listing-stock-editor' category_select='#listing-category' input_id='add-listing-stock' input_value=1 %}
+
+                <div class="form-actions">
+                    <button class="btn btn-outline" type="button" data-close-modal="add-listing-modal">Cancel</button>
+                    <button class="btn btn-primary" type="submit">Publish listing</button>
+                </div>
+            </section>
+
+            <section class="upload-panel">
+                <div class="listing-photo-preview" id="listing-photo-preview" hidden>
+                    <div class="photo-preview-main-wrap">
+                        <img class="photo-preview-main" id="listing-main-image" src="" alt="">
+                        <span class="main-photo-badge">Main photo</span>
+                        <label class="photo-add-overlay" for="listing-image"><i class="bi bi-plus-lg"></i> Add more photos</label>
+                    </div>
+                    <div class="manage-gallery" id="listing-gallery" aria-label="Selected listing photos"></div>
+                    <small class="photo-upload-hint" id="listing-photo-hint">Up to 8 photos. The first photo is your listing thumbnail.</small>
+                </div>
+                <label class="upload-box" id="listing-upload-box" for="listing-image">
+                    <span class="upload-icon">+</span>
+                    <strong>Upload product photos</strong>
+                    <small>JPG, PNG, or WEBP, up to 8 photos</small>
+                    <span class="upload-action">Choose photos</span>
+                </label>
+                <input class="image-input" name="images" id="listing-image" type="file" accept="image/*" multiple>
+            </section>
+        </form>
+    </div>
+</div>

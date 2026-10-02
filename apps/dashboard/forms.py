@@ -3,7 +3,7 @@ from decimal import Decimal, InvalidOperation
 
 from django import forms
 
-from .models import Category, Listing, Message
+from .models import Category, Listing
 
 PRODUCT_CONDITIONS = [
     'Like new',
@@ -133,58 +133,4 @@ class ListingForm(forms.ModelForm):
         return bool(category) and getattr(category, 'slug', '').lower() == 'services'
 
 
-class MessageForm(forms.ModelForm):
-    MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024
-
-    class Meta:
-        model = Message
-        fields = ['body', 'attachment']
-        widgets = {
-            'body': forms.Textarea(attrs={
-                'rows': 1,
-                'placeholder': 'Ask the seller about this listing...',
-            }),
-        }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['body'].required = False
-        # Exposed to the compose template so its selection-time feedback uses
-        # the exact same limit that the server continues to enforce.
-        self.max_attachment_size_bytes = self.MAX_ATTACHMENT_SIZE_BYTES
-
-    def clean(self):
-        cleaned_data = super().clean()
-        attachments = self.files.getlist('attachments')
-        if not cleaned_data.get('body', '').strip() and not cleaned_data.get('attachment') and not attachments:
-            raise forms.ValidationError('Write a message or attach a file.')
-        for attachment in attachments:
-            self._validate_attachment(attachment)
-        return cleaned_data
-
-    def clean_attachment(self):
-        attachment = self.cleaned_data.get('attachment')
-        if not attachment:
-            return attachment
-        self._validate_attachment(attachment)
-        return attachment
-
-    @classmethod
-    def _validate_attachment(cls, attachment):
-        if attachment.size > cls.MAX_ATTACHMENT_SIZE_BYTES:
-            raise forms.ValidationError('Attachments must be 10 MB or smaller.')
-        allowed_types = {
-            'application/pdf',
-            'application/msword',
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-            'text/plain', 'application/zip',
-            'image/gif',
-            'image/jpeg',
-            'image/png',
-            'image/webp',
-            'video/mp4', 'video/webm', 'video/quicktime',
-        }
-        if attachment.content_type not in allowed_types:
-            raise forms.ValidationError('Attach a supported document, image, or video file.')
+# MessageForm has moved to apps.messaging.forms.

@@ -26,7 +26,10 @@
             </form>
             <div class="profile-hero-info">
                 <span class="profile-hero-role">{{ request.user.get_role_display }}</span>
-                <h1>{{ request.user.first_name }} {{ request.user.last_name }}</h1>
+                <h1>
+                    <span data-display="first_name">{{ request.user.first_name }}</span>
+                    <span data-display="last_name">{{ request.user.last_name }}</span>
+                </h1>
                 <p>{{ request.user.email }}</p>
                 {% if program %}<span class="profile-hero-program">{{ program }}</span>{% endif %}
                 {% if request.user.staff_profile %}<span class="profile-hero-program">{{ request.user.staff_profile.get_staff_type_display }} · {{ request.user.staff_profile.campus }}</span>{% endif %}
@@ -65,7 +68,7 @@
                    {% if request.user.student_profile %}
                         <div class="profile-field">
                             <dt>Campus</dt>
-                            <dd>{{ request.user.student_profile.campus }}</dd>
+                            <dd>{{ request.user.student_profile.program.college.campus.campus_name }}</dd>
                         </div>
 
                         <div class="profile-field">

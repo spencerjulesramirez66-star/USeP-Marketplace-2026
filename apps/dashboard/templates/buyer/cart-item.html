@@ -1,0 +1,32 @@
+{% comment %}
+    buyer/cart-item.html
+    Context: saved_item, cart_url, sold (bool)
+{% endcomment %}
+{% with listing=saved_item.listing %}
+<article class="cart-listing{% if sold %} cart-listing-sold{% endif %}">
+    <a class="cart-listing-image" href="{{ listing.get_absolute_url }}">
+        <img src="{{ listing.image_url }}" alt="{{ listing.title }}" loading="lazy">
+    </a>
+
+    <div class="cart-listing-info">
+        {% if sold %}
+            <span class="status-pill status-pill-sold">Sold</span>
+        {% else %}
+            <span class="status-pill status-pill-active">In cart</span>
+        {% endif %}
+        <h3><a href="{{ listing.get_absolute_url }}">{{ listing.title }}</a></h3>
+        <p class="cart-listing-category">{{ listing.category.name }}</p>
+        <p class="cart-listing-seller">Seller: {{ listing.seller.get_full_name }}</p>
+    </div>
+
+    <p class="cart-listing-price"><span>Price</span> <strong>{{ listing.price_label }}</strong></p>
+
+    <form method="post" action="{% url 'dashboard:toggle_saved_item' listing.slug %}">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ cart_url }}">
+        <button class="cart-remove-button" type="submit">
+            <i class="bi bi-trash3" aria-hidden="true"></i> Remove
+        </button>
+    </form>
+</article>
+{% endwith %}

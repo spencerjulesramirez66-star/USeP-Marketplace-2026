@@ -13,21 +13,14 @@ urlpatterns = [
     path('buyer/', views.setup_buyer_dashboard, name='buyer'),
     path('buyer/cart/', views.setup_buyer_cart, name='buyer_cart'),
     path('buyer/<slug:item_slug>/save/', views.toggle_saved_item, name='toggle_saved_item'),
-    path('buyer/<slug:item_slug>/message/', views.start_conversation, name='start_conversation'),
     path('buyer/<slug:item_slug>/', views.setup_buyer_item_detail, name='buyer_detail'),
-    path('messages/', views.conversation_list, name='conversation_list'),
-    path('messages/link-preview/', views.link_preview, name='link_preview'),
-    path('messages/unread-count/', views.unread_message_count, name='unread_message_count'),
-    path('messages/sidebar-state/', views.conversation_sidebar_state, name='conversation_sidebar_state'),
-    path('messages/search/', views.conversation_search, name='conversation_search'),
-    path('messages/<int:conversation_id>/search/', views.conversation_message_search, name='conversation_message_search'),
-    path('messages/<int:conversation_id>/links/', views.conversation_links, name='conversation_links'),
-    path('messages/<int:conversation_id>/clear/', views.clear_conversation, name='clear_conversation'),
-    path('messages/<int:conversation_id>/new/', views.conversation_new_messages, name='conversation_new_messages'),
-    path('messages/<int:conversation_id>/typing/', views.conversation_typing, name='conversation_typing'),
-    path('messages/<int:conversation_id>/read/', views.conversation_read, name='conversation_read'),
-    path('messages/<int:conversation_id>/<int:message_id>/delete/', views.delete_message, name='delete_message'),
-    path('messages/<int:conversation_id>/<int:message_id>/edit/', views.edit_message, name='edit_message'),
-    path('messages/<int:conversation_id>/<int:message_id>/history/', views.message_history, name='message_history'),
-    path('messages/<int:conversation_id>/', views.conversation_detail, name='conversation'),
 ]
+
+# Everything under messages/ -- conversation_list, link_preview,
+# unread_message_count, conversation_sidebar_state, conversation_search,
+# conversation_message_search, conversation_links, clear_conversation,
+# conversation_new_messages, conversation_typing, conversation_read,
+# delete_message, edit_message, message_history, conversation_detail --
+# has moved to apps.messaging.urls, mounted at /messages/ in the project's
+# root urlconf. 'buyer/<slug:item_slug>/message/' (start_conversation) moved
+# there too, as 'listings/<slug:item_slug>/start/'.

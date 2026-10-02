@@ -11,28 +11,28 @@ def seed_university_data(apps, schema_editor):
     # CAMPUSES
     # ============================================================
 
-    Campus.objects.get_or_create(
+    tagum, _ = Campus.objects.get_or_create(
         campus_code='TA',
         defaults={
             'campus_name': 'Tagum Campus'
         }
     )
 
-    Campus.objects.get_or_create(
+    mabini, _ = Campus.objects.get_or_create(
         campus_code='MA',
         defaults={
             'campus_name': 'Mabini Campus'
         }
     )
 
-    Campus.objects.get_or_create(
+    obrero, _ = Campus.objects.get_or_create(
         campus_code='OB',
         defaults={
             'campus_name': 'Obrero Campus'
         }
     )
 
-    Campus.objects.get_or_create(
+    mintal, _ = Campus.objects.get_or_create(
         campus_code='MI',
         defaults={
             'campus_name': 'Mintal Campus'
@@ -44,11 +44,17 @@ def seed_university_data(apps, schema_editor):
     # ============================================================
 
     coe, _ = College.objects.get_or_create(
-        college_name='College of Engineering'
+        college_name='College of Engineering',
+        defaults={
+            'campus': tagum
+        }
     )
 
     ctet, _ = College.objects.get_or_create(
-        college_name='College of Teacher Education and Technology'
+        college_name='College of Teacher Education and Technology',
+        defaults={
+            'campus': tagum
+        }
     )
 
     # ============================================================

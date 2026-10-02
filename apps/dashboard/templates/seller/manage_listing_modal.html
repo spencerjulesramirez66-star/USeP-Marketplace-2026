@@ -1,0 +1,76 @@
+<div class="modal-overlay" id="manage-item-modal" hidden>
+    <div class="modal-dialog modal-dialog-wide">
+        <div class="modal-header">
+            <h2>Manage item</h2>
+            <span class="status-pill status-pill-active" id="manage-status-badge">Active</span>
+            <button class="modal-close" type="button" data-close-modal="manage-item-modal" aria-label="Close">&times;</button>
+        </div>
+
+        <form class="manage-layout" id="manage-listing-form" method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            <section class="preview-panel">
+                <img id="manage-image" src="" alt="">
+                <div class="manage-gallery" id="manage-gallery" aria-label="Uploaded listing photos"></div>
+                <label class="change-photo" for="manage-item-image">Add more photos</label>
+                <input class="image-input" name="images" id="manage-item-image" type="file" accept="image/*" multiple>
+                <div id="manage-removed-images"></div>
+                <div class="preview-stats"><span>Listing views</span><strong id="manage-views">0</strong></div>
+            </section>
+
+            <section class="edit-panel">
+                <div class="form-group">
+                    <label class="form-label" for="manage-name">Item name</label>
+                    <input class="form-control" name="title" id="manage-name" required>
+                </div>
+
+                <div class="field-row">
+                    <div class="form-group">
+                        <label class="form-label" for="manage-category">Category <span class="required">*</span></label>
+                        <select class="form-control" name="category" id="manage-category">
+                            {% for category in categories %}{% if category.id %}<option value="{{ category.id }}" data-slug="{{ category.slug }}"{% if category.id == selected_id %} selected{% endif %}>{{ category.label }}</option>{% endif %}{% endfor %}
+                        </select>
+                        <small class="field-hint">Selecting "Services" hides stock quantity.</small>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="manage-price">Price (PHP) <span class="required">*</span></label>
+                        <input class="form-control" name="price" id="manage-price" type="number" min="0" step="0.01" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="manage-condition">Condition or availability <span class="required">*</span></label>
+                    <select class="form-control" name="condition" id="manage-condition" required>
+                        {% for choice in condition_options %}<option value="{{ choice.value }}" data-type="{{ choice.type }}">{{ choice.value }}</option>{% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="manage-location">Meetup location</label>
+                    <input class="form-control" name="location" id="manage-location">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="manage-description">Description</label>
+                    <textarea class="form-control" name="description" id="manage-description" rows="4" required></textarea>
+                </div>
+
+                <div class="status-actions">
+                    <label class="form-label" for="manage-status">Listing status</label>
+                    <select class="status-select" name="status" id="manage-status">
+                        <option value="ACTIVE">Available</option>
+                        <option value="SOLD">Sold</option>
+                        <option value="ARCHIVED">Unavailable</option>
+                    </select>
+                </div>
+
+                {% include 'seller/stock_editor.html' with editor_id='manage-stock-editor' category_select='#manage-category' input_id='manage-stock-quantity' input_value=0 %}
+
+                <div class="form-actions">
+                    <button class="btn btn-outline" type="button" id="delete-listing">Delete listing</button>
+                    <button class="btn btn-primary" type="submit">Save changes</button>
+                </div>
+            </section>
+        </form>
+    </div>
+</div>
