@@ -24,6 +24,20 @@ export function initComposer({ form, textarea, replyToInput, sendUrl, onSent, at
     let editUrlTemplate = null;
 
     textarea.addEventListener('input', () => autosize(textarea));
+    
+    const isTouchDevice = window.matchMedia('(pointer: coarse)').matches;
+
+    textarea.addEventListener('keydown', (evt) => {
+        if (evt.key === 'Enter' && !evt.shiftKey && !evt.isComposing && !isTouchDevice) {
+            evt.preventDefault();
+            form.requestSubmit();
+        }
+        if (evt.key === 'Escape') {
+            if (editingMessageId) cancelEdit();
+            else cancelReply();
+        }
+    });
+    
     autosize(textarea);
 
     function startReply(messageId, row) {

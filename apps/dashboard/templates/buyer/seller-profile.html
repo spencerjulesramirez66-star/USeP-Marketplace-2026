@@ -11,7 +11,7 @@
          width="64" height="64" loading="lazy">
 
     <div class="seller-profile-info">
-        <strong class="seller-name">{{ seller.name }}</strong>
+        <strong class="seller-name" > <a href="{% url 'dashboard:buyer' %}?seller={{ item.seller_id }}">{{ seller.name }}</a></strong>
         <small class="seller-role">{{ seller.role }}</small>
     </div>
 

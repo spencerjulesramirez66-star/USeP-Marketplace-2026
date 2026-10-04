@@ -1,0 +1,61 @@
+{% comment %}
+  Purchase card. Included from message.html when message.kind is purchase_request.
+  Needs: message, request.
+{% endcomment %}
+{% with pr=message.purchase_request %}
+{% if pr %}
+<div class="messaging-purchase-card" data-purchase-id="{{ pr.id }}" data-status="{{ pr.status }}">
+    <div class="messaging-purchase-card__head">
+        <span class="messaging-purchase-card__icon"><i class="bi bi-bag-check" aria-hidden="true"></i></span>
+        <div>
+            <strong>Confirm purchase</strong>
+            <span class="messaging-purchase-card__status">{{ pr.get_status_display }}</span>
+        </div>
+    </div>
+
+    {% if pr.status == 'requested' %}
+        {% if message.sender_id == request.user.id %}
+            <p>Waiting for the buyer to fill in their order details.</p>
+            <div class="messaging-purchase-card__actions">
+                <button type="button" class="is-secondary" data-purchase-action="cancel" data-url="{% url 'messaging:purchase_respond' pr.id %}">Cancel request</button>
+            </div>
+        {% else %}
+            <p>The seller is ready to confirm your order. Add the quantity, pick a time and send your payment details.</p>
+            <div class="messaging-purchase-card__actions">
+                <a class="is-primary" href="{% url 'messaging:purchase_verification' pr.id %}">Verify purchase</a>
+            </div>
+        {% endif %}
+
+    {% elif pr.status == 'submitted' or pr.status == 'confirmed' or pr.status == 'declined' %}
+        <dl class="messaging-purchase-card__details">
+            {% if not pr.is_service %}<div><dt>Quantity</dt><dd>{{ pr.quantity }}</dd></div>{% endif %}
+            <div><dt>Total</dt><dd>₱{{ pr.total_amount|floatformat:"-2" }}</dd></div>
+            <div><dt>When</dt><dd>{{ pr.scheduled_start|date:"D, M j, g:i A" }} to {{ pr.scheduled_end|date:"g:i A" }}</dd></div>
+            <div><dt>Payment</dt><dd>{{ pr.get_payment_method_display }}{% if pr.payment_reference %} (ref {{ pr.payment_reference }}){% endif %}</dd></div>
+        </dl>
+        {% if pr.buyer_note %}<p class="messaging-purchase-card__note">{{ pr.buyer_note }}</p>{% endif %}
+
+        {# Payment screenshot: visible to the two chat participants only (they're the only ones this partial renders for). #}
+        {% if pr.payment_proof %}
+            <a class="messaging-purchase-card__proof" href="{{ pr.payment_proof.url }}" target="_blank" rel="noopener">
+                <i class="bi bi-image" aria-hidden="true"></i> View payment screenshot
+            </a>
+        {% endif %}
+
+        {% if pr.status == 'submitted' %}
+            {% if message.sender_id == request.user.id %}
+                <div class="messaging-purchase-card__actions">
+                    <button type="button" class="is-primary" data-purchase-action="confirm" data-url="{% url 'messaging:purchase_respond' pr.id %}">Confirm order</button>
+                    <button type="button" class="is-secondary" data-purchase-action="decline" data-url="{% url 'messaging:purchase_respond' pr.id %}">Decline</button>
+                </div>
+            {% else %}
+                <p>Sent. Waiting for the seller to review it.</p>
+            {% endif %}
+        {% endif %}
+
+    {% else %}
+        <p>This request was cancelled.</p>
+    {% endif %}
+</div>
+{% endif %}
+{% endwith %}

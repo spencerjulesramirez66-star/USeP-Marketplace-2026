@@ -1,6 +1,7 @@
 /* Product card used in the feed grid (templates/buyer/product-feed.html). */
 .product-card {
     position: relative;
+    cursor: pointer;
     display: flex;
     flex-direction: column;
     min-width: 0;
@@ -67,6 +68,13 @@
     color: var(--color-primary);
 }
 
+.product-title-link::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+}
+
+
 .product-subtitle {
     margin: 0 0 0.75rem;
     color: var(--color-text-muted);
@@ -88,6 +96,7 @@
     align-items: center;
     gap: 0.55rem;
     min-width: 0;
+    cursor: pointer;
 }
 
 .seller-info span {

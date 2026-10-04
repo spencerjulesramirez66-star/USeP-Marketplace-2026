@@ -1,0 +1,29 @@
+{# Typing indicator + compose form (reply/edit state, attachments, textarea). Needs: chat_participant, message_form, request, conversation, is_listing_seller. #}
+<div class="messaging-typing-area">
+    <div class="messaging-typing" role="status" aria-live="polite" hidden><span></span><span></span><span></span><i>{{ chat_participant.first_name }} is typing…</i></div>
+</div>
+
+<form method="post" class="messaging-compose-form" enctype="multipart/form-data" data-current-user="{{ request.user.id }}" data-max-attachment-size="{{ message_form.max_attachment_size_bytes }}">
+    {% csrf_token %}
+    <input type="hidden" name="reply_to_message_id" id="messaging-reply-to-message-id">
+    <div class="messaging-reply-state" id="messaging-reply-state" hidden><img class="messaging-reply-preview-thumb" id="messaging-reply-preview-thumb" alt="" hidden><span><strong id="messaging-reply-name">Replying to</strong><em id="messaging-reply-preview"></em></span><button type="button" id="messaging-cancel-reply" aria-label="Cancel reply"><i class="bi bi-x-lg" aria-hidden="true"></i></button></div>
+    <div class="messaging-edit-state" id="messaging-edit-state" hidden><span>Editing message</span><button type="button" id="messaging-cancel-edit" aria-label="Cancel editing">Cancel</button></div>
+    <div class="messaging-attachment-preview" id="messaging-attachment-preview" hidden></div>
+    <div class="messaging-attachment-warning" id="messaging-attachment-warning" role="alert" hidden></div>
+    <div class="messaging-compose-controls">
+        <div class="messaging-attachment-menu-wrap">
+            <button class="messaging-attach-button" id="messaging-attachment-toggle" type="button" aria-label="Add attachment" title="Add attachment" aria-expanded="false"><i class="bi bi-plus-lg" aria-hidden="true"></i></button>
+            <div class="messaging-attachment-menu" id="messaging-attachment-menu" hidden>
+                <button type="button" data-attachment-picker="file"><i class="bi bi-file-earmark" aria-hidden="true"></i> Upload file</button>
+                <button type="button" data-attachment-picker="media"><i class="bi bi-image" aria-hidden="true"></i> Image / Video</button>
+                {% if is_listing_seller %}
+                <button type="button" data-purchase-request data-url="{% url 'messaging:send_purchase_request' conversation.id %}"><i class="bi bi-bag-check" aria-hidden="true"></i> Confirm purchase</button>
+                {% endif %}
+            </div>
+        </div>
+        <input class="messaging-attachment-input" id="message-attachment" name="attachments" type="file" multiple accept="application/pdf,.doc,.docx,.txt,.xlsx,.pptx">
+        <input class="messaging-attachment-input" id="message-media-attachment" type="file" multiple accept="image/*,video/mp4,video/webm,video/quicktime">
+        {{ message_form.body }}
+        <button type="submit" aria-label="Send message" title="Send message"><i class="bi bi-send-fill" aria-hidden="true"></i></button>
+    </div>
+</form>

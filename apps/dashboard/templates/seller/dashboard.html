@@ -20,7 +20,10 @@
                 <h1>Seller dashboard</h1>
                 <p>Keep track of your listings and connect with buyers around campus.</p>
             </div>
-            <button class="btn btn-primary" type="button" data-open-modal="add-listing-modal">+ Add listing</button>
+            <div class="heading-actions">
+                <a class="btn btn-primary" href="{% url 'messaging:schedule' %}"><i class="bi bi-calendar-week" aria-hidden="true"></i> Order schedule</a>
+                <button class="btn btn-primary" type="button" data-open-modal="add-listing-modal"><i class="bi bi-plus-lg" aria-hidden="true"></i> Add listing</button>
+            </div>
         </section>
 
         <section class="stat-grid" aria-label="Seller statistics">

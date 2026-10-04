@@ -1,6 +1,8 @@
 from django.conf import settings
 from django.db import models
 
+import os
+import uuid
 
 class Conversation(models.Model):
     buyer = models.ForeignKey(
@@ -38,8 +40,14 @@ class Conversation(models.Model):
 
 
 class Message(models.Model):
+
+    class Kind(models.TextChoices):
+        TEXT = 'text', 'Text'
+        PURCHASE_REQUEST = 'purchase_request', 'Purchase request'
+
+
     conversation = models.ForeignKey(
-        Conversation,
+    Conversation,
         on_delete=models.CASCADE,
         related_name='messages',
     )
@@ -53,6 +61,13 @@ class Message(models.Model):
     replied_to = models.ForeignKey(
         'self', blank=True, null=True, on_delete=models.SET_NULL, related_name='replies',
     )
+
+    kind = models.CharField(
+        max_length=20,
+        choices=Kind.choices,
+        default=Kind.TEXT,
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_deleted = models.BooleanField(default=False)
@@ -152,3 +167,75 @@ class ConversationTypingState(models.Model):
         constraints = [
             models.UniqueConstraint(fields=['conversation', 'user'], name='unique_conversation_typing_state'),
         ]
+
+
+def purchase_proof_upload_to(instance, filename):
+    """Random file names so payment screenshots can't be guessed from a URL."""
+    extension = os.path.splitext(filename)[1].lower()[:10]
+    return f'purchase_proofs/{uuid.uuid4().hex}{extension}'
+
+
+class PurchaseRequest(models.Model):
+    """The data behind a 'Confirm purchase' chat message.
+
+    Lifecycle:  REQUESTED (seller sent the card)
+             -> SUBMITTED (buyer filled in the verification page)
+             -> CONFIRMED / DECLINED (seller reviewed it)
+    CANCELLED is the seller withdrawing the request at any point before that.
+
+    Deliberately NOT connected to Listing.stock_quantity yet. See the TODO in
+    services.respond_purchase().
+    """
+
+    class Status(models.TextChoices):
+        REQUESTED = 'requested', 'Waiting for buyer'
+        SUBMITTED = 'submitted', 'Waiting for seller'
+        CONFIRMED = 'confirmed', 'Confirmed'
+        DECLINED = 'declined', 'Declined'
+        CANCELLED = 'cancelled', 'Cancelled'
+        PROPOSED = 'proposed', 'New time proposed'
+        COMPLETED = 'completed', 'Delivered'
+
+    class PaymentMethod(models.TextChoices):
+        GCASH = 'gcash', 'GCash'
+        CASH = 'cash', 'Cash on hand'
+
+    message = models.OneToOneField('Message', on_delete=models.CASCADE, related_name='purchase_request')
+    conversation = models.ForeignKey('Conversation', on_delete=models.CASCADE, related_name='purchase_requests')
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.REQUESTED)
+
+    # Snapshot taken when the seller sends the card, so later price edits
+    # on the listing don't change what the buyer agreed to.
+    is_service = models.BooleanField(default=False)
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2)
+
+    # Filled in by the buyer
+    quantity = models.PositiveIntegerField(default=1)
+    total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    payment_method = models.CharField(max_length=10, choices=PaymentMethod.choices, blank=True)
+    payment_reference = models.CharField(max_length=30, blank=True)
+    payment_proof = models.ImageField(upload_to=purchase_proof_upload_to, blank=True, null=True)
+    scheduled_start = models.DateTimeField(blank=True, null=True)
+    scheduled_end = models.DateTimeField(blank=True, null=True)
+    buyer_note = models.CharField(max_length=500, blank=True)
+
+    proposed_start = models.DateTimeField(blank=True, null=True)
+    proposed_end = models.DateTimeField(blank=True, null=True)
+    proposed_by = models.ForeignKey(settings.AUTH_USER_MODEL, blank=True, null=True,
+                                    on_delete=models.SET_NULL, related_name='+')
+    proposal_note = models.CharField(max_length=500, blank=True)
+    completed_at = models.DateTimeField(blank=True, null=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    submitted_at = models.DateTimeField(blank=True, null=True)
+    responded_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['status', 'scheduled_start']),
+            models.Index(fields=['conversation', 'status']),
+        ]
+
+    def __str__(self):
+        return f'PurchaseRequest #{self.pk} ({self.status})'

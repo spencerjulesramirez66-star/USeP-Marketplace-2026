@@ -10,6 +10,7 @@ import { initThread } from './thread.js';
 import { initTyping } from './typing.js';
 import { initRead } from './read.js';
 import { initLinkPreviews } from './link-previews.js';
+import { initSharedContent } from './shared.js';
 
 function initPageChrome() {
     // Small, page-level toggles that don't need their own module.
@@ -80,6 +81,7 @@ function initConversationFeatures() {
         urls,
         onEditRequested: (id, body) => composer.startEdit(id, body, urls.editUrlTemplate),
         onReplyRequested: (id, row) => composer.startReply(id, row),
+        onMessagesChanged: () => shared.refresh(),
     });
 
     const composer = initComposer({
@@ -102,8 +104,13 @@ function initConversationFeatures() {
 
     const read = initRead({ readUrl: urls.readUrl });
 
-    initLinkPreviews({ container: qs('#messaging-details'), previewUrl: urls.linkPreviewUrl });
-
+    const linkPreviews = initLinkPreviews({ container: qs('#messaging-details'), previewUrl: urls.linkPreviewUrl });
+    const shared = initSharedContent({
+        panel: qs('#messaging-details'),
+        sharedUrl: threadEl.dataset.sharedUrl,
+        onRendered: linkPreviews.enrich,
+    });
+    
     initMessageSearch({
         toggleButton: qs('#messaging-message-search-toggle'),
         panel: qs('#messaging-message-search-panel'),

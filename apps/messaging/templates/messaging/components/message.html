@@ -1,4 +1,13 @@
 {% load message_links %}
+{% if message.kind == 'purchase_request' %}
+<div class="messaging-message-row messaging-purchase-row"
+     data-message-id="{{ message.id }}"
+     data-message-has-body="false"
+     data-sender-name="{% if message.sender.first_name or message.sender.last_name %}{{ message.sender.first_name }} {{ message.sender.last_name }}{% else %}{{ message.sender.email }}{% endif %}">
+    {% include 'messaging/components/purchase_card.html' %}
+</div>
+{% else %}
+
 <div class="messaging-message-row{% if message.sender_id == request.user.id %} own{% endif %}"
      data-message-id="{{ message.id }}"
      data-message-has-body="{% if message.body %}true{% else %}false{% endif %}"
@@ -50,13 +59,16 @@
             {% endif %}
         {% endif %}
     </div>
+    <time class="messaging-sent-at" datetime="{{ message.created_at|date:'c' }}" hidden></time>
+    {% if message.is_edited %}
     <span class="messaging-message-meta">
-        <time datetime="{{ message.created_at|date:'c' }}">{{ message.created_at|date:"M j, g:i A" }}</time>
-        {% if message.is_edited %}<span aria-hidden="true"> · </span><button class="messaging-edited-indicator" type="button" data-history-message="{{ message.id }}">Edited</button>{% endif %}
+        <button class="messaging-edited-indicator" type="button" data-history-message="{{ message.id }}">Edited</button>
     </span>
+    {% endif %}
     {% if not message.is_deleted %}<button class="messaging-reply-action" type="button" data-reply-message="{{ message.id }}" aria-label="Reply to message" title="Reply"><i class="bi bi-reply-fill" aria-hidden="true"></i></button>{% endif %}
     {% if message.sender_id == request.user.id and not message.is_deleted %}
     <button class="messaging-message-action" type="button" data-message-options="{{ message.id }}" data-message-has-body="{% if message.body %}true{% else %}false{% endif %}" aria-label="Message options" title="Message options"><i class="bi bi-three-dots" aria-hidden="true"></i></button>
     {% endif %}
     {% if message.id == seen_message_id %}<img class="messaging-seen-avatar" src="{{ chat_participant.avatar_url }}" alt="Seen" title="Seen">{% endif %}
 </div>
+{% endif %}

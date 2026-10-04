@@ -1,0 +1,11 @@
+{# Unsend / action-sheet / delete-conversation dialogs. #}
+<dialog class="messaging-unsend-dialog" id="messaging-unsend-dialog" aria-labelledby="messaging-unsend-title" aria-describedby="messaging-unsend-description">
+    <form method="dialog">
+        <h2 id="messaging-unsend-title">Unsend message?</h2>
+        <p id="messaging-unsend-description">This message will be removed for everyone in this conversation.</p>
+        <div class="messaging-unsend-actions"><button type="submit" value="cancel">Cancel</button><button type="button" class="messaging-unsend-confirm">Unsend</button></div>
+    </form>
+</dialog>
+<dialog class="messaging-unsend-dialog messaging-action-sheet" id="messaging-actions-dialog" aria-labelledby="messaging-actions-title"><section><h2 id="messaging-actions-title">Message options</h2><button type="button" data-action-reply>Reply</button><button type="button" data-action-copy>Copy</button><button type="button" data-action-edit>Edit</button><button type="button" data-action-unsend>Unsend</button><button type="button" data-action-cancel>Cancel</button></section></dialog>
+<dialog class="messaging-unsend-dialog messaging-action-sheet" id="conversation-actions-dialog" aria-labelledby="conversation-actions-title"><section><h2 id="conversation-actions-title">Conversation options</h2><button type="button" data-action-clear-conversation>Delete conversation</button><button type="button" data-action-cancel-conversation>Cancel</button></section></dialog>
+<dialog class="messaging-unsend-dialog" id="conversation-clear-dialog" aria-labelledby="conversation-clear-title" aria-describedby="conversation-clear-description"><section><h2 id="conversation-clear-title">Delete conversation?</h2><p id="conversation-clear-description">This conversation and its current history will be removed from your message list. It will not be deleted for the other participant. If a new message is sent later, it may appear again.</p><div class="messaging-unsend-actions"><button type="button" data-clear-cancel>Cancel</button><button type="button" data-clear-confirm>Delete</button></div></section></dialog>

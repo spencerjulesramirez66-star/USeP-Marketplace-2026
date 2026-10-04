@@ -1,0 +1,1014 @@
+/* ==========================================================================
+   Purchase verification page
+   Scoped under .pv so nothing leaks into the rest of the site.
+   Every colour, font and border comes from the :root tokens in base.css.
+   Re-theme the page by editing the custom properties on .pv below.
+   ========================================================================== */
+
+.pv {
+    /* Surfaces and lines */
+    --pv-surface: var(--color-surface);
+    --pv-muted: var(--color-surface-muted);
+    --pv-line: var(--color-border);
+    --pv-line-strong: color-mix(in srgb, var(--color-text) 22%, var(--color-surface));
+
+    /* Text */
+    --pv-ink: var(--color-text);
+    --pv-ink-2: var(--color-text-secondary);
+    --pv-ink-3: var(--color-text-muted);
+
+    /* Brand (selection, primary actions, today marker) */
+    --pv-brand: var(--color-primary);
+    --pv-brand-dark: var(--color-primary-dark);
+    --pv-brand-soft: color-mix(in srgb, var(--color-primary) 7%, var(--color-surface));
+    --pv-brand-tint: color-mix(in srgb, var(--color-primary) 16%, var(--color-surface));
+
+    /* GCash uses the site's blue accent */
+    --pv-pay: var(--color-accent);
+    --pv-pay-soft: color-mix(in srgb, var(--color-accent) 9%, var(--color-surface));
+
+    --pv-danger: var(--color-danger);
+    --pv-danger-soft: color-mix(in srgb, var(--color-danger) 10%, var(--color-surface));
+
+    /* Shape and depth */
+    --pv-radius: 1rem;
+    --pv-radius-md: 0.7rem;
+    --pv-radius-sm: 0.5rem;
+    --pv-shadow: 0 1px 2px color-mix(in srgb, var(--color-text) 6%, transparent),
+                 0 10px 28px color-mix(in srgb, var(--color-text) 6%, transparent);
+
+    /* Distance from the top of the viewport for the sticky summary (navbar height + gap) */
+    --pv-sticky-top: 5.5rem;
+
+    font-family: var(--primary-font), sans-serif;
+    color: var(--pv-ink);
+    line-height: 1.5;
+    max-width: 74rem;
+    margin: 0 auto;
+    padding: 2.25rem 1.5rem 4.5rem;
+}
+
+.pv-body {
+    min-height: 100%;
+}
+
+.pv *,
+.pv *::before,
+.pv *::after {
+    box-sizing: border-box;
+}
+
+.pv [hidden] {
+    display: none !important;
+}
+
+.pv :focus-visible {
+    outline: 3px solid var(--color-accent);
+    outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------------ header */
+
+.pv-header {
+    margin-bottom: 2rem;
+}
+
+.pv-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin-bottom: 1rem;
+    padding: 0.3rem 0.7rem 0.3rem 0.4rem;
+    border-radius: 999px;
+    color: var(--pv-ink-2);
+    font-size: 0.9rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.pv-back:hover {
+    background: var(--pv-brand-soft);
+    color: var(--pv-brand);
+}
+
+.pv-title {
+    margin: 0 0 0.5rem;
+    font-size: clamp(1.7rem, 3vw, 2.2rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+}
+
+.pv-lede {
+    margin: 0;
+    max-width: 40rem;
+    color: var(--pv-ink-2);
+    font-size: 1rem;
+}
+
+/* ------------------------------------------------------------------ layout */
+
+.pv-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 22rem;
+    gap: 2rem;
+    align-items: start;
+}
+
+.pv-main {
+    min-width: 0;
+    counter-reset: pv-step;
+    background: var(--pv-surface);
+    border: 1px solid var(--pv-line);
+    border-radius: var(--pv-radius);
+    box-shadow: var(--pv-shadow);
+}
+
+.pv-section {
+    counter-increment: pv-step;
+    padding: 2rem 2rem 2.25rem;
+}
+
+.pv-section + .pv-section {
+    border-top: 1px solid var(--pv-line);
+}
+
+/* The sections are a real sequence, so each title carries its step number. */
+.pv-section__title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0 0 0.4rem;
+    font-size: 1.2rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+.pv-section__title::before {
+    content: counter(pv-step);
+    content: counter(pv-step) / '';
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    width: 1.85rem;
+    height: 1.85rem;
+    border-radius: 50%;
+    background: var(--pv-brand-soft);
+    border: 1px solid var(--pv-brand-tint);
+    color: var(--pv-brand);
+    font-size: 0.9rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.pv-section__hint {
+    margin: 0 0 1.5rem;
+    max-width: 44rem;
+    color: var(--pv-ink-2);
+    font-size: 0.93rem;
+}
+
+.pv-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+.pv-alert {
+    margin: 2rem 2rem 0;
+    padding: 0.9rem 1.1rem;
+    background: var(--pv-danger-soft);
+    border: 1px solid color-mix(in srgb, var(--pv-danger) 25%, var(--pv-surface));
+    border-left: 4px solid var(--pv-danger);
+    border-radius: var(--pv-radius-sm);
+    color: var(--color-primary-dark);
+    font-size: 0.93rem;
+    font-weight: 500;
+}
+
+.pv-field-label {
+    display: block;
+    margin-bottom: 0.45rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+}
+
+.pv-optional {
+    color: var(--pv-ink-3);
+    font-weight: 400;
+}
+
+.pv-input,
+.pv-select,
+.pv-textarea {
+    width: 100%;
+    padding: 0.7rem 0.85rem;
+    background: var(--pv-surface);
+    border: 1px solid var(--pv-line);
+    border-radius: var(--pv-radius-sm);
+    color: var(--pv-ink);
+    font: inherit;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.pv-textarea {
+    min-height: 5.5rem;
+    resize: vertical;
+}
+
+.pv-input:hover,
+.pv-select:hover,
+.pv-textarea:hover {
+    border-color: var(--pv-line-strong);
+}
+
+.pv-input:focus-visible,
+.pv-select:focus-visible,
+.pv-textarea:focus-visible {
+    border-color: var(--pv-brand);
+    box-shadow: 0 0 0 3px var(--pv-brand-tint);
+    outline: 0;
+}
+
+.pv-error-text {
+    margin: 0.5rem 0 0;
+    color: var(--pv-danger);
+    font-size: 0.85rem;
+}
+
+/* ---------------------------------------------------------------- quantity */
+
+.pv-qty-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 1.5rem 2rem;
+}
+
+.pv-stepper {
+    display: inline-flex;
+    align-items: stretch;
+    background: var(--pv-surface);
+    border: 1px solid var(--pv-line);
+    border-radius: var(--pv-radius-sm);
+    overflow: hidden;
+}
+
+.pv-stepper button {
+    width: 2.9rem;
+    background: var(--pv-muted);
+    border: 0;
+    color: var(--pv-ink);
+    font-size: 1.05rem;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.pv-stepper button:hover {
+    background: var(--pv-brand-soft);
+    color: var(--pv-brand);
+}
+
+.pv-stepper input {
+    width: 4.25rem;
+    padding: 0.7rem 0;
+    border: 0;
+    border-inline: 1px solid var(--pv-line);
+    color: var(--pv-ink);
+    font: inherit;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+    -moz-appearance: textfield;
+}
+
+.pv-stepper input::-webkit-outer-spin-button,
+.pv-stepper input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.pv-qty-total {
+    margin: 0;
+    color: var(--pv-ink-2);
+    font-size: 0.93rem;
+}
+
+.pv-qty-total strong {
+    color: var(--pv-ink);
+    font-size: 1.15rem;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------------- calendar */
+
+.pv-cal-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 1rem;
+}
+
+.pv-cal-title {
+    flex: 1 1 9rem;
+    min-width: 9rem;
+    margin: 0 0 0 0.5rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+.pv-btn-ghost,
+.pv-icon-btn {
+    height: 2.4rem;
+    padding: 0 1rem;
+    background: var(--pv-surface);
+    border: 1px solid var(--pv-line);
+    border-radius: 999px;
+    color: var(--pv-ink);
+    font: inherit;
+    font-size: 0.88rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.pv-icon-btn {
+    display: inline-grid;
+    place-items: center;
+    width: 2.4rem;
+    padding: 0;
+}
+
+.pv-btn-ghost:hover:not(:disabled),
+.pv-icon-btn:hover:not(:disabled) {
+    background: var(--pv-brand-soft);
+    border-color: var(--pv-brand-tint);
+    color: var(--pv-brand);
+}
+
+.pv-btn-ghost:disabled,
+.pv-icon-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* Segmented control for Day / Week */
+.pv-view-toggle {
+    display: inline-flex;
+    gap: 2px;
+    padding: 3px;
+    background: var(--pv-muted);
+    border: 1px solid var(--pv-line);
+    border-radius: 999px;
+}
+
+.pv-view-toggle button {
+    height: 1.9rem;
+    padding: 0 1rem;
+    background: transparent;
+    border: 0;
+    border-radius: 999px;
+    color: var(--pv-ink-2);
+    font: inherit;
+    font-size: 0.88rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.pv-view-toggle button:hover:not([aria-pressed='true']):not(:disabled) {
+    color: var(--pv-ink);
+}
+
+.pv-view-toggle button[aria-pressed='true'] {
+    background: var(--pv-surface);
+    box-shadow: 0 1px 3px color-mix(in srgb, var(--color-text) 14%, transparent);
+    color: var(--pv-brand);
+    font-weight: 600;
+}
+
+.pv-cal {
+    background: var(--pv-surface);
+    border: 1px solid var(--pv-line);
+    border-radius: var(--pv-radius-md);
+    overflow: hidden;
+    touch-action: pan-y;
+}
+
+.pv-cal-missing {
+    padding: 1.5rem;
+    color: var(--pv-ink-2);
+    font-size: 0.93rem;
+}
+
+/* FullCalendar, themed with the site tokens */
+.pv-cal .fc {
+    --fc-border-color: var(--pv-line);
+    --fc-page-bg-color: var(--pv-surface);
+    --fc-neutral-bg-color: var(--pv-muted);
+    --fc-today-bg-color: color-mix(in srgb, var(--color-primary) 4%, var(--color-surface));
+    --fc-highlight-color: color-mix(in srgb, var(--color-primary) 16%, transparent);
+    --fc-now-indicator-color: var(--color-secondary-dark);
+    font-family: var(--secondary-font), sans-serif;
+    font-size: 0.8rem;
+}
+
+.pv-cal .fc-theme-standard .fc-scrollgrid {
+    border: 0;
+}
+
+.pv-cal .fc .fc-timegrid-slot {
+    height: 2.4rem;
+}
+
+.pv-cal .fc .fc-timegrid-slot-minor {
+    border-top-style: dotted;
+}
+
+.pv-cal .fc .fc-timegrid-slot-label-cushion {
+    padding-inline: 0.6rem;
+    color: var(--pv-ink-3);
+    font-size: 0.72rem;
+}
+
+.pv-cal .fc .fc-col-header-cell {
+    background: var(--pv-surface);
+    border-bottom: 1px solid var(--pv-line);
+}
+
+.pv-cal .fc .fc-col-header-cell-cushion {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+    padding: 0.7rem 0.25rem 0.6rem;
+    text-decoration: none;
+}
+
+.pv-dow {
+    color: var(--pv-ink-2);
+    font-size: 0.74rem;
+    font-weight: 500;
+}
+
+.pv-dom {
+    display: inline-grid;
+    place-items: center;
+    width: 2.2rem;
+    height: 2.2rem;
+    border-radius: 50%;
+    color: var(--pv-ink);
+    font-family: var(--primary-font), sans-serif;
+    font-size: 1.15rem;
+    font-weight: 500;
+}
+
+.pv-cal .fc .fc-day-today .pv-dom {
+    background: var(--pv-brand);
+    color: var(--color-surface);
+    font-weight: 600;
+}
+
+.pv-cal .fc .fc-day-today .pv-dow {
+    color: var(--pv-brand);
+    font-weight: 600;
+}
+
+.pv-cal .fc .fc-timegrid-now-indicator-arrow {
+    display: none;
+}
+
+.pv-cal .fc .fc-timegrid-now-indicator-line {
+    border-width: 2px 0 0;
+}
+
+.pv-cal .fc .fc-timegrid-col.fc-day-past {
+    background: var(--pv-muted);
+}
+
+/* The slot the buyer is choosing */
+.pv-cal .fc-event.pv-pickup {
+    background: var(--pv-brand);
+    border: 0;
+    border-left: 4px solid var(--pv-brand-dark);
+    border-radius: 0.4rem;
+    box-shadow: 0 3px 10px color-mix(in srgb, var(--color-primary) 35%, transparent);
+    color: var(--color-surface);
+    cursor: grab;
+}
+
+.pv-cal .fc-event.pv-pickup:active {
+    cursor: grabbing;
+}
+
+/* Slots the seller already has booked */
+.pv-cal .fc-event.pv-busy {
+    background: repeating-linear-gradient(
+        135deg,
+        var(--pv-muted),
+        var(--pv-muted) 6px,
+        color-mix(in srgb, var(--color-text) 6%, var(--color-surface)) 6px,
+        color-mix(in srgb, var(--color-text) 6%, var(--color-surface)) 12px
+    );
+    border: 1px solid var(--pv-line-strong);
+    border-radius: 0.4rem;
+    box-shadow: none;
+    color: var(--pv-ink-3);
+    cursor: not-allowed;
+}
+
+.pv-event {
+    display: flex;
+    flex-direction: column;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    line-height: 1.25;
+    overflow: hidden;
+}
+
+.pv-event strong {
+    font-weight: 600;
+}
+
+.pv-cal .fc .fc-event-resizer {
+    left: 50%;
+    width: 1.8rem;
+    height: 0.35rem;
+    margin-left: -0.9rem;
+    background: color-mix(in srgb, var(--color-surface) 90%, transparent);
+    border-radius: 3px;
+}
+
+.pv-slot-summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 1.1rem 0 0;
+    padding: 0.85rem 1.1rem;
+    background: var(--pv-muted);
+    border: 1px solid var(--pv-line);
+    border-radius: var(--pv-radius-sm);
+    color: var(--pv-ink-2);
+    font-size: 0.93rem;
+}
+
+.pv-slot-summary[data-state='set'] {
+    background: var(--pv-brand-soft);
+    border-color: var(--pv-brand-tint);
+    color: var(--pv-brand-dark);
+    font-weight: 600;
+}
+
+.pv-link-btn {
+    margin-left: auto;
+    padding: 0;
+    background: none;
+    border: 0;
+    color: inherit;
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.pv-manual {
+    margin-top: 1.1rem;
+    font-size: 0.9rem;
+}
+
+.pv-manual summary {
+    width: fit-content;
+    color: var(--pv-ink-2);
+    cursor: pointer;
+}
+
+.pv-manual summary:hover {
+    color: var(--pv-brand);
+}
+
+.pv-manual__grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+/* ----------------------------------------------------------------- payment */
+
+.pv-methods {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    margin: 0 0 1.5rem;
+    padding: 0;
+    border: 0;
+}
+
+.pv-method {
+    position: relative;
+}
+
+.pv-method input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.pv-method__body {
+    display: flex;
+    gap: 0.85rem;
+    align-items: flex-start;
+    height: 100%;
+    padding: 1.1rem 1.15rem;
+    background: var(--pv-surface);
+    border: 1.5px solid var(--pv-line);
+    border-radius: var(--pv-radius-md);
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.pv-method__body:hover {
+    border-color: var(--pv-line-strong);
+}
+
+/* Radio indicator, so the card reads as a choice */
+.pv-method__body::after {
+    content: '';
+    flex: none;
+    width: 1.15rem;
+    height: 1.15rem;
+    margin: 0.15rem 0 0 auto;
+    border: 2px solid var(--pv-line-strong);
+    border-radius: 50%;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.pv-method__icon {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: var(--pv-radius-sm);
+    background: var(--pv-muted);
+    color: var(--pv-ink-2);
+    font-size: 1.15rem;
+}
+
+.pv-method--cash .pv-method__icon {
+    background: color-mix(in srgb, var(--color-success) 12%, var(--color-surface));
+    color: var(--color-success);
+}
+
+.pv-method--gcash .pv-method__icon {
+    background: var(--pv-pay-soft);
+    color: var(--pv-pay);
+}
+
+.pv-method__name {
+    display: block;
+    font-weight: 600;
+}
+
+.pv-method__desc {
+    display: block;
+    color: var(--pv-ink-2);
+    font-size: 0.85rem;
+}
+
+.pv-method input:checked + .pv-method__body {
+    background: var(--pv-brand-soft);
+    border-color: var(--pv-brand);
+}
+
+.pv-method input:checked + .pv-method__body::after {
+    background: var(--pv-brand);
+    border-color: var(--pv-brand);
+    box-shadow: inset 0 0 0 3px var(--pv-surface);
+}
+
+.pv-method--gcash input:checked + .pv-method__body {
+    background: var(--pv-pay-soft);
+    border-color: var(--pv-pay);
+}
+
+.pv-method--gcash input:checked + .pv-method__body::after {
+    background: var(--pv-pay);
+    border-color: var(--pv-pay);
+}
+
+.pv-method input:focus-visible + .pv-method__body {
+    outline: 3px solid var(--color-accent);
+    outline-offset: 2px;
+}
+
+.pv-panel-note {
+    margin: 0 0 1.25rem;
+    padding: 0.9rem 1.1rem;
+    background: var(--pv-muted);
+    border: 1px solid var(--pv-line);
+    border-radius: var(--pv-radius-sm);
+    color: var(--pv-ink-2);
+    font-size: 0.9rem;
+}
+
+.pv-dropzone {
+    display: block;
+    margin-bottom: 1.25rem;
+    padding: 1.75rem 1.25rem;
+    background: var(--pv-surface);
+    border: 2px dashed var(--pv-line-strong);
+    border-radius: var(--pv-radius-md);
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.pv-dropzone:hover,
+.pv-dropzone[data-dragging='true'] {
+    background: var(--pv-pay-soft);
+    border-color: var(--pv-pay);
+}
+
+.pv-dropzone:focus-within {
+    outline: 3px solid var(--color-accent);
+    outline-offset: 2px;
+}
+
+.pv-dropzone input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    overflow: hidden;
+}
+
+.pv-dropzone__icon {
+    display: block;
+    margin-bottom: 0.35rem;
+    color: var(--pv-pay);
+    font-size: 1.8rem;
+}
+
+.pv-dropzone__title {
+    display: block;
+    font-weight: 600;
+}
+
+.pv-dropzone__sub {
+    display: block;
+    color: var(--pv-ink-2);
+    font-size: 0.85rem;
+}
+
+.pv-proof {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+    padding: 0.75rem;
+    background: var(--pv-surface);
+    border: 1px solid var(--pv-line);
+    border-radius: var(--pv-radius-md);
+}
+
+.pv-proof img {
+    width: 4.5rem;
+    height: 4.5rem;
+    object-fit: cover;
+    border-radius: var(--pv-radius-sm);
+}
+
+.pv-proof__meta {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.88rem;
+}
+
+.pv-proof__name {
+    display: block;
+    overflow: hidden;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pv-proof__size {
+    color: var(--pv-ink-2);
+}
+
+/* -------------------------------------------------------------------- rail */
+
+.pv-rail {
+    position: sticky;
+    top: var(--pv-sticky-top);
+    padding: 1.5rem;
+    background: var(--pv-surface);
+    border: 1px solid var(--pv-line);
+    border-radius: var(--pv-radius);
+    box-shadow: var(--pv-shadow);
+}
+
+.pv-rail__listing {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+    padding-bottom: 1.25rem;
+    border-bottom: 1px solid var(--pv-line);
+}
+
+.pv-rail__listing img {
+    flex: none;
+    width: 4.75rem;
+    height: 4.75rem;
+    object-fit: cover;
+    border-radius: var(--pv-radius-md);
+    background: var(--pv-muted);
+}
+
+.pv-rail__title {
+    margin: 0;
+    font-family: var(--primary-font), sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.pv-rail__seller {
+    margin: 0.25rem 0 0;
+    color: var(--pv-ink-2);
+    font-size: 0.87rem;
+}
+
+.pv-rows {
+    margin: 0 0 1.1rem;
+    font-size: 0.92rem;
+}
+
+.pv-rows div {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.4rem 0;
+}
+
+.pv-rows dt {
+    color: var(--pv-ink-2);
+}
+
+.pv-rows dd {
+    margin: 0;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+}
+
+.pv-rows dd[data-empty='true'] {
+    color: var(--pv-ink-3);
+    font-weight: 400;
+}
+
+.pv-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 1.25rem;
+    padding-top: 1.1rem;
+    border-top: 1px solid var(--pv-line);
+    font-weight: 600;
+}
+
+.pv-total strong {
+    color: var(--pv-brand);
+    font-size: 1.7rem;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+}
+
+.pv-submit {
+    width: 100%;
+    padding: 0.9rem 1rem;
+    background: var(--pv-brand);
+    border: 0;
+    border-radius: var(--pv-radius-md);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--color-primary) 28%, transparent);
+    color: var(--color-surface);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.pv-submit:hover:not(:disabled) {
+    background: var(--pv-brand-dark);
+}
+
+.pv-submit:disabled {
+    background: var(--pv-ink-3);
+    box-shadow: none;
+    cursor: progress;
+}
+
+.pv-fineprint {
+    margin: 0.9rem 0 0;
+    color: var(--pv-ink-2);
+    font-size: 0.8rem;
+}
+
+.pv-mobilebar {
+    display: none;
+}
+
+/* -------------------------------------------------------------- responsive */
+
+@media (max-width: 960px) {
+    .pv {
+        padding-bottom: 7.5rem;
+    }
+
+    .pv-layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .pv-rail {
+        position: static;
+    }
+
+    .pv-rail .pv-submit,
+    .pv-rail .pv-total {
+        display: none;
+    }
+
+    .pv-mobilebar {
+        position: fixed;
+        inset: auto 0 0 0;
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 0.85rem 1.25rem calc(0.85rem + env(safe-area-inset-bottom, 0px));
+        background: var(--pv-surface);
+        border-top: 1px solid var(--pv-line);
+        box-shadow: 0 -8px 24px color-mix(in srgb, var(--color-text) 10%, transparent);
+    }
+
+    .pv-mobilebar__total {
+        display: flex;
+        flex-direction: column;
+        color: var(--pv-ink-2);
+        font-size: 0.78rem;
+    }
+
+    .pv-mobilebar__total strong {
+        color: var(--pv-brand);
+        font-size: 1.3rem;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .pv-mobilebar .pv-submit {
+        flex: 1;
+    }
+}
+
+@media (max-width: 640px) {
+    .pv {
+        padding: 1.5rem 0.75rem 7.5rem;
+    }
+
+    .pv-section {
+        padding: 1.5rem 1.15rem 1.75rem;
+    }
+
+    .pv-alert {
+        margin: 1.25rem 1.15rem 0;
+    }
+
+    .pv-methods,
+    .pv-manual__grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .pv-cal-title {
+        flex-basis: 100%;
+        order: -1;
+        margin-left: 0;
+    }
+
+    .pv-rail {
+        padding: 1.25rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pv * {
+        transition: none !important;
+        scroll-behavior: auto !important;
+    }
+}

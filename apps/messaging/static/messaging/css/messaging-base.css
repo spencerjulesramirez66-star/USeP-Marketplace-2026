@@ -1,0 +1,108 @@
+/* ==========================================================================
+   Messaging: page shell
+   Page wrapper, two-column layout grid, shared motion tokens, shared keyframes,
+   the eyebrow label used in several places, and the mobile navbar overrides.
+   LOAD THIS FIRST.
+   Colors / fonts: use the :root variables from base.css (no hard-coded colors).
+   ========================================================================== */
+
+.messaging-page {
+  height: 100dvh;
+  height: var(--messaging-vvh, 100dvh);
+  overflow: hidden;
+  background: var(--color-background);
+}
+
+.messaging-layout {
+  display: grid;
+  grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+  width: min(1440px, 100%);
+  height: calc(100dvh - 74px);
+  height: calc(var(--messaging-vvh, 100dvh) - 74px);
+  min-height: 0;
+  margin: 0 auto;
+  overflow: hidden;
+  background: var(--color-surface);
+}
+
+.messaging-eyebrow {
+  margin-bottom: 0.2rem;
+  color: var(--color-secondary-dark);
+  font-family: var(--secondary-font), sans-serif;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 760px) {
+  .messaging-page {
+    height: 100dvh;
+    height: var(--messaging-vvh, 100dvh);
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  #navbar {
+    width: 100%;
+    min-width: 0;
+    gap: 0.35rem;
+    padding: 0.65rem 0.75rem;
+  }
+
+  #navbar .navbar-links,
+  #navbar .navbar-search {
+    display: none;
+  }
+
+  #navbar .navbar-brand .site-logo {
+    width: 28px;
+    height: 28px;
+  }
+
+  #navbar .navbar-site-name {
+    display: block;
+    overflow: visible;
+    flex: 0 0 auto;
+    color: var(--color-surface);
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-overflow: clip;
+    white-space: nowrap;
+  }
+
+  #navbar .navbar-actions {
+    gap: 0.25rem;
+  }
+
+  #navbar .navbar-icon-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .messaging-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    height: calc(100dvh - 62px);
+    height: calc(var(--messaging-vvh, 100dvh) - 62px);
+    min-height: 0;
+    overflow: hidden;
+  }
+}
+
+.messaging-page {
+  --motion-fast: 140ms;
+  --motion-standard: 180ms;
+  --ease-messaging: cubic-bezier(0.2, 0, 0, 1);
+}
+
+@keyframes messaging-enter {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}

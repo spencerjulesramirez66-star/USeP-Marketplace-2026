@@ -23,14 +23,14 @@
     {% for item in items %}
         {% url 'dashboard:buyer_detail' item.slug as detail_url %}
         <article class="product-card">
-            <a class="product-image-link" href="{{ detail_url }}{{ detail_querystring }}">
+            <a class="product-image-link" href="{{ detail_url }}{{ detail_querystring }}" tabindex="-1" aria-hidden="true">
                 <img class="product-image" src="{{ item.image_url }}" alt="{{ item.title }}" loading="lazy">
             </a>
 
             <div class="product-content">
                 <p class="product-price">{{ item.price_label }}</p>
                 <h3 class="product-title">
-                    <a href="{{ detail_url }}{{ detail_querystring }}">{{ item.title }}</a>
+                    <a class="product-title-link" href="{{ detail_url }}{{ detail_querystring }}">{{ item.title }}</a>
                 </h3>
                 {% if item.status == 'SOLD' or item.status == 'ARCHIVED' %}
                     <p class="product-status">{{ item.get_status_display }}</p>

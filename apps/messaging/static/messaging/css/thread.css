@@ -1,0 +1,232 @@
+/* ==========================================================================
+   Messaging: message thread container
+   Scrolling thread area, listing context card + status pill, thread intro, time
+   dividers, typing indicator.
+   Markup: messaging/components/thread.html + listing_context.html
+   Colors / fonts: use the :root variables from base.css (no hard-coded colors).
+   ========================================================================== */
+
+.messaging-thread {
+  display: flex;
+  align-items: stretch;
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-width: 0;
+  padding: 1.5rem clamp(1rem, 5vw, 4rem) 0.5rem;
+}
+
+.messaging-thread-bottom {
+  flex: 0 0 1px;
+  width: 1px;
+}
+
+.messaging-typing-area {
+  display: flex;
+  min-width: 0;
+  padding: 0 clamp(1rem, 5vw, 4rem);
+}
+
+.messaging-listing-context {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  width: min(100%, 680px);
+  margin: 0 auto 0.4rem;
+  padding: 0.8rem;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 20%, var(--color-border));
+  border-radius: 0.8rem;
+  background: color-mix(in srgb, var(--color-primary) 4%, var(--color-surface));
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-text) 4%, transparent);
+}
+
+.messaging-listing-context > img {
+  width: 76px;
+  height: 76px;
+  flex: 0 0 auto;
+  border-radius: 0.55rem;
+  object-fit: cover;
+}
+
+.messaging-listing-context-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.messaging-listing-context-label,
+.messaging-listing-context-seller {
+  color: var(--color-text-muted);
+  font-size: 0.74rem;
+}
+
+.messaging-listing-context-copy strong {
+  overflow: hidden;
+  color: var(--color-text);
+  font-size: 0.93rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.messaging-listing-context-price {
+  color: var(--color-primary);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.messaging-listing-context-actions {
+  display: flex;
+  align-items: flex-end;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.messaging-listing-context-actions a {
+  color: var(--color-primary);
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.messaging-listing-status {
+  padding: 0.2rem 0.45rem;
+  border-radius: 999px;
+  color: color-mix(in srgb, var(--color-success) 65%, var(--color-text));
+  background: color-mix(in srgb, var(--color-success) 15%, var(--color-surface));
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.messaging-listing-status-sold,
+.messaging-listing-status-archived {
+  color: var(--color-primary-dark);
+  background: color-mix(in srgb, var(--color-danger) 15%, var(--color-surface));
+}
+
+.messaging-listing-status-reserved {
+  color: color-mix(in srgb, var(--color-secondary-dark) 60%, var(--color-text));
+  background: color-mix(in srgb, var(--color-secondary) 15%, var(--color-surface));
+}
+
+.messaging-thread-intro {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: auto auto 1rem;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.messaging-thread-intro strong {
+  color: var(--color-text);
+  font-size: 1rem;
+}
+
+.messaging-thread-intro span {
+  font-size: 0.78rem;
+}
+
+.messaging-thread-mark {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  margin-bottom: 0.35rem;
+  border-radius: 50%;
+  color: var(--color-surface);
+  background: var(--color-primary);
+}
+
+@media (max-width: 760px) {
+  .messaging-thread {
+    padding: 1.25rem 0.9rem 0.5rem;
+  }
+
+  .messaging-typing-area {
+    padding: 0 0.9rem;
+  }
+
+  .messaging-listing-context {
+    align-items: flex-start;
+  }
+
+  .messaging-listing-context > img {
+    width: 58px;
+    height: 58px;
+  }
+
+  .messaging-listing-context-actions {
+    align-items: flex-start;
+    margin-left: 66px;
+  }
+}
+
+.messaging-typing {
+  display: flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 0.28rem;
+  min-height: 30px;
+  margin: 0.2rem 0;
+  padding: 0.45rem 0.65rem;
+  border-radius: 0.85rem 0.85rem 0.85rem 0.25rem;
+  background: var(--color-surface-muted);
+  animation: messaging-enter var(--motion-standard) var(--ease-messaging);
+}
+
+.messaging-typing[hidden] {
+  display: none;
+}
+
+.messaging-typing span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--color-text-muted);
+  animation: messaging-dot 1s infinite alternate;
+}
+
+.messaging-typing span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.messaging-typing span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.messaging-typing i {
+  margin-left: 0.25rem;
+  color: var(--color-text-muted);
+  font-size: 0.7rem;
+  font-style: normal;
+}
+
+@keyframes messaging-dot {
+  to {
+    opacity: 0.4;
+    transform: translateY(-2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .messaging-typing {
+    animation: none;
+  }
+
+  .messaging-typing span {
+    animation: none;
+  }
+}
+
+.messaging-time-divider {
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin: 0.9rem 0 0.35rem;
+}

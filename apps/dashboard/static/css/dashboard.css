@@ -54,6 +54,13 @@ main{
     z-index: 1;
 }
 
+.heading-actions{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    align-items:center
+}
+
 /* Stat cards */
 .stat-grid {
     display: grid;

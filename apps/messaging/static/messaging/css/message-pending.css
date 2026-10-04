@@ -1,0 +1,91 @@
+/* ==========================================================================
+   Messaging: optimistic / pending messages
+   Sending spinner, upload progress bar, failed state, retry / remove buttons.
+   Markup: not in the Django templates (presumably built by messaging/js)
+   Colors / fonts: use the :root variables from base.css (no hard-coded colors).
+   ========================================================================== */
+
+.messaging-pending-status {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.3rem;
+  color: var(--color-text-muted);
+  font-size: 0.7rem;
+}
+
+.messaging-message-row.pending.own .messaging-pending-status {
+  justify-content: flex-end;
+}
+
+.messaging-pending-spinner {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--color-primary) 25%, transparent);
+  border-top-color: var(--color-primary);
+  animation: messaging-pending-spin 0.7s linear infinite;
+}
+
+@keyframes messaging-pending-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.messaging-pending-progress {
+  width: min(100%, 200px);
+  height: 4px;
+  margin-top: 0.35rem;
+  margin-left: auto;
+  border-radius: 999px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--color-text) 10%, transparent);
+}
+
+.messaging-pending-progress-bar {
+  height: 100%;
+  width: 0%;
+  border-radius: inherit;
+  background: var(--color-primary);
+  transition: width 0.15s ease;
+}
+
+.messaging-message-row.pending.failed .messaging-pending-spinner {
+  display: none;
+}
+
+.messaging-message-row.pending.failed .messaging-pending-text {
+  color: var(--color-danger);
+}
+
+.messaging-pending-retry,
+.messaging-pending-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 50%;
+  color: var(--color-text-muted);
+  background: color-mix(in srgb, var(--color-text) 8%, transparent);
+  cursor: pointer;
+}
+
+.messaging-pending-retry {
+  color: var(--color-primary);
+}
+
+.messaging-pending-retry:hover,
+.messaging-pending-remove:hover {
+  filter: brightness(0.94);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .messaging-pending-spinner {
+    animation: none;
+  }
+}

@@ -1,0 +1,14 @@
+{# Listing card shown at the top of the thread. Needs: conversation. #}
+<section class="messaging-listing-context" aria-label="Listing being discussed">
+    <img src="{{ conversation.listing.conversation_image_url }}" alt="{{ conversation.listing.title }}">
+    <div class="messaging-listing-context-copy">
+        <span class="messaging-listing-context-label">Regarding this listing</span>
+        <strong>{{ conversation.listing.title }}</strong>
+        <span class="messaging-listing-context-price">{{ conversation.listing.price_label }}</span>
+        <span class="messaging-listing-context-seller">Seller: {{ conversation.seller.first_name }} {{ conversation.seller.last_name }}</span>
+    </div>
+    <div class="messaging-listing-context-actions">
+        <span class="messaging-listing-status messaging-listing-status-{{ conversation.listing.status|lower }}">{{ conversation.listing.get_status_display }}</span>
+        <a href="{{ conversation.listing.get_absolute_url }}">View listing <i class="bi bi-arrow-up-right" aria-hidden="true"></i></a>
+    </div>
+</section>

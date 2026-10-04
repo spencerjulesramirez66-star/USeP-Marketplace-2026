@@ -1,10 +1,5 @@
-"""HTTP layer for messaging.
 
-Views authenticate, parse the request, call a selector or service, and
-return a response. Business rules live in services.py, queries in
-selectors.py. Views stay short on purpose.
-"""
-import logging
+import logging, json
 
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -21,7 +16,8 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 from apps.dashboard.models import Listing
 
 from . import link_previews, selectors, services
-from .forms import MessageForm
+from .forms import MessageForm, PurchaseVerificationForm, schedule_hours,MAX_ATTACHMENT_SIZE_BYTES
+from .models import PurchaseRequest
 
 logger = logging.getLogger(__name__)
 
@@ -29,8 +25,20 @@ MESSAGE_PARTIAL = 'messaging/components/message.html'
 MIN_SEARCH_LENGTH = 2
 MAX_PREVIEW_URL_LENGTH = 2048
 
+PURCHASE_TEMPLATE = 'messaging/components/purchase_verification.html'
+
 
 # ------------------------------------------------------------------- helpers
+
+def _hour_label(hour):
+    return f"{hour % 12 or 12} {'AM' if hour < 12 else 'PM'}"
+
+
+def _price_label(amount):
+    text = f'\u20b1{amount:,.2f}'
+    return text[:-3] if text.endswith('.00') else text
+
+
 
 def _display_name(user):
     return f'{user.first_name} {user.last_name}'.strip() or user.email
@@ -86,6 +94,15 @@ def _conversation_json(conversation, user):
 
 # --------------------------------------------------------------------- pages
 
+
+@login_required
+@require_GET
+def conversation_shared(request, conversation_id):
+    conversation = selectors.get_conversation_or_404(request.user, conversation_id)
+    media, files = selectors.shared_attachments(conversation, request.user)
+    links = selectors.shared_links(conversation, request.user)
+    return JsonResponse({'media': media, 'files': files, 'links': links})
+
 @login_required
 @require_GET
 def conversation_list(request):
@@ -119,6 +136,7 @@ def conversation_detail(request, conversation_id):
         'chat_links': selectors.shared_links(conversation, request.user),
         'message_form': MessageForm(),
         'last_message_id': selectors.last_message_id(conversation, request.user),
+        'is_listing_seller': conversation.listing.seller_id == request.user.id,
         'server_time': timezone.now().isoformat(),
     })
 
@@ -360,3 +378,100 @@ def link_preview(request):
         logger.exception('Link preview failed for %s', url)
         preview = None
     return JsonResponse({'preview': preview})
+
+
+
+# ---------------------------------------------------- seller: send the card
+ 
+@login_required
+@require_POST
+def send_purchase_request(request, conversation_id):
+    conversation = selectors.get_conversation_or_404(request.user, conversation_id)
+    participant = selectors.other_participant(conversation, request.user)
+    try:
+        message = services.request_purchase(conversation, request.user)
+    except PermissionDenied as error:
+        return _json_error(str(error), 403)
+    except ValidationError as error:
+        return _json_error(' '.join(error.messages))
+    return JsonResponse({'ok': True, 'id': message.id, 'html': _render_message(request, message, participant)})
+ 
+ 
+# ----------------------------------------------- buyer: verification page
+ 
+def _render_purchase_page(request, purchase, error='', status=200):
+    conversation = purchase.conversation
+    listing = conversation.listing
+    open_hour, close_hour = schedule_hours()
+    return render(request, PURCHASE_TEMPLATE, {
+        'purchase': purchase,
+        'listing': listing,
+        'seller_name': _display_name(listing.seller),
+        'listing_image_url': listing.conversation_image_url,
+        'is_service': purchase.is_service,
+        'unit_price_label': _price_label(purchase.unit_price),
+        'max_quantity': None,  # TODO(stock): pass listing.stock_quantity once stock rules are settled
+        'open_hour': open_hour,
+        'close_hour': close_hour,
+        'open_label': _hour_label(open_hour),
+        'close_label': _hour_label(close_hour),
+        'busy_slots_json': json.dumps(services.busy_slots(listing.seller_id, exclude_pk=purchase.pk)),
+        'max_proof_bytes': MAX_ATTACHMENT_SIZE_BYTES,
+        'max_proof_mb': MAX_ATTACHMENT_SIZE_BYTES // (1024 * 1024),
+        'back_url': reverse('messaging:conversation', args=[conversation.id]),
+        'error': error,
+    }, status=status)
+ 
+ 
+@login_required
+@require_http_methods(['GET', 'POST'])
+def purchase_verification(request, purchase_id):
+    # 404 (not 403) for anyone who isn't the buyer, so ids can't be probed.
+    purchase = get_object_or_404(
+        PurchaseRequest.objects.select_related('conversation__listing__seller', 'message'),
+        pk=purchase_id,
+        conversation__buyer=request.user,
+    )
+    back_url = reverse('messaging:conversation', args=[purchase.conversation_id])
+ 
+    if request.method == 'GET':
+        if purchase.status != PurchaseRequest.Status.REQUESTED:
+            return redirect(back_url)  # already answered; nothing left to fill in
+        return _render_purchase_page(request, purchase)
+ 
+    wants_json = _wants_json(request)
+    form = PurchaseVerificationForm(request.POST, request.FILES, purchase=purchase)
+    if not form.is_valid():
+        message = _form_errors(form)
+        return _json_error(message) if wants_json else _render_purchase_page(request, purchase, message, 400)
+ 
+    try:
+        services.submit_purchase_details(purchase.pk, request.user, form.cleaned_data)
+    except PermissionDenied as error:
+        return _json_error(str(error), 403)
+    except ValidationError as error:
+        message = ' '.join(error.messages)
+        return _json_error(message) if wants_json else _render_purchase_page(request, purchase, message, 400)
+ 
+    if wants_json:
+        return JsonResponse({'ok': True, 'redirect': back_url})
+    return redirect(back_url)
+ 
+ 
+# ------------------------------------------- seller: confirm/decline/cancel
+ 
+@login_required
+@require_POST
+def respond_purchase_request(request, purchase_id):
+    purchase = get_object_or_404(PurchaseRequest.objects.select_related('conversation'), pk=purchase_id)
+    # Participation check (404s for outsiders) before anything else.
+    conversation = selectors.get_conversation_or_404(request.user, purchase.conversation_id)
+    participant = selectors.other_participant(conversation, request.user)
+    try:
+        purchase = services.respond_purchase(purchase.pk, request.user, request.POST.get('action', ''))
+    except PermissionDenied as error:
+        return _json_error(str(error), 403)
+    except ValidationError as error:
+        return _json_error(' '.join(error.messages))
+    message = purchase.message
+    return JsonResponse({'ok': True, 'id': message.id, 'html': _render_message(request, message, participant)})

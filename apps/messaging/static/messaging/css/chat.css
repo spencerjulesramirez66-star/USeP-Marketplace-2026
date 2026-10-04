@@ -1,0 +1,135 @@
+/* ==========================================================================
+   Messaging: chat pane + header
+   The open-conversation container, its header (avatar, title, info button) and the
+   mobile back button.
+   Markup: messaging/components/chat_header.html
+   Colors / fonts: use the :root variables from base.css (no hard-coded colors).
+   ========================================================================== */
+
+.messaging-chat {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--color-background);
+}
+
+.messaging-chat-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 78px;
+  padding: 1rem 1.35rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.messaging-chat-header-content {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.messaging-chat-header-content[hidden] {
+  display: none;
+}
+
+.messaging-chat-avatar {
+  width: 44px;
+  height: 44px;
+  border: 2px solid color-mix(in srgb, var(--color-primary) 8%, var(--color-surface));
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.messaging-chat-header h2 {
+  font-size: 1.05rem;
+}
+
+.messaging-chat-header p {
+  margin-top: 0.15rem;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+}
+
+.messaging-chat-info {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  aspect-ratio: 1 / 1;
+  flex-shrink: 0;
+  margin-left: auto;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  color: var(--color-primary);
+  box-shadow: none;
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    background 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.messaging-chat-info:hover,
+.messaging-chat-info:focus-visible {
+  border-color: color-mix(in srgb, var(--color-primary) 20%, var(--color-border));
+  background: color-mix(in srgb, var(--color-primary) 15%, var(--color-surface));
+  box-shadow: 0 4px 10px color-mix(in srgb, var(--color-primary-dark) 18%, transparent);
+  outline: 0;
+  transform: translateY(-1px);
+}
+
+.messaging-mobile-back {
+  display: none;
+  color: var(--color-primary);
+  font-size: 1.15rem;
+}
+
+@media (max-width: 760px) {
+  /* A narrow screen is one panel at a time: list first, selected chat second. */
+  .messaging-chat {
+    display: none;
+    min-height: 0;
+  }
+
+  .messaging-page-chat-open .messaging-chat {
+    display: grid;
+  }
+
+  .messaging-chat-header {
+    padding: 0.8rem 0.9rem;
+  }
+
+  .messaging-mobile-back {
+    display: inline-grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
+    margin: -0.25rem 0 -0.25rem -0.35rem;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  .messaging-mobile-back:hover,
+  .messaging-mobile-back:focus-visible {
+    background: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface));
+    outline: 0;
+  }
+}
+
+.messaging-chat-info {
+  transition:
+    background var(--motion-fast, 140ms) var(--ease-messaging, ease),
+    color var(--motion-fast, 140ms) var(--ease-messaging, ease),
+    transform 100ms var(--ease-messaging, ease);
+}

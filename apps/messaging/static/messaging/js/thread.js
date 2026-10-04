@@ -3,10 +3,24 @@ import { get, postForm } from './api.js';
 import { openDialog, closeDialog, confirmDialog } from './dialogs.js';
 
 // Owns the message list DOM: inserting new messages, replacing edited/
-// deleted ones, scrolling, the seen marker, the typing indicator, and the
+// deleted ones, scrolling, time dividers, the typing indicator, and the
 // per-message action sheet (reply / copy / edit / unsend) and its history
 // dialog. Sending itself lives in composer.js; this module renders the
 // result.
+
+const TIME_GAP_MINUTES = 10; // show a time divider when messages are further apart than this
+
+function formatDivider(date) {
+    const time = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    const sameYear = date.getFullYear() === new Date().getFullYear();
+    const day = date.toLocaleDateString([], {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        ...(sameYear ? {} : { year: 'numeric' }),
+    });
+    return `${day}, ${time}`;
+}
 
 function template(html) {
     const wrapper = document.createElement('div');
@@ -14,7 +28,7 @@ function template(html) {
     return wrapper.firstElementChild;
 }
 
-export function initThread({ threadEl, urls, onEditRequested, onReplyRequested }) {
+export function initThread({ threadEl, urls, onEditRequested, onReplyRequested, onMessagesChanged }) {
     const bottomMarker = qs('.messaging-thread-bottom', threadEl);
     const actionsDialog = qs('#messaging-actions-dialog');
     const unsendDialog = qs('#messaging-unsend-dialog');
@@ -29,6 +43,27 @@ export function initThread({ threadEl, urls, onEditRequested, onReplyRequested }
     function scrollToBottom(behavior = 'auto') {
         bottomMarker.scrollIntoView({ behavior, block: 'end' });
     }
+
+    // ---- time dividers (one label per gap, like Messenger) -------------
+    function refreshTimeDividers() {
+        qsa('.messaging-time-divider', threadEl).forEach((el) => el.remove());
+        let previous = null;
+        qsa('[data-message-id]', threadEl).forEach((row) => {
+            const stamp = row.dataset.createdAt || qs('time[datetime]', row)?.getAttribute('datetime');
+            if (!stamp) return;
+            const sentAt = new Date(stamp);
+            if (Number.isNaN(sentAt.getTime())) return;
+            if (!previous || sentAt - previous > TIME_GAP_MINUTES * 60000) {
+                const divider = document.createElement('div');
+                divider.className = 'messaging-time-divider';
+                divider.textContent = formatDivider(sentAt);
+                row.before(divider);
+            }
+            previous = sentAt;
+        });
+    }
+
+    refreshTimeDividers();
     scrollToBottom();
 
     function upsertMessage(id, html) {
@@ -45,11 +80,15 @@ export function initThread({ threadEl, urls, onEditRequested, onReplyRequested }
     function insertNew(messages) {
         if (!messages.length) return;
         messages.forEach((m) => upsertMessage(m.id, m.html));
+        refreshTimeDividers();
+        onMessagesChanged?.();
         if (userIsNearBottom) scrollToBottom('smooth');
     }
 
     function replaceExisting(messages) {
         messages.forEach((m) => upsertMessage(m.id, m.html));
+        refreshTimeDividers();
+        onMessagesChanged?.();
     }
 
     function updateTyping(isTyping) {

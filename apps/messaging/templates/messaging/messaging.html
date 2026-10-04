@@ -4,7 +4,21 @@
 {% block title %}Messages | USeP Marketplace{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'messaging/css/messaging.css' %}">
+<link rel="stylesheet" href="{% static 'messaging/css/messaging-base.css' %}">
+<link rel="stylesheet" href="{% static 'messaging/css/sidebar.css' %}">
+<link rel="stylesheet" href="{% static 'messaging/css/chat.css' %}">
+<link rel="stylesheet" href="{% static 'messaging/css/message-search.css' %}">
+<link rel="stylesheet" href="{% static 'messaging/css/details-panel.css' %}">
+<link rel="stylesheet" href="{% static 'messaging/css/thread.css' %}">
+<link rel="stylesheet" href="{% static 'messaging/css/messages.css' %}">
+<link rel="stylesheet" href="{% static 'messaging/css/message-history.css' %}">
+<link rel="stylesheet" href="{% static 'messaging/css/message-pending.css' %}">
+<link rel="stylesheet" href="{% static 'messaging/css/link-preview.css' %}">
+<link rel="stylesheet" href="{% static 'messaging/css/attachments.css' %}">
+<link rel="stylesheet" href="{% static 'messaging/css/composer.css' %}">
+<link rel="stylesheet" href="{% static 'messaging/css/purchase-card.css' %}">
+<link rel="stylesheet" href="{% static 'messaging/css/dialogs.css' %}">
+<link rel="stylesheet" href="{% static 'messaging/css/welcome.css' %}">
 {% endblock %}
 
 {% block content %}
@@ -16,200 +30,31 @@
           data-conversation-sidebar-state-url="{% url 'messaging:conversation_sidebar_state' %}"
           data-conversation-search-url="{% url 'messaging:conversation_search' %}"
           data-clear-conversation-url-template="{% url 'messaging:clear_conversation' 0 %}">
-        <aside class="messaging-sidebar">
-            <div class="messaging-sidebar-heading">
-                <div>
-                    <p class="messaging-eyebrow">USeP Marketplace</p>
-                    <h1>Messages</h1>
-                </div>
-                <a class="messaging-compose" href="{% url 'dashboard:buyer' %}" aria-label="Find a seller to message" title="Find a seller to message"><i class="bi bi-pencil-square" aria-hidden="true"></i></a>
-            </div>
-
-            <label class="messaging-search" for="message-search">
-                <i class="bi bi-search" aria-hidden="true"></i>
-                <input id="message-search" type="search" placeholder="Search sellers or listings" autocomplete="off">
-            </label>
-
-            <nav class="messaging-tabs" aria-label="Message filters">
-                <a class="messaging-tab active" href="{% url 'messaging:conversation_list' %}">All messages</a>
-                <a class="messaging-tab" href="{% url 'dashboard:buyer' %}">Browse marketplace</a>
-            </nav>
-
-            <div class="conversation-search-results" id="conversation-search-results" hidden aria-live="polite"></div>
-            <div class="conversation-list" id="conversation-list">
-                {% for group in conversation_groups %}
-                    {% include 'messaging/components/conversation_group.html' %}
-                {% empty %}
-                <div class="conversation-empty">
-                    <i class="bi bi-chat-square-text" aria-hidden="true"></i>
-                    <strong>No conversations yet</strong>
-                    <span>Message a seller from a marketplace listing to start chatting.</span>
-                    <a href="{% url 'dashboard:buyer' %}">Explore listings</a>
-                </div>
-                {% endfor %}
-            </div>
-        </aside>
+        {% include 'messaging/components/sidebar.html' %}
 
         {% if conversation %}
         <section class="messaging-chat" aria-label="Conversation with {% if conversation.buyer_id == request.user.id %}{{ conversation.seller.first_name }} {{ conversation.seller.last_name }}{% else %}{{ conversation.buyer.first_name }} {{ conversation.buyer.last_name }}{% endif %}">
-            <header class="messaging-chat-header">
-                <div class="messaging-chat-header-content" id="messaging-chat-header-content">
-                    <button class="messaging-mobile-back" type="button" aria-label="Back to conversations" title="Back to conversations"><i class="bi bi-arrow-left" aria-hidden="true"></i></button>
-                    {% if conversation.buyer_id == request.user.id %}
-                    <img class="messaging-chat-avatar" src="{{ conversation.seller.avatar_url }}" alt="">
-                    <div><h2 tabindex="-1">{{ conversation.seller.first_name }} {{ conversation.seller.last_name }}</h2>
-                    {% else %}
-                    <img class="messaging-chat-avatar" src="{{ conversation.buyer.avatar_url }}" alt="">
-                    <div><h2 tabindex="-1">{{ conversation.buyer.first_name }} {{ conversation.buyer.last_name }}</h2>
-                    {% endif %}
-                        <p>{{ conversation.listing.title }} · {{ conversation.listing.price_label }}</p>
-                    </div>
-                    <button class="messaging-chat-info" type="button" id="messaging-details-toggle" aria-label="Show conversation details" aria-controls="messaging-details" aria-expanded="false" title="Conversation details"><i class="bi bi-info-circle" aria-hidden="true"></i></button>
-                </div>
-                <div class="messaging-message-search-header" id="messaging-message-search-header" hidden>
-                    <div class="messaging-message-search-controls">
-                        <div class="messaging-message-search-field"><i class="bi bi-search" aria-hidden="true"></i><input type="search" id="messaging-message-search-input" placeholder="Search messages" autocomplete="off"></div>
-                        <span class="messaging-message-search-counter" id="messaging-message-search-counter" hidden aria-live="polite"></span>
-                        <span class="messaging-message-search-navigation" aria-label="Search match navigation">
-                            <button class="messaging-message-search-nav-button" type="button" id="messaging-message-search-previous" aria-label="Previous matching message" title="Previous matching message" hidden disabled><i class="bi bi-chevron-up" aria-hidden="true"></i></button>
-                            <button class="messaging-message-search-nav-button" type="button" id="messaging-message-search-next" aria-label="Next matching message" title="Next matching message" hidden disabled><i class="bi bi-chevron-down" aria-hidden="true"></i></button>
-                        </span>
-                        <button type="button" id="messaging-message-search-close" aria-label="Close message search" title="Close message search"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
-                    </div>
-                </div>
-            </header>
+            {% include 'messaging/components/chat_header.html' %}
 
-            <section class="messaging-message-search-panel" id="messaging-message-search-panel" data-search-url="{% url 'messaging:conversation_message_search' conversation.id %}" hidden aria-label="Search in conversation">
-                <p class="messaging-message-search-status" id="messaging-message-search-status">Type at least 2 characters to search.</p>
-                <div class="messaging-message-search-results" id="messaging-message-search-results"></div>
-            </section>
+            {% include 'messaging/components/message_search_panel.html' %}
 
-            <aside class="messaging-details" id="messaging-details" aria-label="Conversation details" hidden>
-                <div class="messaging-details-header">
-                    <h2>Conversation details</h2>
-                    <div class="messaging-details-header-actions">
-                        <button class="messaging-chat-search" type="button" id="messaging-message-search-toggle" aria-label="Search in conversation" aria-controls="messaging-message-search-panel" aria-expanded="false" title="Search in conversation"><i class="bi bi-search" aria-hidden="true"></i></button>
-                        <button class="messaging-chat-delete-menu" type="button" data-conversation-options="{{ conversation.id }}" aria-label="More conversation options" title="More conversation options"><i class="bi bi-three-dots" aria-hidden="true"></i></button>
-                        <button class="messaging-details-close" type="button" aria-label="Close conversation details" title="Close conversation details"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
-                    </div>
-                </div>
-                <a class="messaging-profile messaging-profile-link" href="{% url 'dashboard:buyer' %}?seller={{ chat_participant.id }}">
-                    <img src="{{ chat_participant.avatar_url }}" alt="">
-                    <h3>{{ chat_participant.first_name }} {{ chat_participant.last_name }}</h3>
-                    <p>{{ chat_participant.email }}</p>
-                    {% if chat_participant.is_seller %}<span><i class="bi bi-shop" aria-hidden="true"></i> Marketplace seller</span>{% endif %}
-                </a>
-                <div class="messaging-details-section">
-                    <div class="messaging-section-heading"><h3><i class="bi bi-images" aria-hidden="true"></i> Media</h3><span>{{ chat_media|length }}</span></div>
-                    <div class="messaging-media-grid">
-                    {% for attachment in chat_media %}
-                        {% if attachment.is_video %}<a class="messaging-media-item" href="{{ attachment.url }}" target="_blank" rel="noopener"><video muted preload="metadata"><source src="{{ attachment.url }}"></video><span>{{ attachment.name }}</span></a>
-                        {% else %}<button class="messaging-media-item" type="button" data-media-url="{{ attachment.url }}" data-media-name="{{ attachment.name }}"><img src="{{ attachment.url }}" alt="{{ attachment.name }}"><span>{{ attachment.name }}</span></button>{% endif %}
-                    {% empty %}<p class="messaging-details-empty">No images shared yet.</p>{% endfor %}
-                    </div>
-                </div>
-                <div class="messaging-details-section">
-                    <div class="messaging-section-heading"><h3><i class="bi bi-file-earmark-text" aria-hidden="true"></i> Files</h3><span>{{ chat_files|length }}</span></div>
-                    {% for attachment in chat_files %}
-                    <a class="messaging-resource" href="{{ attachment.url }}" target="_blank" rel="noopener"><i class="bi bi-file-earmark-text" aria-hidden="true"></i><span>{{ attachment.name }}</span></a>
-                    {% empty %}<p class="messaging-details-empty">No files shared yet.</p>{% endfor %}
-                </div>
-                <div class="messaging-details-section" data-shared-links-section>
-                    <div class="messaging-section-heading"><h3><i class="bi bi-link-45deg" aria-hidden="true"></i> Links</h3><span data-shared-links-count>{{ chat_links|length }}</span></div>
-                    <div class="messaging-link-cards" data-shared-links>
-                    {% for link in chat_links %}<a class="messaging-link-card" href="{{ link.url }}" target="_blank" rel="noopener noreferrer nofollow"><span class="messaging-link-card-visual{% if not link.image %} placeholder{% endif %}">{% if link.image %}<img src="{{ link.image }}" alt="">{% else %}<i class="bi {% if link.is_drive %}bi-folder-fill{% else %}bi-link-45deg{% endif %}" aria-hidden="true"></i>{% endif %}</span><span class="messaging-link-card-copy"><strong title="{{ link.title }}">{{ link.title }}</strong><span>{{ link.domain }}</span></span></a>{% empty %}<p class="messaging-details-empty">No links shared yet.</p>{% endfor %}
-                    </div>
-                </div>
-            </aside>
+            {% include 'messaging/components/conversation_details.html' %}
 
-            <div class="messaging-thread"
-                 data-poll-url="{% url 'messaging:conversation_new_messages' conversation.id %}"
-                 data-read-url="{% url 'messaging:conversation_read' conversation.id %}"
-                 data-other-avatar="{{ chat_participant.avatar_url }}"
-                 data-typing-url="{% url 'messaging:conversation_typing' conversation.id %}"
-                 data-links-url="{% url 'messaging:conversation_links' conversation.id %}"
-                 data-link-preview-url="{% url 'messaging:link_preview' %}"
-                 data-delete-url-template="{% url 'messaging:delete_message' conversation.id 0 %}"
-                 data-edit-url-template="{% url 'messaging:edit_message' conversation.id 0 %}"
-                 data-history-url-template="{% url 'messaging:message_history' conversation.id 0 %}"
-                 data-clear-url="{% url 'messaging:clear_conversation' conversation.id %}"
-                 data-last-message-id="{{ last_message_id }}"
-                 data-server-time="{{ server_time }}">
-                <section class="messaging-listing-context" aria-label="Listing being discussed">
-                    <img src="{{ conversation.listing.conversation_image_url }}" alt="{{ conversation.listing.title }}">
-                    <div class="messaging-listing-context-copy">
-                        <span class="messaging-listing-context-label">Regarding this listing</span>
-                        <strong>{{ conversation.listing.title }}</strong>
-                        <span class="messaging-listing-context-price">{{ conversation.listing.price_label }}</span>
-                        <span class="messaging-listing-context-seller">Seller: {{ conversation.seller.first_name }} {{ conversation.seller.last_name }}</span>
-                    </div>
-                    <div class="messaging-listing-context-actions">
-                        <span class="messaging-listing-status messaging-listing-status-{{ conversation.listing.status|lower }}">{{ conversation.listing.get_status_display }}</span>
-                        <a href="{{ conversation.listing.get_absolute_url }}">View listing <i class="bi bi-arrow-up-right" aria-hidden="true"></i></a>
-                    </div>
-                </section>
-                <div class="messaging-thread-intro">
-                    <div class="messaging-thread-mark"><i class="bi bi-shop" aria-hidden="true"></i></div>
-                    <strong>{{ conversation.listing.title }}</strong>
-                    <span>Keep meetups in public campus locations.</span>
-                </div>
-                {% for message in conversation_messages %}
-                    {% include 'messaging/components/message.html' %}
-                {% endfor %}
-                <div class="messaging-thread-bottom" aria-hidden="true"></div>
-            </div>
+            {% include 'messaging/components/thread.html' %}
 
-            <div class="messaging-typing-area">
-                <div class="messaging-typing" role="status" aria-live="polite" hidden><span></span><span></span><span></span><i>{{ chat_participant.first_name }} is typing…</i></div>
-            </div>
-
-            <form method="post" class="messaging-compose-form" enctype="multipart/form-data" data-current-user="{{ request.user.id }}" data-max-attachment-size="{{ message_form.max_attachment_size_bytes }}">
-                {% csrf_token %}
-                <input type="hidden" name="reply_to_message_id" id="messaging-reply-to-message-id">
-                <div class="messaging-reply-state" id="messaging-reply-state" hidden><img class="messaging-reply-preview-thumb" id="messaging-reply-preview-thumb" alt="" hidden><span><strong id="messaging-reply-name">Replying to</strong><em id="messaging-reply-preview"></em></span><button type="button" id="messaging-cancel-reply" aria-label="Cancel reply"><i class="bi bi-x-lg" aria-hidden="true"></i></button></div>
-                <div class="messaging-edit-state" id="messaging-edit-state" hidden><span>Editing message</span><button type="button" id="messaging-cancel-edit" aria-label="Cancel editing">Cancel</button></div>
-                <div class="messaging-attachment-preview" id="messaging-attachment-preview" hidden></div>
-                <div class="messaging-attachment-warning" id="messaging-attachment-warning" role="alert" hidden></div>
-                <div class="messaging-compose-controls">
-                    <div class="messaging-attachment-menu-wrap">
-                        <button class="messaging-attach-button" id="messaging-attachment-toggle" type="button" aria-label="Add attachment" title="Add attachment" aria-expanded="false"><i class="bi bi-plus-lg" aria-hidden="true"></i></button>
-                        <div class="messaging-attachment-menu" id="messaging-attachment-menu" hidden>
-                            <button type="button" data-attachment-picker="file"><i class="bi bi-file-earmark" aria-hidden="true"></i> Upload file</button>
-                            <button type="button" data-attachment-picker="media"><i class="bi bi-image" aria-hidden="true"></i> Image / Video</button>
-                        </div>
-                    </div>
-                    <input class="messaging-attachment-input" id="message-attachment" name="attachments" type="file" multiple accept="application/pdf,.doc,.docx,.txt,.zip,.xlsx,.pptx">
-                    <input class="messaging-attachment-input" id="message-media-attachment" type="file" multiple accept="image/*,video/mp4,video/webm,video/quicktime">
-                    {{ message_form.body }}
-                    <button type="submit" aria-label="Send message" title="Send message"><i class="bi bi-send-fill" aria-hidden="true"></i></button>
-                </div>
-            </form>
+            {% include 'messaging/components/composer.html' %}
         </section>
         {% else %}
-        <section class="messaging-welcome" aria-labelledby="messaging-welcome-title">
-            <div class="messaging-welcome-mark"><i class="bi bi-chat-heart-fill" aria-hidden="true"></i></div>
-            <p class="messaging-eyebrow">Campus conversations</p>
-            <h2 id="messaging-welcome-title">Your marketplace messages</h2>
-            <p>Choose a conversation to connect with a buyer or seller, or browse listings to find your next campus deal.</p>
-            <a class="messaging-primary-action" href="{% url 'dashboard:buyer' %}"><i class="bi bi-shop" aria-hidden="true"></i> Browse marketplace</a>
-        </section>
+        {% include 'messaging/components/welcome.html' %}
         {% endif %}
     </main>
 </div>
 
-<dialog class="messaging-unsend-dialog" id="messaging-unsend-dialog" aria-labelledby="messaging-unsend-title" aria-describedby="messaging-unsend-description">
-    <form method="dialog">
-        <h2 id="messaging-unsend-title">Unsend message?</h2>
-        <p id="messaging-unsend-description">This message will be removed for everyone in this conversation.</p>
-        <div class="messaging-unsend-actions"><button type="submit" value="cancel">Cancel</button><button type="button" class="messaging-unsend-confirm">Unsend</button></div>
-    </form>
-</dialog>
-<dialog class="messaging-unsend-dialog messaging-action-sheet" id="messaging-actions-dialog" aria-labelledby="messaging-actions-title"><section><h2 id="messaging-actions-title">Message options</h2><button type="button" data-action-reply>Reply</button><button type="button" data-action-copy>Copy</button><button type="button" data-action-edit>Edit</button><button type="button" data-action-unsend>Unsend</button><button type="button" data-action-cancel>Cancel</button></section></dialog>
-<dialog class="messaging-unsend-dialog messaging-action-sheet" id="conversation-actions-dialog" aria-labelledby="conversation-actions-title"><section><h2 id="conversation-actions-title">Conversation options</h2><button type="button" data-action-clear-conversation>Delete conversation</button><button type="button" data-action-cancel-conversation>Cancel</button></section></dialog>
-<dialog class="messaging-unsend-dialog" id="conversation-clear-dialog" aria-labelledby="conversation-clear-title" aria-describedby="conversation-clear-description"><section><h2 id="conversation-clear-title">Delete conversation?</h2><p id="conversation-clear-description">This conversation and its current history will be removed from your message list. It will not be deleted for the other participant. If a new message is sent later, it may appear again.</p><div class="messaging-unsend-actions"><button type="button" data-clear-cancel>Cancel</button><button type="button" data-clear-confirm>Delete</button></div></section></dialog>
-<dialog class="messaging-lightbox" id="messaging-lightbox" aria-label="Media viewer"><button type="button" class="messaging-lightbox-close" aria-label="Close media viewer"><i class="bi bi-x-lg" aria-hidden="true"></i></button><button type="button" class="messaging-lightbox-prev" aria-label="Previous image"><i class="bi bi-chevron-left" aria-hidden="true"></i></button><img alt=""><button type="button" class="messaging-lightbox-next" aria-label="Next image"><i class="bi bi-chevron-right" aria-hidden="true"></i></button><span class="messaging-lightbox-count"></span></dialog>
+{% include 'messaging/components/dialogs.html' %}
+{% include 'messaging/components/lightbox.html' %}
 {% endblock %}
 
 {% block extra_js %}
 <script type="module" src="{% static 'messaging/js/main.js' %}"></script>
+<script type="module" src="{% static 'messaging/js/purchase-init.js' %}"></script>
 {% endblock %}

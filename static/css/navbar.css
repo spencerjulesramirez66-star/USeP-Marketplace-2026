@@ -210,34 +210,159 @@
     color: var(--color-primary-dark);
 }
 
+/* ==========================================================================
+   Message badge + toast notifications
+   REPLACE in your navbar CSS: the existing `.navbar-message-badge { … }` rule and
+   every `.message-notification-toast*` / `message-toast-*` rule, from
+   `.navbar-message-badge[hidden]` through the prefers-reduced-motion toast line.
+   ========================================================================== */
+
+/* Same look as the cart badge. The old rule put white text on amber (poor contrast). */
 .navbar-message-badge {
-    min-width: 18px;
-    height: 18px;
-    padding: 0 4px;
-    border: 2px solid var(--color-secondary-dark);
-    border-radius: 999px;
-    color: var(--color-surface);
-    background: var(--color-secondary);
-    font-size: 0.62rem;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
 }
 .navbar-message-badge[hidden] { display: none; }
 
-.message-notification-toast-stack { position: fixed; top: 5.25rem; right: 1rem; z-index: 1100; display: grid; gap: .65rem; width: min(360px, calc(100vw - 2rem)); pointer-events: none; }
-.message-notification-toast { display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; align-items: start; gap: .65rem; width: 100%; padding: .75rem; border: 1px solid var(--color-border); border-radius: .8rem; color: var(--color-text); background: var(--color-surface); box-shadow: 0 12px 28px color-mix(in srgb, var(--color-text) 18%, transparent); pointer-events: auto; text-decoration: none; animation: message-toast-enter 200ms cubic-bezier(.2,0,0,1); }
-.message-notification-toast.is-leaving { pointer-events: none; animation: message-toast-exit 160ms cubic-bezier(.2,0,0,1) forwards; }
-.message-notification-toast:hover, .message-notification-toast:focus-visible { border-color: color-mix(in srgb, var(--color-secondary) 35%, var(--color-surface)); background: color-mix(in srgb, var(--color-primary) 4%, var(--color-surface)); outline: 0; }
-.message-notification-toast-avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; background: var(--color-surface-muted); }
-.message-notification-toast-copy { display: grid; min-width: 0; gap: .12rem; }
-.message-notification-toast-copy strong { overflow: hidden; font-size: .88rem; text-overflow: ellipsis; white-space: nowrap; }
-.message-notification-toast-copy span { overflow: hidden; color: var(--color-text-muted); font-size: .78rem; text-overflow: ellipsis; white-space: nowrap; }
-.message-notification-toast-copy .message-notification-toast-preview { color: var(--color-text-secondary); font-size: .82rem; }
-.message-notification-toast-copy .message-notification-toast-listing { color: color-mix(in srgb, var(--color-secondary-dark) 60%, var(--color-text)); font-weight: 600; }
-.message-notification-toast-dismiss { width: 26px; height: 26px; padding: 0; border: 0; border-radius: 50%; color: var(--color-text-muted); background: transparent; cursor: pointer; font-size: 1.25rem; line-height: 1; }
-.message-notification-toast-dismiss:hover, .message-notification-toast-dismiss:focus-visible { color: var(--color-text-secondary); background: var(--color-border); outline: 0; }
-@keyframes message-toast-enter { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
-@keyframes message-toast-exit { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(-6px); } }
-@media (max-width: 760px) { .message-notification-toast-stack { top: 4.5rem; right: .75rem; width: calc(100vw - 1.5rem); } }
-@media (prefers-reduced-motion: reduce) { .message-notification-toast, .message-notification-toast.is-leaving { animation: none; } }
+.message-notification-toast-stack {
+  position: fixed;
+  top: 5.25rem;
+  right: 1rem;
+  z-index: 1100;
+  display: grid;
+  gap: 0.65rem;
+  width: min(360px, calc(100vw - 2rem));
+  pointer-events: none;
+}
+
+/* The toast is a <div>; the clickable area is the inner link, dismiss is a sibling button. */
+.message-notification-toast {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.8rem;
+  color: var(--color-text);
+  background: var(--color-surface);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--color-text) 18%, transparent);
+  pointer-events: auto;
+  animation: message-toast-enter 200ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.message-notification-toast.is-leaving {
+  pointer-events: none;
+  animation: message-toast-exit 160ms cubic-bezier(0.2, 0, 0, 1) forwards;
+}
+
+.message-notification-toast:hover,
+.message-notification-toast:focus-within {
+  border-color: color-mix(in srgb, var(--color-secondary) 35%, var(--color-surface));
+  background: color-mix(in srgb, var(--color-primary) 4%, var(--color-surface));
+}
+
+.message-notification-toast-link {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: start;
+  gap: 0.65rem;
+  min-width: 0;
+  border-radius: 0.5rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.message-notification-toast-link:focus-visible {
+  outline: 2px solid var(--color-secondary);
+  outline-offset: 2px;
+}
+
+.message-notification-toast-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--color-surface-muted);
+}
+
+.message-notification-toast-copy {
+  display: grid;
+  min-width: 0;
+  gap: 0.12rem;
+}
+
+.message-notification-toast-copy strong {
+  overflow: hidden;
+  font-size: 0.88rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.message-notification-toast-copy span {
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.message-notification-toast-copy .message-notification-toast-preview {
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+}
+
+.message-notification-toast-copy .message-notification-toast-listing {
+  color: color-mix(in srgb, var(--color-secondary-dark) 60%, var(--color-text));
+  font-weight: 600;
+}
+
+.message-notification-toast-dismiss {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: var(--color-text-muted);
+  background: transparent;
+  cursor: pointer;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.message-notification-toast-dismiss:hover,
+.message-notification-toast-dismiss:focus-visible {
+  color: var(--color-text-secondary);
+  background: var(--color-border);
+  outline: 0;
+}
+
+@keyframes message-toast-enter {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes message-toast-exit {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(-6px); }
+}
+
+@media (max-width: 760px) {
+  .message-notification-toast-stack {
+    top: 4.5rem;
+    right: 0.75rem;
+    width: calc(100vw - 1.5rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .message-notification-toast,
+  .message-notification-toast.is-leaving {
+    animation: none;
+  }
+}
 
 .navbar-login-btn {
     display: inline-flex;

@@ -134,6 +134,10 @@ def edit_listing(request, listing_id):
             },
         )
 
+    # ModelForm validation writes the POSTed values onto `listing`, so remember
+    # the stock the seller had before this edit.
+    previous_stock = listing.stock_quantity
+
     form = ListingForm(request.POST, instance=listing)
     if form.is_valid():
         updated_listing = form.save(commit=False)
@@ -141,6 +145,13 @@ def edit_listing(request, listing_id):
             updated_listing.stock_quantity = 0
         elif updated_listing.stock_quantity is None:
             updated_listing.stock_quantity = 0
+        elif (
+            updated_listing.status == Listing.Status.SOLD
+            and updated_listing.stock_quantity > previous_stock
+        ):
+            # The seller added stock to a sold listing: put it back on sale.
+            # If they chose Draft/Archived in the same edit, that choice wins.
+            updated_listing.status = Listing.Status.ACTIVE
         updated_listing.save()
         remove_ids = [value for value in request.POST.getlist('remove_image_ids') if value.isdigit()]
         remove_urls = request.POST.getlist('remove_image_urls')

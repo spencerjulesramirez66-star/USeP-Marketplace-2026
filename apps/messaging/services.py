@@ -4,6 +4,8 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.utils import timezone
 
+from decimal import Decimal
+
 from .models import (
     Conversation,
     ConversationReadState,
@@ -12,9 +14,20 @@ from .models import (
     Message,
     MessageAttachment,
     MessageRevision,
+    PurchaseRequest
 )
 
 MAX_BODY_LENGTH = 2000
+
+
+PR = PurchaseRequest.Status
+
+# action -> (statuses it may start from, status it moves to)
+SELLER_TRANSITIONS = {
+    'confirm': ({PR.SUBMITTED}, PR.CONFIRMED),
+    'decline': ({PR.SUBMITTED}, PR.DECLINED),
+    'cancel': ({PR.REQUESTED, PR.SUBMITTED}, PR.CANCELLED),
+}
 
 
 def start_conversation(buyer, listing):
@@ -138,3 +151,118 @@ def clear_conversation(conversation, user):
         user=user,
         defaults={'cleared_at': timezone.now(), 'cleared_through_message_id': last_id},
     )
+
+
+
+def _touch_message(message):
+    """Bump Message.updated_at so the poll endpoint's 'changed' list re-sends the card."""
+    message.save(update_fields=['updated_at'])
+
+
+def _has_conflict(seller_id, start, end, exclude_pk=None):
+    """True if the seller already has a pending or confirmed slot overlapping start..end."""
+    qs = PurchaseRequest.objects.filter(
+        conversation__listing__seller_id=seller_id,
+        status__in=[PR.SUBMITTED, PR.CONFIRMED, PR.PROPOSED], 
+        scheduled_start__lt=end,
+        scheduled_end__gt=start,
+    )
+    if exclude_pk:
+        qs = qs.exclude(pk=exclude_pk)
+    return qs.exists()
+
+
+def busy_slots(seller_id, exclude_pk=None):
+    """Upcoming taken slots for the calendar's hatched blocks. Times only, no buyer details."""
+    qs = PurchaseRequest.objects.filter(
+        conversation__listing__seller_id=seller_id,
+        status__in=[PR.SUBMITTED, PR.CONFIRMED, PR.PROPOSED], 
+        scheduled_end__gte=timezone.now(),
+    )
+    if exclude_pk:
+        qs = qs.exclude(pk=exclude_pk)
+    return [
+        {
+            'start': timezone.localtime(p.scheduled_start).isoformat(),
+            'end': timezone.localtime(p.scheduled_end).isoformat(),
+        }
+        for p in qs
+    ]
+
+
+@transaction.atomic
+def request_purchase(conversation, seller):
+    """Seller drops a 'Confirm purchase' card into the chat."""
+    listing = conversation.listing
+    if listing.seller_id != seller.id:
+        raise PermissionDenied('Only the owner of this listing can request a purchase confirmation.')
+    if conversation.purchase_requests.filter(status=PR.REQUESTED).exists():
+        raise ValidationError('There is already an open purchase request in this chat.')
+
+    message = send_message(conversation, seller, body='Purchase confirmation request', files=[])
+    message.kind = Message.Kind.PURCHASE_REQUEST
+    message.save(update_fields=['kind', 'updated_at'])
+
+    PurchaseRequest.objects.create(
+        message=message,
+        conversation=conversation,
+        is_service=bool(listing.is_service_listing),
+        unit_price=listing.price,  # read-only snapshot; no stock touched
+    )
+    return message
+
+
+def submit_purchase_details(purchase_id, buyer, cleaned):
+    """Buyer submits the verification form. `cleaned` is PurchaseVerificationForm.cleaned_data."""
+    with transaction.atomic():
+        purchase = PurchaseRequest.objects.select_for_update().get(pk=purchase_id)
+        conversation = purchase.conversation
+
+        if conversation.buyer_id != buyer.id:
+            raise PermissionDenied('Only the buyer in this chat can fill this in.')
+        if purchase.status != PR.REQUESTED:
+            raise ValidationError('This request has already been answered.')
+
+        start, end = cleaned['scheduled_start'], cleaned['scheduled_end']
+        if _has_conflict(conversation.listing.seller_id, start, end, purchase.pk):
+            raise ValidationError('That time was just taken. Pick another slot.')
+
+        quantity = 1 if purchase.is_service else cleaned['quantity']
+        purchase.quantity = quantity
+        purchase.total_amount = purchase.unit_price * Decimal(quantity)
+        purchase.payment_method = cleaned['payment_method']
+        purchase.payment_reference = cleaned.get('payment_reference', '')
+        purchase.payment_proof = cleaned.get('payment_proof')
+        purchase.scheduled_start, purchase.scheduled_end = start, end
+        purchase.buyer_note = cleaned.get('buyer_note', '')
+        purchase.status = PR.SUBMITTED
+        purchase.submitted_at = timezone.now()
+        purchase.save()
+        _touch_message(purchase.message)
+    return purchase
+
+
+@transaction.atomic
+def respond_purchase(purchase_id, seller, action):
+    """Seller confirms, declines or cancels."""
+    if action not in SELLER_TRANSITIONS:
+        raise ValidationError('Unknown action.')
+
+    purchase = PurchaseRequest.objects.select_for_update().get(pk=purchase_id)
+    if purchase.conversation.listing.seller_id != seller.id:
+        raise PermissionDenied('Only the seller can do that.')
+
+    allowed_from, new_status = SELLER_TRANSITIONS[action]
+    if purchase.status not in allowed_from:
+        raise ValidationError('This request can no longer be changed.')
+
+    purchase.status = new_status
+    purchase.responded_at = timezone.now()
+    purchase.save(update_fields=['status', 'responded_at'])
+
+    # TODO(stock): when new_status == CONFIRMED, subtract purchase.quantity from
+    # the listing's stock (and set RESERVED/SOLD) here, inside this transaction.
+    # Left out on purpose until the stock rules are decided.
+
+    _touch_message(purchase.message)
+    return purchase

@@ -53,7 +53,6 @@ export function initAttachments({ form, fileInput, mediaInput, toggleButton, men
                 ${item.previewUrl
                     ? `<img src="${item.previewUrl}" alt="">`
                     : `<span class="messaging-attachment-preview-file"><i class="bi bi-file-earmark"></i>${item.file.name}</span>`}
-                <span class="messaging-attachment-preview-size">${formatBytes(item.file.size)}</span>
                 <button type="button" data-remove-attachment aria-label="Remove attachment"><i class="bi bi-x"></i></button>
             </div>
         `).join('');
@@ -97,7 +96,7 @@ export function initAttachments({ form, fileInput, mediaInput, toggleButton, men
         (target.dataset.attachmentPicker === 'media' ? mediaInput : fileInput).click();
     });
     document.addEventListener('click', (evt) => {
-        if (!menu.hidden && !menu.contains(evt.target) && evt.target !== toggleButton) {
+        if (!menu.hidden && !menu.contains(evt.target) && !toggleButton.contains(evt.target)) {
             menu.hidden = true;
             toggleButton.setAttribute('aria-expanded', 'false');
         }

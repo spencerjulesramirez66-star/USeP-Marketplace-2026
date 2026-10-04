@@ -1,0 +1,34 @@
+{# Left column: heading, search, tabs, conversation list. Needs: conversation_groups, selected_conversation. #}
+<aside class="messaging-sidebar">
+    <div class="messaging-sidebar-heading">
+        <div>
+            <p class="messaging-eyebrow">USeP Marketplace</p>
+            <h1>Messages</h1>
+        </div>
+        <a class="messaging-compose" href="{% url 'dashboard:buyer' %}" aria-label="Find a seller to message" title="Find a seller to message"><i class="bi bi-pencil-square" aria-hidden="true"></i></a>
+    </div>
+
+    <label class="messaging-search" for="message-search">
+        <i class="bi bi-search" aria-hidden="true"></i>
+        <input id="message-search" type="search" placeholder="Search sellers or listings" autocomplete="off">
+    </label>
+
+    <nav class="messaging-tabs" aria-label="Message filters">
+        <a class="messaging-tab active" href="{% url 'messaging:conversation_list' %}">All messages</a>
+        <a class="messaging-tab" href="{% url 'dashboard:buyer' %}">Browse marketplace</a>
+    </nav>
+
+    <div class="conversation-search-results" id="conversation-search-results" hidden aria-live="polite"></div>
+    <div class="conversation-list" id="conversation-list">
+        {% for group in conversation_groups %}
+            {% include 'messaging/components/conversation_group.html' %}
+        {% empty %}
+        <div class="conversation-empty">
+            <i class="bi bi-chat-square-text" aria-hidden="true"></i>
+            <strong>No conversations yet</strong>
+            <span>Message a seller from a marketplace listing to start chatting.</span>
+            <a href="{% url 'dashboard:buyer' %}">Explore listings</a>
+        </div>
+        {% endfor %}
+    </div>
+</aside>
