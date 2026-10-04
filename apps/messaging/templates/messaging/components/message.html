@@ -1,4 +1,3 @@
-{% load message_links %}
 <div class="messaging-message-row{% if message.sender_id == request.user.id %} own{% endif %}"
      data-message-id="{{ message.id }}"
      data-message-has-body="{% if message.body %}true{% else %}false{% endif %}"
@@ -25,7 +24,7 @@
             {% endwith %}
             {% endif %}
 
-            {% if message.body %}<article class="messaging-bubble{% if message.sender_id == request.user.id %} own{% endif %}"><p>{{ message.body|message_links }}</p></article>{% endif %}
+            {% if message.body %}<article class="messaging-bubble{% if message.sender_id == request.user.id %} own{% endif %}"><p>{{ message.body|urlize }}</p></article>{% endif %}
 
             {% if message.attachments.all or message.attachment %}
             <div class="messaging-attachment-bubbles">

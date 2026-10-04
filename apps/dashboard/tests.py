@@ -1,12 +1,22 @@
+from io import BytesIO
+
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
+from PIL import Image
 
 from apps.accounts.models import User
 from apps.messaging.models import Conversation, Message
 from .forms import ListingForm
-from .models import Category, Listing, SavedItem
+from .models import Category, Listing, ListingReview, SavedItem
+
+
+def make_review_photo(name):
+    image = Image.new('RGB', (2, 2), color='orange')
+    content = BytesIO()
+    image.save(content, format='PNG')
+    return SimpleUploadedFile(name, content.getvalue(), content_type='image/png')
 
 # Conversation/typing/read/search/unsend tests moved to
 # apps.messaging.tests, alongside the views and models they exercise.
@@ -17,6 +27,26 @@ from .models import Category, Listing, SavedItem
 
 @override_settings(ALLOWED_HOSTS=['testserver'])
 class BuyerDashboardViewsTests(TestCase):
+    def create_review_listing(self):
+        seller = User.objects.create_user(
+            email='review-listing-owner@example.com', password='StrongPassword123!',
+            first_name='Listing', last_name='Owner', contact_num='09123456763',
+            email_verified=True, is_first_login=False,
+        )
+        category, _ = Category.objects.get_or_create(
+            slug='review-tests', defaults={'name': 'Review tests'},
+        )
+        return Listing.objects.create(
+            seller=seller,
+            category=category,
+            title='Review test listing',
+            slug='review-test-listing',
+            description='A listing used to test customer reviews.',
+            price='100.00',
+            condition='Good condition',
+            location='Library',
+        )
+
     def test_logged_in_buyer_can_save_listing(self):
         buyer = User.objects.create_user(
             email='buyer@example.com',
@@ -67,6 +97,164 @@ class BuyerDashboardViewsTests(TestCase):
         response = self.client.get(reverse('dashboard:buyer_detail', args=['engineering-mechanics-textbook']))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Stock available')
+
+    def test_customer_can_review_listing_and_update_their_rating(self):
+        listing = self.create_review_listing()
+        first_customer = User.objects.create_user(
+            email='first-reviewer@example.com', password='StrongPassword123!',
+            first_name='First', last_name='Reviewer', contact_num='09123456760',
+            email_verified=True, is_first_login=False,
+        )
+        second_customer = User.objects.create_user(
+            email='second-reviewer@example.com', password='StrongPassword123!',
+            first_name='Second', last_name='Reviewer', contact_num='09123456761',
+            email_verified=True, is_first_login=False,
+        )
+
+        self.client.force_login(first_customer)
+        first_response = self.client.post(
+            reverse('dashboard:submit_listing_review', args=[listing.slug]),
+            {'rating': '5', 'body': 'Exactly what I needed.'},
+        )
+        self.assertEqual(first_response.status_code, 302)
+
+        self.client.force_login(second_customer)
+        second_response = self.client.post(
+            reverse('dashboard:submit_listing_review', args=[listing.slug]),
+            {'rating': '3', 'body': 'Good overall.'},
+        )
+        self.assertEqual(second_response.status_code, 302)
+
+        detail = self.client.get(reverse('dashboard:buyer_detail', args=[listing.slug]))
+        self.assertEqual(detail.context['average_rating'], 4)
+        self.assertEqual(detail.context['review_count'], 2)
+        self.assertContains(detail, 'Exactly what I needed.')
+        self.assertContains(detail, 'Good overall.')
+
+        self.client.force_login(first_customer)
+        update_response = self.client.post(
+            reverse('dashboard:submit_listing_review', args=[listing.slug]),
+            {'rating': '4', 'body': 'Updated after another week of use.'},
+        )
+        self.assertEqual(update_response.status_code, 302)
+        self.assertEqual(ListingReview.objects.filter(listing=listing).count(), 2)
+
+        detail = self.client.get(reverse('dashboard:buyer_detail', args=[listing.slug]))
+        self.assertEqual(detail.context['average_rating'], 3.5)
+        self.assertContains(detail, 'Updated after another week of use.')
+        self.assertContains(detail, 'bi-camera-fill')
+        self.assertContains(detail, '>Add photos</span>')
+        self.assertContains(detail, 'aria-label="Add photos"')
+
+    def test_listing_owner_cannot_review_their_own_listing(self):
+        listing = self.create_review_listing()
+        self.client.force_login(listing.seller)
+
+        response = self.client.post(
+            reverse('dashboard:submit_listing_review', args=[listing.slug]),
+            {'rating': '5', 'body': 'My own listing.'},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(ListingReview.objects.filter(listing=listing).exists())
+
+    def test_anonymous_customer_must_log_in_to_review(self):
+        listing = self.create_review_listing()
+
+        response = self.client.post(
+            reverse('dashboard:submit_listing_review', args=[listing.slug]),
+            {'rating': '5', 'body': 'A review.'},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/login/', response['Location'])
+        self.assertFalse(ListingReview.objects.filter(listing=listing).exists())
+
+    def test_listing_review_rejects_out_of_range_rating(self):
+        listing = self.create_review_listing()
+        customer = User.objects.create_user(
+            email='invalid-reviewer@example.com', password='StrongPassword123!',
+            first_name='Invalid', last_name='Reviewer', contact_num='09123456762',
+            email_verified=True, is_first_login=False,
+        )
+        self.client.force_login(customer)
+
+        response = self.client.post(
+            reverse('dashboard:submit_listing_review', args=[listing.slug]),
+            {'rating': '6', 'body': 'Out of range.'},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(ListingReview.objects.filter(listing=listing).exists())
+
+    def test_customer_can_upload_multiple_review_photos(self):
+        listing = self.create_review_listing()
+        customer = User.objects.create_user(
+            email='photo-reviewer@example.com', password='StrongPassword123!',
+            first_name='Photo', last_name='Reviewer', contact_num='09123456764',
+            email_verified=True, is_first_login=False,
+        )
+        self.client.force_login(customer)
+
+        response = self.client.post(
+            reverse('dashboard:submit_listing_review', args=[listing.slug]),
+            {
+                'rating': '5',
+                'body': 'Photos show the item condition.',
+                'photos': [make_review_photo('first.png'), make_review_photo('second.png')],
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        review = ListingReview.objects.get(listing=listing, reviewer=customer)
+        self.assertEqual(review.photos.count(), 2)
+        self.assertTrue(all(photo.image.name.endswith('.webp') for photo in review.photos.all()))
+
+        detail = self.client.get(reverse('dashboard:buyer_detail', args=[listing.slug]))
+        self.assertEqual(detail.status_code, 200)
+        self.assertContains(detail, 'listing-review-photos')
+        for photo in review.photos.all():
+            self.assertContains(detail, photo.image.url)
+
+        existing_photos = list(review.photos.all())
+        update_response = self.client.post(
+            reverse('dashboard:submit_listing_review', args=[listing.slug]),
+            {
+                'rating': '4',
+                'body': 'I replaced one of my photos.',
+                'remove_photo_ids': str(existing_photos[0].pk),
+                'photos': [make_review_photo('replacement.png')],
+            },
+        )
+        self.assertEqual(update_response.status_code, 302)
+        self.assertFalse(review.photos.filter(pk=existing_photos[0].pk).exists())
+        self.assertTrue(review.photos.filter(pk=existing_photos[1].pk).exists())
+        self.assertEqual(review.photos.count(), 2)
+        self.assertTrue(any(
+            photo.image.name.rsplit('/', 1)[-1].startswith('replacement')
+            for photo in review.photos.all()
+        ))
+
+    def test_listing_review_rejects_more_than_five_photos(self):
+        listing = self.create_review_listing()
+        customer = User.objects.create_user(
+            email='too-many-photos@example.com', password='StrongPassword123!',
+            first_name='Many', last_name='Photos', contact_num='09123456765',
+            email_verified=True, is_first_login=False,
+        )
+        self.client.force_login(customer)
+
+        response = self.client.post(
+            reverse('dashboard:submit_listing_review', args=[listing.slug]),
+            {
+                'rating': '5',
+                'body': 'Too many photos.',
+                'photos': [make_review_photo(f'photo-{index}.png') for index in range(6)],
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(ListingReview.objects.filter(listing=listing).exists())
 
     def test_buyer_search_and_category_filter_routes(self):
         response = self.client.get(reverse('dashboard:buyer') + '?q=calculator')

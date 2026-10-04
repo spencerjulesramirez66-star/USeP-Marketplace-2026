@@ -197,6 +197,57 @@ class SavedItem(models.Model):
 		]
 
 
+class ListingReview(models.Model):
+	class Rating(models.IntegerChoices):
+		ONE = 1, '1 star'
+		TWO = 2, '2 stars'
+		THREE = 3, '3 stars'
+		FOUR = 4, '4 stars'
+		FIVE = 5, '5 stars'
+
+	listing = models.ForeignKey(Listing, on_delete=models.CASCADE, related_name='reviews')
+	reviewer = models.ForeignKey(
+		settings.AUTH_USER_MODEL,
+		on_delete=models.CASCADE,
+		related_name='listing_reviews',
+	)
+	rating = models.PositiveSmallIntegerField(choices=Rating.choices)
+	body = models.TextField(max_length=2000)
+	created_at = models.DateTimeField(auto_now_add=True)
+	updated_at = models.DateTimeField(auto_now=True)
+
+	class Meta:
+		ordering = ['-created_at']
+		constraints = [
+			models.UniqueConstraint(
+				fields=['listing', 'reviewer'],
+				name='unique_listing_review_per_reviewer',
+			),
+			models.CheckConstraint(
+				condition=models.Q(rating__gte=1, rating__lte=5),
+				name='listing_review_rating_1_to_5',
+			),
+		]
+
+	@property
+	def reviewer_name(self):
+		return f'{self.reviewer.first_name} {self.reviewer.last_name}'.strip() or 'Marketplace customer'
+
+
+class ListingReviewPhoto(models.Model):
+	review = models.ForeignKey(ListingReview, on_delete=models.CASCADE, related_name='photos')
+	image = models.ImageField(upload_to='reviews/')
+	created_at = models.DateTimeField(auto_now_add=True)
+
+	class Meta:
+		ordering = ['created_at']
+
+	def save(self, *args, **kwargs):
+		if self.image and not self.image.name.lower().endswith('.webp'):
+			self.image = compress_to_webp(self.image)
+		super().save(*args, **kwargs)
+
+
 # Conversation, Message, MessageAttachment, MessageRevision,
 # ConversationUserState, ConversationReadState and ConversationTypingState
 # have moved to apps.messaging.models. Listing.conversations (the reverse

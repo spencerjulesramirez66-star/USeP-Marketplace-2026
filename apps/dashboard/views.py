@@ -1,14 +1,22 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db.models import Exists, OuterRef, Q
+from django.db.models import Avg, Count, Exists, OuterRef, Q
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 
 from apps.accounts.models import User
 
-from .forms import CONDITION_CHOICES, PRODUCT_CONDITIONS, SERVICE_CONDITIONS, ListingForm
-from .models import Category, Listing, ListingImage, SavedItem
+from .forms import (
+    CONDITION_CHOICES,
+    MAX_REVIEW_PHOTOS,
+    PRODUCT_CONDITIONS,
+    SERVICE_CONDITIONS,
+    ListingForm,
+    ListingReviewForm,
+)
+from .models import Category, Listing, ListingImage, ListingReview, ListingReviewPhoto, SavedItem
 
 RECOMMENDATION_WEIGHTS = {
     'popularity': 0.5,
@@ -343,6 +351,28 @@ def setup_buyer_item_detail(request, item_slug):
     ]
     if not gallery_images:
         gallery_images = [{'id': None, 'url': image} for image in listing.gallery_urls]
+    listing_reviews = (
+        ListingReview.objects.filter(listing=listing)
+        .select_related('reviewer')
+        .prefetch_related('photos')
+    )
+    review_summary = listing_reviews.aggregate(average=Avg('rating'), total=Count('id'))
+    review_count = review_summary['total']
+    counts_by_rating = {
+        row['rating']: row['count']
+        for row in listing_reviews.values('rating').annotate(count=Count('id'))
+    }
+    rating_breakdown = [
+        {
+            'value': rating,
+            'count': counts_by_rating.get(rating, 0),
+            'percentage': round(counts_by_rating.get(rating, 0) * 100 / review_count) if review_count else 0,
+        }
+        for rating in range(5, 0, -1)
+    ]
+    can_review = request.user.is_authenticated and request.user.id != listing.seller_id
+    user_review = listing_reviews.filter(reviewer=request.user).first() if can_review else None
+    user_review_photo_count = user_review.photos.count() if user_review else 0
     item_context = {
         'id': listing.id,
         'slug': listing.slug,
@@ -377,8 +407,59 @@ def setup_buyer_item_detail(request, item_slug):
             'query': request.GET.get('q', ''),
             'is_saved': saved_by_request_user,
             'condition_choices': [value for value, _ in CONDITION_CHOICES],
+            'average_rating': round(review_summary['average'] or 0, 1),
+            'review_count': review_count,
+            'rating_breakdown': rating_breakdown,
+            'rating_stars': range(1, 6),
+            'rating_options': [
+                {'value': rating, 'stars': range(rating)}
+                for rating, _ in ListingReview.Rating.choices
+            ],
+            'listing_reviews': listing_reviews,
+            'can_review': can_review,
+            'user_review': user_review,
+            'user_review_photo_count': user_review_photo_count,
+            'remaining_review_photos': MAX_REVIEW_PHOTOS - user_review_photo_count,
+            'review_photo_limit': MAX_REVIEW_PHOTOS,
+            'review_form': ListingReviewForm(instance=user_review),
         },
     )
+
+
+@login_required
+@require_POST
+def submit_listing_review(request, item_slug):
+    listing = get_object_or_404(Listing, slug=item_slug)
+    if listing.seller_id == request.user.id:
+        messages.error(request, 'You cannot review your own listing.')
+        return redirect(f'{listing.get_absolute_url()}#listing-reviews')
+
+    existing_review = ListingReview.objects.filter(listing=listing, reviewer=request.user).first()
+    form = ListingReviewForm(request.POST, request.FILES, instance=existing_review)
+    if not form.is_valid():
+        messages.error(request, 'Choose a rating from 1 to 5 and write a review of up to 2,000 characters.')
+        return redirect(f'{listing.get_absolute_url()}#listing-reviews')
+
+    photos = form.cleaned_data['photos']
+    photos_to_remove = list(
+        existing_review.photos.filter(pk__in=request.POST.getlist('remove_photo_ids'))
+    ) if existing_review else []
+    retained_photo_count = (existing_review.photos.count() if existing_review else 0) - len(photos_to_remove)
+    if retained_photo_count + len(photos) > MAX_REVIEW_PHOTOS:
+        messages.error(request, f'A review can include up to {MAX_REVIEW_PHOTOS} photos in total.')
+        return redirect(f'{listing.get_absolute_url()}#listing-reviews')
+
+    review = form.save(commit=False)
+    review.listing = listing
+    review.reviewer = request.user
+    review.save()
+    for photo in photos_to_remove:
+        photo.image.delete(save=False)
+        photo.delete()
+    for photo in photos:
+        ListingReviewPhoto.objects.create(review=review, image=photo)
+    messages.success(request, 'Your review has been updated.' if existing_review else 'Your review has been posted.')
+    return redirect(f'{listing.get_absolute_url()}#listing-reviews')
 
 
 @login_required
