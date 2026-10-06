@@ -1,0 +1,42 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta name="description" content="{% block meta_description %}USeP Marketplace{% endblock %}">
+
+    <title>{% block title %}USeP Marketplace{% endblock %}</title>
+
+    <link rel="icon" type="image/png" href="{% static 'images/site-logo.png' %}">
+
+    <link rel="stylesheet" href="{% static 'css/vendor/bootstrap-icons.css' %}">
+    <link rel="stylesheet" href="{% static 'css/base.css' %}">
+    <link rel="stylesheet" href="{% static 'css/components.css' %}">
+    <link rel="stylesheet" href="{% static 'css/password-check.css' %}">
+    <link rel="stylesheet" href="{% static 'css/input-toggle.css' %}">
+    <link rel="stylesheet" href="{% static 'css/navbar.css' %}?v=20260920-mobile-drawer-offset">
+    <link rel="stylesheet" href="{% static 'css/footer.css' %}">
+
+
+    {% block extra_css %}{% endblock %}
+</head>
+
+<body>
+
+    {% include 'components/messages.html' %}
+
+    {% block content %}
+    {% endblock %}
+
+    <script src="{% static 'js/toggle-password.js' %}"></script>
+    <script src="{% static 'js/messages.js' %}"></script>
+    <script src="{% static 'js/navbar.js' %}"></script>
+    {% block extra_js %}{% endblock %}
+
+</body>
+
+</html>

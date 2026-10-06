@@ -1,0 +1,199 @@
+/* Listing detail page (templates/buyer-detail.html). */
+
+/* Navigation + availability notice */
+.detail-back-link-wrap { margin-bottom: 1rem; }
+
+.detail-back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    color: var(--color-primary);
+    font-weight: 700;
+}
+
+.detail-sold-warning {
+    display: grid;
+    gap: 0.15rem;
+    margin-bottom: 1.25rem;
+    padding: 0.9rem 1rem;
+    border: 1px solid var(--buyer-border-danger);
+    border-radius: var(--buyer-radius-md);
+    background: var(--buyer-tint-danger);
+    color: var(--color-primary-dark);
+}
+
+.detail-sold-warning span { font-size: 0.9rem; }
+
+/* Two-column layout: gallery | summary card */
+.detail-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(16rem, 0.75fr);
+    gap: 1.5rem;
+    align-items: start;
+    margin-bottom: 1.5rem;
+}
+
+.detail-gallery { padding: 1rem; }
+.detail-card { padding: 1.25rem; }
+
+.detail-image {
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    border-radius: var(--buyer-radius-lg);
+    background: var(--color-surface-muted);
+    object-fit: cover;
+    object-position: center;
+}
+
+.thumbnail-row {
+    display: flex;
+    gap: 0.7rem;
+    margin: 0.9rem 0 0;
+    padding: 0 0 0.3rem;
+    overflow-x: auto;
+    list-style: none;
+    scrollbar-width: thin;
+}
+
+.thumb {
+    display: block;
+    flex: 0 0 56px;
+    width: 56px;
+    height: 56px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--buyer-radius-md);
+    object-fit: cover;
+    transition: border-color var(--buyer-transition);
+}
+
+.thumbnail-row a:hover .thumb,
+.thumbnail-row a:focus-visible .thumb {
+    border-color: var(--color-primary);
+}
+
+/* Summary card */
+.detail-card h1 {
+    margin: 0 0 1rem;
+    font-size: clamp(1.8rem, 2vw, 2.5rem);
+}
+
+.detail-price {
+    margin: 0 0 1rem;
+    color: var(--color-primary);
+    font-size: 2rem;
+    font-weight: 700;
+}
+
+.detail-meta-box {
+    display: grid;
+    gap: 0.8rem;
+    margin: 0 0 1rem;
+    padding: 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--buyer-radius-md);
+    background: var(--color-surface-muted);
+}
+
+.detail-meta-box div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.detail-meta-box dt {
+    color: var(--color-text-muted);
+    font-size: 0.76rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.detail-meta-box dd {
+    margin: 0;
+    font-weight: 700;
+}
+
+.detail-action {
+    display: block;
+    width: 100%;
+    margin-bottom: 0.7rem;
+    text-align: center;
+}
+
+.detail-action-disabled {
+    cursor: default;
+    opacity: 0.62;
+    pointer-events: none;
+}
+
+/* Description + highlights */
+.detail-info {
+    display: grid;
+    grid-template-columns: 1.3fr 0.7fr;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+    padding: 1.4rem;
+}
+
+.detail-info .eyebrow { margin: 0 0 0.5rem; }
+
+.detail-copy p { margin: 0; color: var(--color-text-muted); }
+
+.detail-highlights {
+    display: grid;
+    gap: 0.7rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.detail-highlights li {
+    position: relative;
+    padding-left: 1.3rem;
+    font-weight: 600;
+}
+
+.detail-highlights li::before {
+    content: "";
+    position: absolute;
+    top: 0.4rem;
+    left: 0;
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 50%;
+    background: var(--color-primary);
+}
+
+@media (max-width: 760px) {
+    .detail-layout { grid-template-columns: 1fr; gap: 1rem; }
+
+    /* Flatten the panels so content reads edge-to-edge on phones */
+    .detail-gallery,
+    .detail-card,
+    .detail-info {
+        padding: 0;
+        border: 0;
+        background: transparent;
+        box-shadow: none;
+    }
+
+    .detail-image { aspect-ratio: 1 / 1; object-fit: contain; }
+    .thumb { flex-basis: 48px; width: 48px; height: 48px; }
+    .detail-card h1 { margin-bottom: 0.35rem; font-size: 1.45rem; }
+    .detail-price { font-size: 1.35rem; }
+    .detail-meta-box { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.55rem; padding: 0.7rem; }
+    .detail-info { grid-template-columns: 1fr; }
+}
+
+/* Gallery: active thumbnail (detail-gallery.js toggles .active) */
+.thumbnail-row li { flex: 0 0 auto; }
+.thumbnail-row a { display: block; }
+
+.thumb { cursor: pointer; }
+
+.thumb.active {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 25%, transparent);
+}
+
+.detail-back-link:hover { text-decoration: underline; }

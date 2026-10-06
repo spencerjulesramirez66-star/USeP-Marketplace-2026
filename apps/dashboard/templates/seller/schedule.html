@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Order schedule | USeP Marketplace{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/seller/seller-schedule.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="sched" id="sched"
+     data-open="{{ open_hour }}" data-close="{{ close_hour }}" data-focus="{{ focus_order }}"
+     data-events-url="{% url 'messaging:schedule_events' %}" data-base="{% url 'messaging:schedule' %}">
+
+    <header class="sched-bar">
+        <a class="sched-back" href="{% url 'dashboard:seller' %}">
+            <i class="bi bi-arrow-left" aria-hidden="true"></i> Dashboard
+        </a>
+        <h1>Order schedule</h1>
+        <button class="btn btn-outline" id="s-today" type="button">Today</button>
+        <div class="sched-nav">
+            <button class="sched-icon" id="s-prev" type="button" aria-label="Previous week">
+                <i class="bi bi-chevron-left" aria-hidden="true"></i>
+            </button>
+            <button class="sched-icon" id="s-next" type="button" aria-label="Next week">
+                <i class="bi bi-chevron-right" aria-hidden="true"></i>
+            </button>
+        </div>
+        <h2 class="sched-range" id="s-range" aria-live="polite"></h2>
+    </header>
+
+    <div class="sched-body">
+        <aside class="sched-rail">
+            <section class="sched-section">
+                <h3>Needs action <span class="sched-count" id="s-count" hidden></span></h3>
+                <ul class="sched-todo" id="s-todo"></ul>
+            </section>
+
+            <section class="sched-section">
+                <h3>Show on calendar</h3>
+                <ul class="sched-legend" id="s-legend">
+                    <li><label><input type="checkbox" data-st="submitted" checked><i class="dot st-submitted"></i>Waiting for seller</label></li>
+                    <li><label><input type="checkbox" data-st="proposed" checked><i class="dot st-proposed"></i>New time proposed</label></li>
+                    <li><label><input type="checkbox" data-st="confirmed" checked><i class="dot st-confirmed"></i>Confirmed</label></li>
+                    <li><label><input type="checkbox" data-st="completed" checked><i class="dot st-completed"></i>Delivered</label></li>
+                </ul>
+            </section>
+
+            <p class="sched-hint">
+                Shortcuts: <kbd>T</kbd> today, <kbd>&larr;</kbd> <kbd>&rarr;</kbd> week, <kbd>Esc</kbd> close
+            </p>
+        </aside>
+
+        <main class="sched-cal" id="s-cal" aria-label="Weekly calendar"></main>
+
+        <aside class="sched-panel" id="s-panel" hidden aria-label="Order details">
+            <button class="sched-icon sched-close" id="s-close" type="button" aria-label="Close details">
+                <i class="bi bi-x-lg" aria-hidden="true"></i>
+            </button>
+            <div id="s-detail"></div>
+        </aside>
+    </div>
+
+    <div class="sched-toast" id="s-toast" role="status" hidden></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/seller/seller-schedule.js' %}" defer></script>
+{% endblock %}

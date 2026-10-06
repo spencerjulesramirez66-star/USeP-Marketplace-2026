@@ -1,0 +1,408 @@
+/* ==========================================================================
+   Messaging: message rows + bubbles
+   Message row layout, avatars, bubbles (own / deleted), reply quote, reply & options
+   buttons, swipe-to-reply, seen avatar, edited indicator, jump-to-message highlight.
+   Markup: messaging/components/message.html
+   Colors / fonts: use the :root variables from base.css (no hard-coded colors).
+   ========================================================================== */
+
+.messaging-message-row.messaging-message-target .messaging-bubble {
+  animation: messaging-message-target 2s cubic-bezier(0.2, 0, 0, 1);
+}
+
+@keyframes messaging-message-target {
+  0%,
+  100% {
+    box-shadow: none;
+  }
+  20%,
+  70% {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-secondary) 42%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .messaging-message-row.messaging-message-target .messaging-bubble {
+    animation: none;
+  }
+}
+
+.messaging-bubble {
+  align-self: flex-start;
+  max-width: min(72%, 520px);
+  min-width: 0;
+  padding: 0.72rem 0.9rem;
+  border-radius: 1rem 1rem 1rem 0.25rem;
+  color: var(--color-text);
+  background: var(--color-surface);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-text) 5%, transparent);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.messaging-message-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.messaging-message-row.own {
+  justify-content: flex-end;
+}
+
+.messaging-message-row > .messaging-bubble {
+  order: 1;
+  min-width: 0;
+}
+
+.messaging-message-content {
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+  max-width: min(72%, 520px);
+}
+
+.messaging-message-row.own .messaging-message-content {
+  align-items: flex-end;
+}
+
+.messaging-message-row > .messaging-message-content {
+  order: 1;
+}
+
+.messaging-message-content .messaging-bubble {
+  max-width: 100%;
+}
+
+.messaging-message-row > .messaging-message-action {
+  order: 2;
+  align-self: center;
+  flex: 0 0 auto;
+}
+
+.messaging-message-row > .messaging-message-meta {
+  order: 3;
+}
+
+.messaging-message-action {
+  align-self: center;
+  flex: 0 0 auto;
+  padding: 0.3rem;
+  border: 0;
+  border-radius: 50%;
+  color: var(--color-text-muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.messaging-message-action:hover,
+.messaging-message-action:focus-visible {
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface));
+}
+
+.messaging-reply-action {
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.messaging-reply-action {
+  order: 2;
+  align-self: center;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  padding: 0.3rem;
+  border-radius: 50%;
+  opacity: 0;
+  transform: translateX(-3px);
+  transition:
+    opacity 140ms cubic-bezier(0.2, 0, 0, 1),
+    transform 140ms cubic-bezier(0.2, 0, 0, 1),
+    background-color 140ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.messaging-message-row.own .messaging-reply-action {
+  order: 0;
+  transform: translateX(3px);
+}
+
+.messaging-message-row:hover .messaging-reply-action,
+.messaging-reply-action:focus-visible {
+  opacity: 1;
+  transform: none;
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface));
+  outline: 0;
+}
+
+.messaging-reply-quote {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 0.5rem;
+  margin: 0 0 0.45rem;
+  padding: 0.4rem 0.55rem;
+  border: 0;
+  border-left: 3px solid var(--color-border);
+  border-radius: 0.45rem;
+  color: var(--color-text-muted);
+  background: var(--color-background);
+  text-align: left;
+  cursor: pointer;
+}
+
+.messaging-reply-quote-text {
+  display: grid;
+  min-width: 0;
+  gap: 0.14rem;
+}
+
+.messaging-reply-quote-thumb {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  border-radius: 0.4rem;
+  object-fit: cover;
+}
+
+.messaging-reply-quote strong {
+  color: var(--color-text-secondary);
+  font-size: 0.72rem;
+}
+
+.messaging-reply-quote span {
+  overflow: hidden;
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.messaging-reply-quote.unavailable {
+  cursor: default;
+}
+
+/* Seen avatar sits inline at the end of the timestamp line (Messenger-style)
+ instead of wrapping onto its own third line. */
+.messaging-message-row {
+  position: relative;
+}
+
+.messaging-seen-avatar {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  border: 1px solid var(--color-surface);
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.messaging-message-row.own:has(.messaging-seen-avatar) .messaging-message-meta {
+  padding-right: calc(14px + 0.35rem);
+  min-height: 14px;
+  line-height: 14px;
+}
+
+.messaging-seen-avatar.is-seen-enter {
+  animation: messaging-reply-in 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+@media (max-width: 760px) {
+  .messaging-message-row[data-message-id] .messaging-message-content {
+    touch-action: pan-y;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  .messaging-message-row.is-held .messaging-message-content {
+    transform: scale(0.975);
+  }
+
+  .messaging-message-row.is-reply-swiping .messaging-message-content {
+    transition: none;
+  }
+}
+
+@keyframes messaging-reply-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .messaging-reply-action {
+    display: none;
+  }
+
+  .messaging-message-row.messaging-swipe-reply .messaging-message-content {
+    transform: translateX(12px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .messaging-reply-action {
+    transition: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .messaging-message-action {
+    display: none;
+  }
+}
+
+.messaging-message-avatar {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 8%, var(--color-surface));
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.messaging-bubble.own {
+  align-self: flex-end;
+  border-radius: 1rem 1rem 0.25rem 1rem;
+  color: var(--color-surface);
+  background: var(--color-primary);
+}
+
+/* A preview's percentage width needs a definite bubble width; text remains compact. */
+.messaging-bubble.messaging-bubble-has-preview {
+  width: min(100%, 420px);
+}
+
+.messaging-bubble-deleted,
+.messaging-bubble.own.messaging-bubble-deleted {
+  color: var(--color-text-muted);
+  background: var(--color-background);
+  box-shadow: none;
+}
+
+.messaging-deleted-notice {
+  font-style: italic;
+}
+
+.messaging-bubble p {
+  min-width: 0;
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.messaging-bubble p a {
+  color: var(--color-primary);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+  text-decoration: underline;
+  word-break: break-word;
+}
+
+.messaging-bubble.own p a {
+  color: color-mix(in srgb, var(--color-secondary) 18%, var(--color-surface));
+}
+
+.messaging-bubble time {
+  margin-top: 0.3rem;
+  color: var(--color-text-muted);
+  font-family: var(--secondary-font), sans-serif;
+  font-size: 0.65rem;
+}
+
+.messaging-bubble.own time {
+  color: color-mix(in srgb, var(--color-secondary) 35%, var(--color-surface));
+}
+
+.messaging-message-meta {
+  flex-basis: 100%;
+  margin-top: 0.3rem;
+  color: var(--color-text-muted);
+  font-family: var(--secondary-font), sans-serif;
+  font-size: 0.65rem;
+}
+
+.messaging-message-row.own .messaging-message-meta {
+  text-align: right;
+}
+
+.messaging-edited-indicator {
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.messaging-edited-indicator:hover,
+.messaging-edited-indicator:focus-visible {
+  text-decoration: underline;
+  outline: 0;
+}
+
+.messaging-bubble.own.messaging-bubble-deleted time {
+  color: var(--color-text-muted);
+}
+
+/* Optimistic "sending" bubble — shown immediately on submit, before the
+ server has confirmed the message, with a live upload-progress bar for
+ attachments. Mirrors the layout of a real .messaging-message-row so it
+ swaps out for the final render without any visual jump. */
+.messaging-message-row.pending {
+  animation: messaging-enter var(--motion-standard) var(--ease-messaging);
+}
+
+.messaging-message-row.pending .messaging-video-attachment video,
+.messaging-message-row.pending .messaging-image-attachment img {
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .messaging-message-row.pending {
+    animation: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .messaging-bubble {
+    max-width: 86%;
+  }
+
+  .messaging-message-content {
+    max-width: 86%;
+  }
+}
+
+.messaging-message-action {
+  transition:
+    background var(--motion-fast, 140ms) var(--ease-messaging, ease),
+    color var(--motion-fast, 140ms) var(--ease-messaging, ease),
+    transform 100ms var(--ease-messaging, ease);
+}
+
+.messaging-message-row[data-message-id] {
+  animation: messaging-enter var(--motion-standard) var(--ease-messaging);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .messaging-message-row[data-message-id] {
+    animation: none;
+  }
+}

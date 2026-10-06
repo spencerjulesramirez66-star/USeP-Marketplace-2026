@@ -1,0 +1,172 @@
+/* ==========================================================================
+   Messaging: dialogs + lightbox
+   Unsend / delete confirmation dialogs, mobile action sheets, media lightbox.
+   Markup: messaging/components/dialogs.html + lightbox.html
+   Colors / fonts: use the :root variables from base.css (no hard-coded colors).
+   ========================================================================== */
+
+.messaging-unsend-dialog > section {
+  min-width: min(100%, 360px);
+  padding: 1.4rem;
+}
+
+.messaging-action-sheet section {
+  display: grid;
+  gap: 0.45rem;
+  padding: 1.25rem;
+}
+
+.messaging-action-sheet h2 {
+  margin: 0 0 0.3rem;
+  font-size: 1rem;
+}
+
+.messaging-action-sheet button {
+  padding: 0.7rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: var(--color-background);
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.messaging-action-sheet [data-action-unsend] {
+  color: var(--color-primary);
+}
+
+@media (max-width: 760px) {
+  .messaging-action-sheet {
+    inset: auto 0 0;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    border-radius: 1rem 1rem 0 0;
+  }
+}
+
+.messaging-unsend-dialog {
+  position: fixed;
+  inset: 0;
+  width: min(92vw, 360px);
+  height: fit-content;
+  max-height: calc(100dvh - 2rem);
+  margin: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0.9rem;
+  color: var(--color-text);
+  overflow: auto;
+  z-index: 1000;
+  box-shadow: 0 16px 48px color-mix(in srgb, var(--color-text) 20%, transparent);
+}
+
+.messaging-unsend-dialog::backdrop {
+  background: color-mix(in srgb, var(--color-text) 45%, transparent);
+}
+
+.messaging-unsend-dialog form {
+  padding: 1.25rem;
+}
+
+.messaging-unsend-dialog h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.messaging-unsend-dialog p {
+  margin: 0.55rem 0 1.1rem;
+  color: var(--color-text-muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.messaging-unsend-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.55rem;
+}
+
+.messaging-unsend-actions button {
+  padding: 0.48rem 0.8rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  color: var(--color-text);
+  background: var(--color-surface);
+  cursor: pointer;
+}
+
+.messaging-unsend-actions .messaging-unsend-confirm {
+  border-color: var(--color-primary);
+  color: var(--color-surface);
+  background: var(--color-primary);
+}
+
+.messaging-lightbox {
+  position: fixed;
+  inset: 0;
+  width: 100dvw;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 2rem 4.5rem;
+  border: 0;
+  background: color-mix(in srgb, var(--color-text) 88%, transparent);
+}
+
+.messaging-lightbox::backdrop {
+  background: color-mix(in srgb, var(--color-text) 60%, transparent);
+}
+
+.messaging-lightbox img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.messaging-lightbox button {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  color: var(--color-surface);
+  background: color-mix(in srgb, var(--color-surface) 18%, transparent);
+  cursor: pointer;
+  font-size: 1.3rem;
+}
+
+.messaging-lightbox button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.messaging-lightbox-close {
+  top: 1rem;
+  right: 1rem;
+}
+
+.messaging-lightbox-prev {
+  top: 50%;
+  left: 1rem;
+  transform: translateY(-50%);
+}
+
+.messaging-lightbox-next {
+  top: 50%;
+  right: 1rem;
+  transform: translateY(-50%);
+}
+
+.messaging-lightbox-count {
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--color-surface);
+  font-size: 0.8rem;
+}

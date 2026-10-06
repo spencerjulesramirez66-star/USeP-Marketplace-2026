@@ -1,0 +1,92 @@
+    @import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Libre+Baskerville:ital,wght@0,400..700;1,400..700&family=Montserrat:ital,wght@0,100..900;1,100..900&family=Ubuntu:ital,wght@0,300;0,400;0,500;0,700;1,300;1,400;1,500;1,700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Cabin:ital,wght@0,400..700;1,400..700&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Libre+Baskerville:ital,wght@0,400..700;1,400..700&family=Montserrat:ital,wght@0,100..900;1,100..900&family=Ubuntu:ital,wght@0,300;0,400;0,500;0,700;1,300;1,400;1,500;1,700&display=swap');
+
+    :root{
+        --primary-font: 'Ubuntu';
+        --secondary-font: 'Cabin';
+
+        --color-primary: #B91C1C;
+        --color-primary-light: #DC2626;
+        --color-primary-dark: #7F1D1D;
+
+        --color-secondary: #F59E0B;
+        --color-secondary-light: #FBBF24;
+        --color-secondary-dark: #D97706;
+
+        --color-accent: #2563EB;
+        --color-accent-light: #60A5FA;
+
+        --color-background: #F8FAFC;
+        --color-surface: #FFFFFF;
+        --color-surface-muted: #F1F5F9;
+
+        --color-text: #171717;
+        --color-text-secondary: #525252;
+        --color-text-muted: #737373;
+
+        --color-border: #E5E7EB;
+
+        --color-success: #16A34A;
+        --color-warning: #F59E0B;
+        --color-danger: #DC2626;
+        --color-info: #2563EB;
+    }
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    scroll-behavior: smooth;
+    width: 100dvw;
+    height: 100dvh;
+}
+
+body {
+    font-family: var(--primary-font), sans-serif;
+    background-color: var(--color-background);
+    color: var(--color-text);
+    line-height: 1.5;
+
+    width: 100dvw;
+    height: 100dvh;
+}
+
+img {
+    max-width: 100%;
+    display: block;
+}
+
+button,
+input,
+textarea,
+select {
+    font: inherit;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    font-family: var(--primary-font), sans-serif;
+    color: var(--color-text);
+    line-height: 1.2;
+}
+
+p{
+    font-family: var(--secondary-font);
+}
+
+span{
+    font-family: var(--secondary-font);
+}
+
+img { 
+    max-width: 100%; 
+    display: block; 
+}
+

@@ -1,0 +1,5 @@
+{# Dropdown results panel for in-conversation search. Needs: conversation. #}
+<section class="messaging-message-search-panel" id="messaging-message-search-panel" data-search-url="{% url 'messaging:conversation_message_search' conversation.id %}" hidden aria-label="Search in conversation">
+    <p class="messaging-message-search-status" id="messaging-message-search-status">Type at least 2 characters to search.</p>
+    <div class="messaging-message-search-results" id="messaging-message-search-results"></div>
+</section>

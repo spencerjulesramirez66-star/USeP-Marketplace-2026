@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}
+    USeP Marketplace - Login
+{% endblock %}
+
+{% block meta_description %}
+    Login to USeP Marketplace.
+{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/login.css' %}">
+{% endblock %}
+
+
+{% block content %}
+
+<main id="main-container">
+
+    <section id="login-content">
+
+        <header class="brand">
+            <img
+                class="site-logo"
+                src="{% static 'images/site-logo.webp' %}"
+                alt="USeP Marketplace Logo"
+            >
+        </header>
+
+        <section class="intro-container">
+            <h2>Buy. Sell. Connect.</h2>
+            <p>
+                Please login to surf countless products and services.
+            </p>
+        </section>
+
+        <section id="form-container">
+
+            <form class="form" id="login-form" method="post">
+
+                {% csrf_token %}
+                {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+
+                <div class="form-group">
+                    <label class="form-label" for="email">
+                        Email
+                        <span class="required" aria-hidden="true">*</span>
+                    </label>
+
+                    <input
+                        class="form-control"
+                        id="email"
+                        type="email"
+                        name="email"
+                        autocomplete="email"
+                        placeholder="Enter email"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="password">
+                        Password
+                        <span class="required" aria-hidden="true">*</span>
+                    </label>
+
+                    <div class="form-control" id="password-container">
+                        <input
+                            id="password"
+                            type="password"
+                            name="password"
+                            autocomplete="current-password"
+                            placeholder="Enter password"
+                            required
+                        >
+                        <i class="bi bi-eye-slash" id="show-password"></i>
+                    </div>
+                    
+                </div>
+
+                <div class="form-group">
+                    <button class="btn btn-primary" type="submit">
+                        Login
+                    </button>
+                </div>
+
+            </form>
+
+            <div class="form-group">
+                <a href="{% url 'forgot_password' %}" class="btn btn-outline">Forgot Password?</a>
+            </div>
+
+        </section>
+
+        <footer>
+            <p>© 2026 USeP Marketplace. All rights reserved.</p>
+        </footer>
+
+    </section>
+
+    <aside id="cover-container">
+        <img
+            src="{% static 'images/site-cover.webp' %}"
+            alt="Abstract artwork"
+        >
+    </aside>
+
+</main>
+
+{% endblock %}
+
+
+{% block extra_js %}
+    <script src="{% static 'js/login.js' %}"></script>
+{% endblock %}

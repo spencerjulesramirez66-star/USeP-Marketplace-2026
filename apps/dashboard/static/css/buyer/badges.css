@@ -1,0 +1,54 @@
+/* Small pill-shaped labels: status pills, category tag, counters, sold/unavailable tag. */
+.status-pill,
+.detail-category,
+.cart-section-count,
+.product-status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--buyer-radius-pill);
+    font-weight: 700;
+    line-height: 1;
+}
+
+.status-pill,
+.detail-category,
+.product-status {
+    padding: 0.35rem 0.65rem;
+    font-size: 0.75rem;
+}
+
+.status-pill-active {
+    background: var(--buyer-tint-success);
+    color: color-mix(in srgb, var(--color-success) 70%, var(--color-text));
+}
+
+.status-pill-sold {
+    background: var(--buyer-tint-danger);
+    color: var(--color-primary-dark);
+}
+
+.detail-category {
+    margin-bottom: 0.8rem;
+    background: var(--buyer-tint-primary);
+    color: var(--color-primary);
+}
+
+.cart-section-count {
+    min-width: 2rem;
+    height: 2rem;
+    padding: 0 0.6rem;
+    background: var(--buyer-tint-primary);
+    color: var(--color-primary);
+}
+
+.cart-section-sold .cart-section-count {
+    background: var(--buyer-tint-danger);
+}
+
+.product-status {
+    align-self: flex-start;
+    margin: 0 0 0.4rem;
+    background: var(--color-primary-dark);
+    color: var(--color-surface);
+}

@@ -1,0 +1,230 @@
+#main-container{
+    display: flex;
+    flex-direction: row;
+    overflow-x: hidden;
+    max-height: 100dvh;
+}
+
+#login-content{
+    display: flex;
+    flex-direction: column;
+    padding: 8rem;
+    gap: 3.5rem;
+    width: 50%;
+    justify-content: flex-start;
+    align-items: flex-start;
+}
+
+#cover-container{
+    width: 50%;
+    height: 100dvh;
+    overflow: hidden;
+}
+
+#cover-container img{
+    min-height: 100dvh;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+#form-container{
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+#login-form{
+    width: 100%;
+}
+
+.brand{
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+
+.intro-container{
+    display: block;
+}
+
+.intro-container h2{
+    font-size: 2rem;
+    color: var(--color-primary);
+}
+
+footer {
+    width: 100%;
+    text-align: center;
+}
+
+footer p{
+    color: var(--color-text-secondary);
+}
+
+.messages-container{
+    left: 2rem;
+}
+
+#password-container {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+}
+
+#password{
+    flex: 1;
+    min-width: 0;
+
+    padding: 0;
+    margin: 0;
+
+    background: transparent;
+    outline: none;
+    border: none;
+
+    font: inherit;
+    color: inherit;
+}
+
+#password:focus {
+    outline: none;
+    border: none;
+}
+
+#show-password {
+    flex-shrink: 0;
+
+    cursor: pointer;
+    font-size: 1rem;
+    line-height: 1;
+
+    font-family: var(--secondary-font), sans-serif;
+    color: var(--color-primary);
+}
+
+@media (max-width: 768px) {
+
+    #main-container {
+        display: block;
+        position: relative;
+
+        width: 100%;
+        min-height: 100dvh;
+        max-height: none;
+
+        overflow-x: hidden;
+    }
+
+    /* LOGIN */
+    #login-content {
+        position: relative;
+        z-index: 1;
+
+        width: 100%;
+        min-height: 100dvh;
+        height: auto;
+
+        box-sizing: border-box;
+
+        /*
+         * Space for the cover.
+         * Login content starts below the initial cover.
+         */
+        padding: calc(100dvh + 5rem) 2rem 3rem;
+
+        display: flex;
+        flex-direction: column;
+
+        gap: 3.5rem;
+
+        justify-content: flex-start;
+        align-items: flex-start;
+
+        background: var(--color-background);
+    }
+
+    /* COVER */
+    #cover-container {
+        position: fixed;
+        inset: 0;
+
+        z-index: 1000;
+
+        width: 100%;
+        height: 100dvh;
+
+        overflow: hidden;
+
+        will-change: transform;
+    }
+
+    #cover-container img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    /* GRADIENT */
+    #cover-container::before {
+        content: "";
+
+        position: absolute;
+        z-index: 1;
+
+        left: 0;
+        bottom: 0;
+
+        width: 100%;
+        height: 180px;
+
+        background: linear-gradient(
+            to bottom,
+            transparent,
+            color-mix(in srgb, var(--color-text) 65%, transparent)
+        );
+
+        pointer-events: none;
+    }
+
+    /* SCROLL HINT */
+    #cover-container::after {
+        content: "Scroll to continue\A⌄";
+        white-space: pre;
+
+        position: absolute;
+        z-index: 2;
+
+        bottom: 1.5rem;
+        left: 50%;
+
+        transform: translateX(-50%);
+
+        color: var(--color-surface);
+        font-family: var(--primary-font), sans-serif;
+        font-size: 0.7rem;
+        font-weight: 500;
+
+        line-height: 1.5;
+        text-align: center;
+
+        text-shadow: 0 2px 8px color-mix(in srgb, var(--color-text) 50%, transparent);
+
+        animation: scroll-hint 2s ease-in-out infinite;
+    }
+
+    @keyframes scroll-hint {
+
+        0%, 100% {
+            transform: translateX(-50%) translateY(0);
+            opacity: 0.7;
+        }
+
+        50% {
+            transform: translateX(-50%) translateY(6px);
+            opacity: 1;
+        }
+    }
+}

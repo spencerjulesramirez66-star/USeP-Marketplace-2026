@@ -1,0 +1,202 @@
+{% extends 'base.html' %}
+{% load static l10n %}
+
+{% block title %}Verify purchase: {{ listing.title }} | USeP Marketplace{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'messaging/css/purchase-verification.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="pv-body">
+{% include 'components/navbar.html' %}
+
+<main id="pv-root" class="pv"
+      data-open-hour="{{ open_hour }}"
+      data-close-hour="{{ close_hour }}"
+      data-is-service="{{ is_service|yesno:'true,false' }}"
+      data-unit-price="{{ purchase.unit_price|unlocalize }}"
+      data-max-quantity="{{ max_quantity|default_if_none:'' }}"
+      data-max-bytes="{{ max_proof_bytes|unlocalize }}"
+      data-busy-slots="{{ busy_slots_json }}">
+
+    <header class="pv-header">
+        <a class="pv-back" href="{{ back_url }}"><i class="bi bi-chevron-left" aria-hidden="true"></i> Back to chat</a>
+        <h1 class="pv-title">Verify your purchase</h1>
+        <p class="pv-lede">{{ seller_name }} asked you to confirm this order. Fill in the details and they'll review them in your chat.</p>
+    </header>
+
+    <form id="pv-form" class="pv-layout" method="post" action="" enctype="multipart/form-data" novalidate>
+        {% csrf_token %}
+        <input type="hidden" name="scheduled_start" id="pv-scheduled-start">
+        <input type="hidden" name="scheduled_end" id="pv-scheduled-end">
+
+        <div class="pv-main">
+            <div class="pv-alert" id="pv-alert" role="alert" tabindex="-1" {% if not error %}hidden{% endif %}>{{ error }}</div>
+
+            {% if not is_service %}
+            <section class="pv-section" aria-labelledby="pv-order-h">
+                <h2 class="pv-section__title" id="pv-order-h">How many do you want?</h2>
+                <p class="pv-section__hint">The seller listed this at {{ unit_price_label }} each.</p>
+                <div class="pv-qty-row">
+                    <div>
+                        <label class="pv-field-label" for="pv-quantity">Quantity</label>
+                        <div class="pv-stepper">
+                            <button type="button" id="pv-qty-minus" aria-label="Decrease quantity"><i class="bi bi-dash-lg" aria-hidden="true"></i></button>
+                            <input type="number" id="pv-quantity" name="quantity" value="1" min="1" inputmode="numeric">
+                            <button type="button" id="pv-qty-plus" aria-label="Increase quantity"><i class="bi bi-plus-lg" aria-hidden="true"></i></button>
+                        </div>
+                    </div>
+                    <p class="pv-qty-total">Items total <strong data-pv-total>{{ unit_price_label }}</strong></p>
+                </div>
+            </section>
+            {% endif %}
+
+            <section class="pv-section" aria-labelledby="pv-when-h">
+                <h2 class="pv-section__title" id="pv-when-h">{% if is_service %}When do you want the service?{% else %}When can you receive it?{% endif %}</h2>
+                <p class="pv-section__hint">Drag across the calendar to pick a time, then drag the block to move it or pull its edge to resize it. Hatched areas are already taken. Available {{ open_label }} to {{ close_label }}.</p>
+
+                <div class="pv-cal-toolbar">
+                    <button type="button" class="pv-btn-ghost" data-cal="today">Today</button>
+                    <button type="button" class="pv-icon-btn" data-cal="prev" aria-label="Previous"><i class="bi bi-chevron-left" aria-hidden="true"></i></button>
+                    <button type="button" class="pv-icon-btn" data-cal="next" aria-label="Next"><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
+                    <h3 class="pv-cal-title" id="pv-cal-title" aria-live="polite"></h3>
+                    <div class="pv-view-toggle" role="group" aria-label="Calendar view">
+                        <button type="button" data-cal-view="timeGridDay" aria-pressed="false">Day</button>
+                        <button type="button" data-cal-view="timeGridWeek" aria-pressed="true">Week</button>
+                    </div>
+                </div>
+
+                <div class="pv-cal" id="pv-calendar">
+                    <p class="pv-cal-missing" id="pv-cal-missing" hidden>The calendar couldn't load. Use the date and time fields below instead.</p>
+                </div>
+
+                <p class="pv-slot-summary" id="pv-slot-summary" data-state="empty" aria-live="polite">
+                    <span id="pv-slot-text">No time picked yet.</span>
+                    <button type="button" class="pv-link-btn" id="pv-slot-clear" hidden>Clear</button>
+                </p>
+
+                <details class="pv-manual" id="pv-manual">
+                    <summary>Prefer to type it in?</summary>
+                    <div class="pv-manual__grid">
+                        <div>
+                            <label class="pv-field-label" for="pv-manual-date">Day</label>
+                            <input class="pv-input" type="date" id="pv-manual-date">
+                        </div>
+                        <div>
+                            <label class="pv-field-label" for="pv-manual-time">Start</label>
+                            <select class="pv-select" id="pv-manual-time"><option value="">Choose</option></select>
+                        </div>
+                        <div>
+                            <label class="pv-field-label" for="pv-manual-duration">Length</label>
+                            <select class="pv-select" id="pv-manual-duration">
+                                <option value="30">30 min</option>
+                                <option value="60" selected>1 hour</option>
+                                <option value="90">1.5 hours</option>
+                                <option value="120">2 hours</option>
+                                <option value="180">3 hours</option>
+                                <option value="240">4 hours</option>
+                            </select>
+                        </div>
+                    </div>
+                    <p class="pv-error-text" id="pv-manual-error" role="alert" hidden></p>
+                </details>
+            </section>
+
+            <section class="pv-section" aria-labelledby="pv-pay-h">
+                <h2 class="pv-section__title" id="pv-pay-h">How will you pay?</h2>
+                <p class="pv-section__hint">Payment happens outside the app. The seller checks it before confirming your order.</p>
+
+                <fieldset class="pv-methods">
+                    <legend class="pv-sr-only">Payment method</legend>
+                    <label class="pv-method pv-method--gcash">
+                        <input type="radio" name="payment_method" value="gcash" checked>
+                        <span class="pv-method__body">
+                            <span class="pv-method__icon"><i class="bi bi-phone" aria-hidden="true"></i></span>
+                            <span>
+                                <span class="pv-method__name">GCash</span>
+                                <span class="pv-method__desc">Send the payment, then upload the screenshot.</span>
+                            </span>
+                        </span>
+                    </label>
+                    <label class="pv-method pv-method--cash">
+                        <input type="radio" name="payment_method" value="cash">
+                        <span class="pv-method__body">
+                            <span class="pv-method__icon"><i class="bi bi-cash-coin" aria-hidden="true"></i></span>
+                            <span>
+                                <span class="pv-method__name">Cash on hand</span>
+                                <span class="pv-method__desc">Pay the seller in person when you meet.</span>
+                            </span>
+                        </span>
+                    </label>
+                </fieldset>
+
+                <div id="pv-gcash-panel">
+                    <p class="pv-panel-note">Ask {{ seller_name }} for their GCash number in the chat, send the exact total, then upload the confirmation screenshot.</p>
+
+                    <label class="pv-dropzone" id="pv-dropzone" for="pv-proof">
+                        <input type="file" id="pv-proof" name="payment_proof" accept="image/jpeg,image/png,image/webp">
+                        <i class="bi bi-cloud-arrow-up pv-dropzone__icon" aria-hidden="true"></i>
+                        <span class="pv-dropzone__title">Upload your GCash screenshot</span>
+                        <span class="pv-dropzone__sub">Drop it here or tap to browse. JPG, PNG or WebP, up to {{ max_proof_mb }} MB.</span>
+                    </label>
+
+                    <div class="pv-proof" id="pv-proof-preview" hidden>
+                        <img src="" alt="Preview of your payment screenshot" id="pv-proof-img">
+                        <div class="pv-proof__meta">
+                            <span class="pv-proof__name" id="pv-proof-name"></span>
+                            <span class="pv-proof__size" id="pv-proof-size"></span>
+                        </div>
+                        <button type="button" class="pv-btn-ghost" id="pv-proof-remove">Remove</button>
+                    </div>
+                    <p class="pv-error-text" id="pv-proof-error" role="alert" hidden></p>
+
+                    <label class="pv-field-label" for="pv-reference">GCash reference no. <span class="pv-optional">(optional)</span></label>
+                    <input class="pv-input" type="text" id="pv-reference" name="payment_reference" maxlength="30" inputmode="numeric" autocomplete="off" placeholder="13-digit number on the receipt">
+                </div>
+
+                <p class="pv-panel-note" id="pv-cash-panel" hidden>Bring the exact amount if you can. The seller marks the order as paid when you hand it over.</p>
+            </section>
+
+            <section class="pv-section" aria-labelledby="pv-note-h">
+                <h2 class="pv-section__title" id="pv-note-h">Anything the seller should know? <span class="pv-optional">(optional)</span></h2>
+                <label class="pv-sr-only" for="pv-note">Note to seller</label>
+                <textarea class="pv-textarea" id="pv-note" name="buyer_note" maxlength="500" placeholder="e.g. I'll wait by the library entrance."></textarea>
+            </section>
+        </div>
+
+        <aside class="pv-rail" aria-label="Order summary">
+            <div class="pv-rail__listing">
+                <img src="{{ listing_image_url }}" alt="">
+                <div>
+                    <p class="pv-rail__title">{{ listing.title }}</p>
+                    <p class="pv-rail__seller">{{ seller_name }}</p>
+                </div>
+            </div>
+
+            <dl class="pv-rows">
+                <div><dt>{% if is_service %}Rate{% else %}Price each{% endif %}</dt><dd>{{ unit_price_label }}</dd></div>
+                {% if not is_service %}<div><dt>Quantity</dt><dd data-pv-qty-label>1</dd></div>{% endif %}
+                <div><dt>{% if is_service %}Appointment{% else %}Meetup{% endif %}</dt><dd id="pv-rail-when" data-empty="true">Not picked</dd></div>
+                <div><dt>Payment</dt><dd id="pv-rail-pay">GCash</dd></div>
+            </dl>
+
+            <div class="pv-total"><span>Total</span><strong data-pv-total>{{ unit_price_label }}</strong></div>
+            <button type="submit" class="pv-submit" data-pv-submit>Send to seller</button>
+            <p class="pv-fineprint">Nothing is charged here. The seller reviews your details and confirms the order in chat.</p>
+        </aside>
+
+        <div class="pv-mobilebar">
+            <div class="pv-mobilebar__total"><span>Total</span><strong data-pv-total>{{ unit_price_label }}</strong></div>
+            <button type="submit" class="pv-submit" data-pv-submit>Send to seller</button>
+        </div>
+    </form>
+
+</main>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+<script src="{% static 'messaging/js/purchase-verification.js' %}"></script>
+{% endblock %}

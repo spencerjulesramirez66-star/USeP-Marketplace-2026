@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% load static message_links %}
+
+{% block title %}Messages | USeP Marketplace{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'messaging/css/messaging-base.css' %}">
+<link rel="stylesheet" href="{% static 'messaging/css/sidebar.css' %}">
+<link rel="stylesheet" href="{% static 'messaging/css/chat.css' %}">
+<link rel="stylesheet" href="{% static 'messaging/css/message-search.css' %}">
+<link rel="stylesheet" href="{% static 'messaging/css/details-panel.css' %}">
+<link rel="stylesheet" href="{% static 'messaging/css/thread.css' %}">
+<link rel="stylesheet" href="{% static 'messaging/css/messages.css' %}">
+<link rel="stylesheet" href="{% static 'messaging/css/message-history.css' %}">
+<link rel="stylesheet" href="{% static 'messaging/css/message-pending.css' %}">
+<link rel="stylesheet" href="{% static 'messaging/css/link-preview.css' %}">
+<link rel="stylesheet" href="{% static 'messaging/css/attachments.css' %}">
+<link rel="stylesheet" href="{% static 'messaging/css/composer.css' %}">
+<link rel="stylesheet" href="{% static 'messaging/css/purchase-card.css' %}">
+<link rel="stylesheet" href="{% static 'messaging/css/dialogs.css' %}">
+<link rel="stylesheet" href="{% static 'messaging/css/welcome.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="messaging-page{% if conversation %} messaging-page-chat-open{% endif %}">
+    {% include 'components/navbar.html' %}
+
+    <main class="messaging-layout" aria-label="Marketplace messages"
+          data-conversation-list-url="{% url 'messaging:conversation_list' %}"
+          data-conversation-sidebar-state-url="{% url 'messaging:conversation_sidebar_state' %}"
+          data-conversation-search-url="{% url 'messaging:conversation_search' %}"
+          data-clear-conversation-url-template="{% url 'messaging:clear_conversation' 0 %}">
+        {% include 'messaging/components/sidebar.html' %}
+
+        {% if conversation %}
+        <section class="messaging-chat" aria-label="Conversation with {% if conversation.buyer_id == request.user.id %}{{ conversation.seller.first_name }} {{ conversation.seller.last_name }}{% else %}{{ conversation.buyer.first_name }} {{ conversation.buyer.last_name }}{% endif %}">
+            {% include 'messaging/components/chat_header.html' %}
+
+            {% include 'messaging/components/message_search_panel.html' %}
+
+            {% include 'messaging/components/conversation_details.html' %}
+
+            {% include 'messaging/components/thread.html' %}
+
+            {% include 'messaging/components/composer.html' %}
+        </section>
+        {% else %}
+        {% include 'messaging/components/welcome.html' %}
+        {% endif %}
+    </main>
+</div>
+
+{% include 'messaging/components/dialogs.html' %}
+{% include 'messaging/components/lightbox.html' %}
+{% endblock %}
+
+{% block extra_js %}
+<script type="module" src="{% static 'messaging/js/main.js' %}"></script>
+<script type="module" src="{% static 'messaging/js/purchase-init.js' %}"></script>
+{% endblock %}

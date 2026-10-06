@@ -1,0 +1,27 @@
+{# Chat header + in-conversation message-search bar. Needs: conversation, request. #}
+<header class="messaging-chat-header">
+    <div class="messaging-chat-header-content" id="messaging-chat-header-content">
+        <button class="messaging-mobile-back" type="button" aria-label="Back to conversations" title="Back to conversations"><i class="bi bi-arrow-left" aria-hidden="true"></i></button>
+        {% if conversation.buyer_id == request.user.id %}
+        <img class="messaging-chat-avatar" src="{{ conversation.seller.avatar_url }}" alt="">
+        <div><h2 tabindex="-1">{{ conversation.seller.first_name }} {{ conversation.seller.last_name }}</h2>
+        {% else %}
+        <img class="messaging-chat-avatar" src="{{ conversation.buyer.avatar_url }}" alt="">
+        <div><h2 tabindex="-1">{{ conversation.buyer.first_name }} {{ conversation.buyer.last_name }}</h2>
+        {% endif %}
+            <p>{{ conversation.listing.title }} · {{ conversation.listing.price_label }}</p>
+        </div>
+        <button class="messaging-chat-info" type="button" id="messaging-details-toggle" aria-label="Show conversation details" aria-controls="messaging-details" aria-expanded="false" title="Conversation details"><i class="bi bi-info-circle" aria-hidden="true"></i></button>
+    </div>
+    <div class="messaging-message-search-header" id="messaging-message-search-header" hidden>
+        <div class="messaging-message-search-controls">
+            <div class="messaging-message-search-field"><i class="bi bi-search" aria-hidden="true"></i><input type="search" id="messaging-message-search-input" placeholder="Search messages" autocomplete="off"></div>
+            <span class="messaging-message-search-counter" id="messaging-message-search-counter" hidden aria-live="polite"></span>
+            <span class="messaging-message-search-navigation" aria-label="Search match navigation">
+                <button class="messaging-message-search-nav-button" type="button" id="messaging-message-search-previous" aria-label="Previous matching message" title="Previous matching message" hidden disabled><i class="bi bi-chevron-up" aria-hidden="true"></i></button>
+                <button class="messaging-message-search-nav-button" type="button" id="messaging-message-search-next" aria-label="Next matching message" title="Next matching message" hidden disabled><i class="bi bi-chevron-down" aria-hidden="true"></i></button>
+            </span>
+            <button type="button" id="messaging-message-search-close" aria-label="Close message search" title="Close message search"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+        </div>
+    </div>
+</header>

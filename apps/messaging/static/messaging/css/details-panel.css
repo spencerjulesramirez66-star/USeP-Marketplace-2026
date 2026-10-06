@@ -1,0 +1,466 @@
+/* ==========================================================================
+   Messaging: conversation details panel
+   Slide-in details panel: profile card, shared media / files / links, header actions.
+   Markup: messaging/components/conversation_details.html
+   Colors / fonts: use the :root variables from base.css (no hard-coded colors).
+   ========================================================================== */
+
+.messaging-chat-search {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface));
+  cursor: pointer;
+  transition:
+    background-color 140ms cubic-bezier(0.2, 0, 0, 1),
+    transform 120ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.messaging-chat-search:hover,
+.messaging-chat-search:focus-visible {
+  background: color-mix(in srgb, var(--color-primary) 15%, var(--color-surface));
+  outline: 0;
+  transform: translateY(-1px);
+}
+
+.messaging-details {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  right: 0;
+  display: flex;
+  width: min(340px, 100%);
+  height: 100%;
+  flex-direction: column;
+  overflow-y: auto;
+  border-left: 1px solid var(--color-border);
+  background: var(--color-surface);
+  box-shadow: -10px 0 28px color-mix(in srgb, var(--color-text) 12%, transparent);
+  scrollbar-color: var(--color-primary)
+    color-mix(in srgb, var(--color-primary) 8%, var(--color-surface));
+  scrollbar-width: thin;
+}
+
+.messaging-details::-webkit-scrollbar {
+  width: 7px;
+}
+
+.messaging-details::-webkit-scrollbar-track {
+  margin: 0.35rem 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface));
+}
+
+.messaging-details::-webkit-scrollbar-thumb {
+  border: 2px solid color-mix(in srgb, var(--color-primary) 8%, var(--color-surface));
+  border-radius: 999px;
+  background: var(--color-primary);
+}
+
+.messaging-details::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary-dark);
+}
+
+.messaging-details[hidden] {
+  display: none;
+}
+
+.messaging-details-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.1rem 1.2rem;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-surface);
+  background: linear-gradient(135deg, var(--color-primary-dark), var(--color-primary));
+}
+
+.messaging-details-header h2 {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-surface);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.messaging-details-header-actions {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 0.15rem;
+  margin-left: 0.5rem;
+}
+
+.messaging-details-header-actions .messaging-chat-search,
+.messaging-details-header-actions .messaging-chat-delete-menu,
+.messaging-details-header-actions .messaging-details-close {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  margin-left: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: var(--color-surface);
+  background: transparent;
+  box-shadow: none;
+  cursor: pointer;
+  transition:
+    opacity 140ms var(--ease-messaging, ease),
+    background-color 140ms var(--ease-messaging, ease),
+    transform 100ms var(--ease-messaging, ease);
+}
+
+.messaging-details-header-actions .messaging-chat-search:hover,
+.messaging-details-header-actions .messaging-chat-search:focus-visible,
+.messaging-details-header-actions .messaging-chat-delete-menu:hover,
+.messaging-details-header-actions .messaging-chat-delete-menu:focus-visible,
+.messaging-details-header-actions .messaging-details-close:hover,
+.messaging-details-header-actions .messaging-details-close:focus-visible {
+  color: var(--color-primary-dark);
+  background: var(--color-secondary-light);
+  outline: 0;
+  transform: translateY(-1px);
+}
+
+.messaging-details-header-actions .messaging-chat-search:active,
+.messaging-details-header-actions .messaging-chat-delete-menu:active,
+.messaging-details-header-actions .messaging-details-close:active {
+  transform: scale(0.94);
+}
+
+.messaging-details-close {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  color: var(--color-surface);
+  background: transparent;
+  cursor: pointer;
+}
+
+.messaging-details-close:hover {
+  color: var(--color-primary-dark);
+  background: var(--color-secondary-light);
+}
+
+.messaging-profile {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  padding: 1.5rem 1rem;
+  border-bottom: 4px solid var(--color-secondary);
+  background: color-mix(in srgb, var(--color-primary) 4%, var(--color-surface));
+  text-align: center;
+}
+
+.messaging-profile img {
+  width: 76px;
+  height: 76px;
+  margin-bottom: 0.8rem;
+  border: 3px solid color-mix(in srgb, var(--color-primary) 8%, var(--color-surface));
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.messaging-profile h3 {
+  font-size: 1.05rem;
+}
+
+.messaging-profile p {
+  margin-top: 0.2rem;
+  color: var(--color-text-muted);
+  font-family: var(--secondary-font), sans-serif;
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
+.messaging-profile span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.65rem;
+  color: var(--color-primary);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.messaging-details-section {
+  padding: 1rem 1.2rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.messaging-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.7rem;
+}
+
+.messaging-details-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0;
+  color: var(--color-text-muted);
+  font-family: var(--secondary-font), sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.messaging-resource {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+  padding: 0.55rem 0;
+  color: var(--color-text);
+  font-size: 0.8rem;
+  text-decoration: none;
+}
+
+.messaging-resource:hover {
+  color: var(--color-primary);
+}
+
+.messaging-resource img,
+.messaging-resource > i {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border-radius: 0.4rem;
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface));
+  object-fit: cover;
+}
+
+.messaging-resource span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.messaging-resource-link > i {
+  font-size: 1.2rem;
+}
+
+.messaging-link-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.7rem;
+}
+
+.messaging-link-card {
+  display: flex;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 0.7rem;
+  background: var(--color-surface);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-text) 8%, transparent);
+  color: var(--color-text);
+  text-decoration: none;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease;
+  flex-direction: column;
+}
+
+.messaging-link-card:hover {
+  color: var(--color-text);
+  box-shadow: 0 7px 18px color-mix(in srgb, var(--color-text) 15%, transparent);
+  transform: translateY(-2px);
+}
+
+.messaging-link-card-visual {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: var(--color-border);
+}
+
+.messaging-link-card-visual img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.messaging-link-card-visual.placeholder {
+  color: var(--color-primary);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-primary) 4%, var(--color-surface)),
+    color-mix(in srgb, var(--color-accent) 8%, var(--color-surface))
+  );
+}
+
+.messaging-link-card-visual.placeholder i {
+  font-size: 2.3rem;
+}
+
+.messaging-link-card-copy {
+  display: flex;
+  min-width: 0;
+  min-height: 4.3rem;
+  padding: 0.65rem 0.75rem;
+  background: var(--color-text);
+  color: var(--color-surface);
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.messaging-link-card-copy strong,
+.messaging-link-card-copy > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.messaging-link-card-copy strong {
+  font-size: 0.8rem;
+  line-height: 1.25;
+}
+
+.messaging-link-card-copy > span {
+  color: var(--color-border);
+  font-size: 0.72rem;
+}
+
+.messaging-details-empty {
+  color: var(--color-text-muted);
+  font-family: var(--secondary-font), sans-serif;
+  font-size: 0.8rem;
+}
+
+.messaging-chat-delete-menu {
+  z-index: 2;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.messaging-chat-delete-menu {
+  margin-left: auto;
+  padding: 0.45rem;
+  font-size: 1.05rem;
+}
+
+.messaging-details-section h3 i {
+  color: var(--color-secondary-dark);
+  font-size: 0.95rem;
+}
+
+.messaging-section-heading > span {
+  display: grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  color: var(--color-primary-dark);
+  background: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface));
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.messaging-media-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.messaging-media-item {
+  min-width: 0;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.messaging-media-item img,
+.messaging-media-item video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 0.45rem;
+  object-fit: cover;
+  background: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface));
+}
+
+.messaging-media-item span {
+  display: block;
+  overflow: hidden;
+  margin-top: 0.25rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--secondary-font), sans-serif;
+  font-size: 0.68rem;
+}
+
+.messaging-media-item:hover span {
+  color: var(--color-primary);
+}
+
+.messaging-media-item {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.messaging-profile-link {
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background var(--motion-fast, 140ms) var(--ease-messaging, ease),
+    transform 100ms var(--ease-messaging, ease);
+}
+
+.messaging-profile-link:hover,
+.messaging-profile-link:focus-visible {
+  background: color-mix(in srgb, var(--color-primary) 4%, var(--color-surface));
+}
+
+.messaging-profile-link:active {
+  transform: scale(0.99);
+}
+
+.messaging-chat-delete-menu,
+.messaging-details-close {
+  transition:
+    background var(--motion-fast, 140ms) var(--ease-messaging, ease),
+    color var(--motion-fast, 140ms) var(--ease-messaging, ease),
+    transform 100ms var(--ease-messaging, ease);
+}
+
+.messaging-details:not([hidden]) {
+  animation: messaging-details-in 220ms var(--ease-messaging, ease);
+}
+
+@keyframes messaging-details-in {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}

@@ -1,0 +1,564 @@
+.container {
+    width: min(100% - 1.5rem, 1500px);
+    margin-inline: auto;
+    padding-inline: 0;
+}
+
+@media (max-width: 768px) {
+    .container {
+        width: min(100% - 0.75rem, 100%);
+        padding-inline: 0;
+    }
+}
+
+.site-logo{
+    width: clamp(5rem, 5vw, 5rem);
+    height: auto;
+}
+
+/* ============================== 
+    Buttons 
+================================= */
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.7rem 1.2rem;
+    border: 1px solid transparent;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    font-weight: 500;
+    transition: 0.2s ease;
+}
+
+.btn-primary {
+    background-color: var(--color-primary);
+    color: var(--color-surface);
+}
+
+.btn-primary:hover {
+    background-color: var(--color-primary-dark);
+}
+
+.btn-link {
+    padding: 0;
+
+    border: none;
+    background: none;
+
+    font: inherit;
+    font-weight: 600;
+
+    cursor: pointer;
+
+    color: var(--color-primary);
+}
+
+.btn-link:hover {
+    text-decoration: underline;
+}
+
+.btn-secondary {
+    background-color: var(--color-secondary);
+    color: var(--color-text);
+}
+
+.btn-outline {
+    text-decoration: none;
+    background-color: transparent;
+    border-color: var(--color-border);
+    color: var(--color-text);
+}
+
+.btn-outline:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
+
+
+
+/* ============================== 
+    Forms 
+================================= */
+
+.form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.form-group-alt {
+    display: flex;
+    gap: 0.4rem;
+}
+
+.form-label {
+    font-weight: 500;
+}
+
+.form-control {
+    width: 100%;
+    padding: 0.7rem 0.8rem;
+    border: 1px solid var(--color-border);
+    border-radius: 0.5rem;
+    background-color: var(--color-surface);
+    color: var(--color-text);
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--color-primary);
+}
+
+.required{
+    color: var(--color-primary-dark);
+    font-size: 1rem;
+}
+
+
+/* ============================== 
+    Alerts 
+================================= */
+
+.messages-container {
+    position: fixed;
+    top: 5rem;
+    right: 2rem;
+    z-index: 9999;
+
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+
+    width: min(400px, calc(100vw - 40px));
+}
+
+.alert {
+    position: relative;
+    overflow: hidden;
+
+    border: 1px solid transparent;
+    border-radius: 8px;
+
+    font-family: var(--secondary-font), sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--color-text) 8%, transparent);
+
+    transition:
+        opacity 0.3s ease-in-out,
+        transform 0.3s ease-in-out;
+}
+
+.alert-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+
+    padding: 14px 16px;
+}
+
+.alert-message {
+    flex: 1;
+}
+
+.alert-dismiss {
+    flex-shrink: 0;
+
+    padding: 6px 12px;
+
+    border: none;
+    border-radius: 6px;
+
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+
+    background: transparent;
+    cursor: pointer;
+
+    transition: background-color 0.3s ease;
+}
+
+.alert-dismiss:hover {
+    background-color: color-mix(in srgb, var(--color-text) 8%, transparent);
+}
+
+
+.alert-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+
+    width: 100%;
+    height: 3px;
+
+    background-color: currentColor;
+
+    transform-origin: left;
+    animation: alert-progress 3s linear forwards;
+}
+
+@keyframes alert-progress {
+    from {
+        transform: scaleX(1);
+    }
+
+    to {
+        transform: scaleX(0);
+    }
+}
+
+
+.alert.fade-out {
+    opacity: 0;
+    transform: translateY(-10px);
+}
+
+
+/* Success */
+.alert-success {
+    color: color-mix(in srgb, var(--color-success) 65%, var(--color-text));
+    background-color: color-mix(in srgb, var(--color-success) 15%, var(--color-surface));
+    border-color: color-mix(in srgb, var(--color-success) 30%, var(--color-surface));
+}
+
+
+.alert-error {
+    color: var(--color-primary-dark);
+    background-color: color-mix(in srgb, var(--color-danger) 15%, var(--color-surface));
+    border-color: color-mix(in srgb, var(--color-danger) 25%, var(--color-surface));
+}
+
+
+.alert-warning {
+    color: color-mix(in srgb, var(--color-secondary-dark) 60%, var(--color-text));
+    background-color: color-mix(in srgb, var(--color-secondary) 15%, var(--color-surface));
+    border-color: color-mix(in srgb, var(--color-secondary) 30%, var(--color-surface));
+}
+
+
+.alert-info {
+    color: color-mix(in srgb, var(--color-info) 70%, var(--color-text));
+    background-color: color-mix(in srgb, var(--color-info) 12%, var(--color-surface));
+    border-color: color-mix(in srgb, var(--color-info) 25%, var(--color-surface));
+}
+
+
+.alert-debug {
+    color: var(--color-text-secondary);
+    background-color: var(--color-surface-muted);
+    border-color: var(--color-border);
+}
+
+
+/* =========================
+   PROFILE
+   ========================= */
+
+.navbar-profile {
+    position: relative;
+    flex-shrink: 0;
+}
+
+/* Focused presentation for the temporary chat placeholder. */
+.chat-coming-soon-modal {
+    background: color-mix(in srgb, var(--color-text) 58%, transparent);
+    backdrop-filter: blur(4px);
+}
+
+.chat-coming-soon-modal .modal-dialog {
+    position: relative;
+    width: min(100%, 430px);
+    padding: 2.25rem 2rem 2rem;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 12%, transparent);
+    border-radius: 1.25rem;
+    background: linear-gradient(145deg, var(--color-surface) 0%, var(--color-background) 100%);
+    box-shadow: 0 24px 70px color-mix(in srgb, var(--color-text) 28%, transparent);
+    text-align: center;
+    animation: chat-modal-in 0.2s ease-out;
+}
+
+.chat-coming-soon-modal .modal-dialog > * + * {
+    margin-top: 0.8rem;
+}
+
+.chat-coming-soon-close {
+    position: absolute;
+    top: 0.85rem;
+    right: 0.85rem;
+}
+
+.chat-coming-soon-icon {
+    display: grid;
+    place-items: center;
+    width: 4.25rem;
+    height: 4.25rem;
+    margin: 0 auto;
+    border: 8px solid color-mix(in srgb, var(--color-primary) 10%, var(--color-surface));
+    border-radius: 50%;
+    background: var(--color-primary);
+    color: var(--color-surface);
+    font-size: 1.65rem;
+    box-shadow: 0 8px 18px color-mix(in srgb, var(--color-primary) 22%, transparent);
+}
+
+.chat-coming-soon-eyebrow {
+    margin: 0;
+    color: var(--color-primary);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.chat-coming-soon-modal h2 {
+    margin: 0;
+    color: var(--color-text);
+    font-size: 1.55rem;
+}
+
+.chat-coming-soon-copy {
+    max-width: 30rem;
+    margin: 0 auto;
+    color: var(--color-text-muted);
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+
+.chat-coming-soon-action {
+    width: 100%;
+    margin-top: 0.4rem;
+    border-radius: 0.65rem;
+    font-weight: 700;
+}
+
+@keyframes chat-modal-in {
+    from { opacity: 0; transform: translateY(8px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (max-width: 520px) {
+    .chat-coming-soon-modal .modal-dialog {
+        padding: 2rem 1.25rem 1.25rem;
+    }
+}
+
+#profile-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 0;
+
+    background: none;
+    border: none;
+    cursor: pointer;
+
+    border-radius: 50%;
+}
+
+.profile-avatar {
+    width: 40px;
+    height: 40px;
+
+    object-fit: cover;
+    max-width: none;
+    object-position: center;
+    clip-path: circle(50%);
+    border-radius: 50%;
+
+    border: 2px solid color-mix(in srgb, var(--color-surface) 50%, transparent);
+}
+
+#profile-toggle:hover .profile-avatar {
+    border-color: var(--color-surface);
+}
+
+.dropdown-menu {
+    display: none;
+    flex-direction: column;
+
+    position: absolute;
+    top: calc(100% + 0.75rem);
+    right: 0;
+
+    width: 260px;
+
+    padding: 0.5rem;
+
+    background-color: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+
+    box-shadow: 0 10px 30px color-mix(in srgb, var(--color-text) 12%, transparent);
+
+    z-index: 200;
+}
+
+.dropdown-menu.open {
+    display: flex;
+}
+
+.dropdown-header {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.75rem;
+
+    padding: 0.5rem 0.75rem 0.75rem;
+    margin-bottom: 0.25rem;
+
+    border-bottom: 1px solid var(--color-border);
+}
+
+.profile-avatar-lg {
+    width: 48px;
+    height: 48px;
+
+    object-fit: cover;
+    max-width: none;
+    object-position: center;
+    clip-path: circle(50%);
+    border-radius: 50%;
+
+    flex-shrink: 0;
+}
+
+.dropdown-user-info {
+    display: flex;
+    flex-direction: column;
+
+    min-width: 0;
+}
+
+.dropdown-name {
+    font-weight: 600;
+    color: var(--color-text);
+
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dropdown-email {
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dropdown-item {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.75rem;
+
+    width: 100%;
+    box-sizing: border-box;
+
+    padding: 0.6rem 0.75rem;
+
+    background: none;
+    border: none;
+    border-radius: 8px;
+
+    font: inherit;
+    font-size: 0.9rem;
+    color: var(--color-text);
+    text-align: left;
+
+    cursor: pointer;
+
+    transition: background-color 0.15s ease;
+}
+
+.dropdown-item i {
+    font-size: 1rem;
+    line-height: 1;
+    flex-shrink: 0;
+
+    color: var(--color-text-muted);
+}
+
+.dropdown-item:hover {
+    background-color: var(--color-surface);
+}
+
+.dropdown-item-danger {
+    color: var(--color-danger);
+}
+
+.dropdown-item-danger i {
+    color: var(--color-danger);
+}
+
+#profile-picture-form {
+    width: 100%;
+}
+
+
+@media (max-width: 768px) {
+
+    
+  #navbar {
+        padding: 0.75rem 1rem;
+        gap: 0.75rem;
+    }
+
+    .hamburger-btn {
+        display: flex;
+        order: -1;
+    }
+
+    .navbar-links {
+        display: none;
+    }
+
+    .navbar-site-name{
+        display: none;
+    }
+
+    .navbar-search {
+        max-width: none;
+    }
+
+    .navbar-actions {
+        gap: 0.25rem;
+    }
+
+    .dropdown-menu {
+        width: 240px;
+    }
+
+    .container {
+        width: min(100% - 1rem, 1200px);
+    }
+
+    .btn {
+        width: 100%;
+    }
+
+   .messages-container {
+        top: 10px;
+        right: 10px;
+        left: 10px;
+
+        width: auto;
+    }
+
+    .alert {
+        padding: 12px 14px;
+    }
+}

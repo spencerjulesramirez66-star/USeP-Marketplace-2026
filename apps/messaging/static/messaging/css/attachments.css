@@ -1,0 +1,121 @@
+/* ==========================================================================
+   Messaging: attachments inside messages
+   Image, video and file attachment bubbles shown in the thread.
+   Markup: messaging/components/message.html
+   Colors / fonts: use the :root variables from base.css (no hard-coded colors).
+   ========================================================================== */
+
+.messaging-attachment-bubbles {
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.messaging-message-row.own .messaging-attachment-bubbles {
+  align-items: flex-end;
+}
+
+.messaging-attachment-bubble {
+  max-width: min(100%, 420px);
+  overflow: hidden;
+  border-radius: 0.7rem;
+  text-decoration: none;
+}
+
+.messaging-file-attachment {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: min(100%, 420px);
+  min-width: 0;
+  padding: 0.68rem 0.78rem;
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 4%, var(--color-surface));
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-text) 5%, transparent);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.messaging-message-row.own .messaging-file-attachment {
+  color: color-mix(in srgb, var(--color-secondary) 18%, var(--color-surface));
+  background: var(--color-primary);
+}
+
+.messaging-file-attachment > i {
+  flex: 0 0 auto;
+  font-size: 1rem;
+}
+
+.messaging-file-attachment > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.messaging-image-attachment.messaging-attachment-bubble {
+  display: block;
+  width: min(100%, 420px);
+  margin-top: 0;
+  background: var(--color-border);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-text) 5%, transparent);
+}
+
+.messaging-attachment {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+  color: var(--color-primary);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.messaging-image-attachment {
+  display: block;
+  width: min(420px, 100%);
+  margin-top: 0.5rem;
+  overflow: hidden;
+  border-radius: 0.65rem;
+}
+
+.messaging-image-attachment img {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  max-height: 420px;
+  object-fit: contain;
+}
+
+.messaging-bubble.own .messaging-attachment {
+  color: color-mix(in srgb, var(--color-secondary) 18%, var(--color-surface));
+}
+
+.messaging-video-attachment video {
+  max-width: 260px;
+  max-height: 260px;
+  border-radius: 12px;
+  display: block;
+}
+
+.messaging-message-row.pending .messaging-attachment-bubble {
+  opacity: 0.72;
+}
+
+/* Mobile: attachments must not trigger the native link/image hold menu, so holding opens message actions. */
+@media (max-width: 760px) {
+  .messaging-attachment-bubble {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  .messaging-attachment-bubble img {
+    pointer-events: none;
+    -webkit-user-drag: none;
+  }
+}

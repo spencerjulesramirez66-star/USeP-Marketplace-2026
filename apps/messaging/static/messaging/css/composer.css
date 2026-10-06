@@ -1,0 +1,412 @@
+/* ==========================================================================
+   Messaging: composer
+   Compose form: textarea + send button, attach menu, pending-attachment previews,
+   attachment warning, reply / edit state bars.
+   Markup: messaging/components/composer.html
+   Colors / fonts: use the :root variables from base.css (no hard-coded colors).
+   ========================================================================== */
+
+.messaging-edit-state {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--color-primary);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.messaging-edit-state[hidden] {
+  display: none;
+}
+
+.messaging-edit-state button {
+  border: 0;
+  color: var(--color-primary);
+  background: transparent;
+  cursor: pointer;
+}
+
+.messaging-reply-state {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.45rem;
+  padding: 0.55rem 0.7rem;
+  border-left: 3px solid var(--color-primary);
+  border-radius: 0.45rem;
+  background: color-mix(in srgb, var(--color-primary) 4%, var(--color-surface));
+  animation: messaging-reply-in 180ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.messaging-reply-state[hidden] {
+  display: none;
+}
+
+.messaging-reply-state span {
+  display: grid;
+  min-width: 0;
+  gap: 0.1rem;
+  font-size: 0.75rem;
+  color: var(--color-primary);
+}
+
+.messaging-reply-state em {
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.messaging-reply-state button {
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .messaging-reply-state {
+    animation: none;
+  }
+}
+
+.messaging-compose-form {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.55rem;
+  padding: 0.9rem 1.35rem 1.1rem;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.messaging-compose-controls {
+  display: flex;
+  align-items: flex-end;
+  min-width: 0;
+  gap: 0.6rem;
+}
+
+.messaging-compose-controls textarea {
+  min-height: 42px;
+  max-height: 120px;
+  min-width: 0;
+  flex: 1;
+  resize: none;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: 1.25rem;
+  outline: 0;
+  background: var(--color-surface-muted);
+}
+
+.messaging-attachment-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.messaging-attach-button {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface));
+  cursor: pointer;
+}
+
+.messaging-attach-button:hover,
+.messaging-attach-button:focus-within {
+  background: color-mix(in srgb, var(--color-primary) 15%, var(--color-surface));
+}
+
+.messaging-attachment-preview {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.messaging-attachment-menu-wrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.messaging-attachment-menu {
+  position: absolute;
+  bottom: calc(100% + 0.65rem);
+  left: 0;
+  z-index: 8;
+  display: grid;
+  min-width: 174px;
+  width: max-content;
+  padding: 0.35rem;
+  max-width: min(260px, calc(100vw - 2rem)); 
+  border: 1px solid var(--color-border);
+  border-radius: 0.7rem;
+  background: var(--color-surface);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--color-text) 16%, transparent);
+  animation: messaging-attachment-menu-in 0.15s ease-out;
+}
+
+.messaging-attachment-menu[hidden] {
+  display: none;
+}
+
+.messaging-attachment-menu button {
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 42px;
+  padding: 0.55rem 0.65rem;
+  border: 0;
+  border-radius: 0.45rem;
+  color: var(--color-text);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.messaging-attachment-menu button:hover,
+.messaging-attachment-menu button:focus-visible {
+  background: color-mix(in srgb, var(--color-primary) 4%, var(--color-surface));
+  color: var(--color-primary);
+}
+
+@keyframes messaging-attachment-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .messaging-attachment-menu {
+    animation: none;
+  }
+}
+
+.messaging-attachment-preview-card {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+  max-width: 100%;
+  flex: 0 1 420px;
+  min-height: 42px;
+  padding: 0.25rem 0.35rem;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 20%, var(--color-border));
+  border-radius: 0.65rem;
+  color: var(--color-text);
+  background: color-mix(in srgb, var(--color-primary) 4%, var(--color-surface));
+}
+
+.messaging-attachment-preview-image {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  border-radius: 0.4rem;
+  object-fit: cover;
+}
+
+.messaging-attachment-preview-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  color: var(--color-primary);
+  font-size: 1.3rem;
+}
+
+.messaging-attachment-preview-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--secondary-font), sans-serif;
+  font-size: 0.72rem;
+}
+
+.messaging-attachment-preview-remove {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 50%;
+  color: var(--color-text-muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.messaging-attachment-preview-remove:hover {
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 15%, var(--color-surface));
+}
+
+.messaging-attachment-warning {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--color-secondary) 55%, var(--color-surface));
+  border-radius: 0.65rem;
+  color: color-mix(in srgb, var(--color-secondary-dark) 60%, var(--color-text));
+  background: color-mix(in srgb, var(--color-primary) 4%, var(--color-surface));
+  font-family: var(--secondary-font), sans-serif;
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.messaging-attachment-warning[hidden] {
+  display: none;
+}
+
+.messaging-compose-controls textarea:focus {
+  border-color: var(--color-secondary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-secondary) 14%, transparent);
+}
+
+.messaging-compose-controls > button {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 50%;
+  color: var(--color-surface);
+  background: var(--color-primary);
+  cursor: pointer;
+}
+
+.messaging-compose-controls > button:hover {
+  background: var(--color-primary-dark);
+}
+
+@media (max-width: 760px) {
+  .messaging-compose-form {
+    padding: 0.7rem 0.75rem calc(0.7rem + env(safe-area-inset-bottom));
+  }
+}
+
+.messaging-compose-form {
+  gap: 0.4rem;
+  padding: 0.55rem 1rem calc(0.55rem + env(safe-area-inset-bottom));
+}
+
+.messaging-compose-controls {
+  align-items: center;
+}
+
+.messaging-compose-controls textarea {
+  height: 38px;
+  min-height: 38px;
+  max-height: 120px;
+  padding: 8px 0.9rem;
+  line-height: 20px;
+}
+
+.messaging-attach-button {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  transition:
+    background var(--motion-fast) var(--ease-messaging),
+    transform 100ms var(--ease-messaging);
+}
+
+.messaging-attach-button[aria-expanded="true"] {
+  background: var(--color-primary);
+  color: var(--color-surface);
+  transform: rotate(45deg);
+}
+
+.messaging-attachment-preview {
+  gap: 0.4rem;
+  overflow-x: auto;
+  padding: 0.1rem 0;
+}
+
+.messaging-attachment-preview-card {
+  flex: 0 0 auto;
+  max-width: 180px;
+  animation: messaging-enter var(--motion-standard) var(--ease-messaging);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .messaging-attachment-preview-card {
+    animation: none;
+  }
+
+  .messaging-attach-button {
+    transition: none;
+  }
+}
+
+.messaging-attachment-preview-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.messaging-attachment-preview-item .messaging-attachment-preview-file {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.messaging-attachment-preview-item [data-remove-attachment] {
+  position: static;
+  margin-left: auto;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.messaging-attachment-preview-item [data-remove-attachment]:hover {
+  background: color-mix(in srgb, var(--color-text) 8%, transparent);
+  color: var(--color-danger);
+}
+
+.messaging-attachment-preview-item [data-remove-attachment]:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.messaging-attachment-preview-item [data-remove-attachment] .bi {
+  pointer-events: none;
+}

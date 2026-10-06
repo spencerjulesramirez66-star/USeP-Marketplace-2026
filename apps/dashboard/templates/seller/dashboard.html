@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Seller workspace | USeP Marketplace{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/seller/seller-dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/seller/seller-forms.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="seller-shell dashboard-shell">
+    {% include 'components/navbar.html' %}
+    <main class="seller-main dashboard-main container" data-initial-manage-id="{{ manage_listing_id|default:'' }}">
+
+        <section class="seller-heading dashboard-banner">
+            <div>
+                <p class="eyebrow">Your marketplace workspace</p>
+                <h1>Seller dashboard</h1>
+                <p>Keep track of your listings and connect with buyers around campus.</p>
+            </div>
+            <div class="heading-actions">
+                <a class="btn btn-primary" href="{% url 'messaging:schedule' %}"><i class="bi bi-calendar-week" aria-hidden="true"></i> Order schedule</a>
+                <button class="btn btn-primary" type="button" data-open-modal="add-listing-modal"><i class="bi bi-plus-lg" aria-hidden="true"></i> Add listing</button>
+            </div>
+        </section>
+
+        <section class="stat-grid" aria-label="Seller statistics">
+            <article class="stat-card"><span class="stat-kicker">Marketplace activity</span><span class="stat-label">Active listings</span><strong>{{ active_count }}</strong><small>Visible to campus</small></article>
+            <article class="stat-card stat-card-accent"><span class="stat-kicker">Marketplace activity</span><span class="stat-label">Total views</span><strong>{{ total_views }}</strong><small>Across your listings</small></article>
+            <article class="stat-card stat-card-gold"><span class="stat-kicker">Marketplace activity</span><span class="stat-label">Items sold</span><strong>{{ sold_count }}</strong><small>Completed exchanges</small></article>
+        </section>
+
+        <section class="note-banner">
+            <span class="note-banner-mark">i</span>
+            <div>
+                <h2>Meet buyers safely</h2>
+                <p>Use a public campus location for meetups and keep conversations inside the marketplace.</p>
+            </div>
+        </section>
+
+        <section class="seller-listings">
+           <form class="listing-filters" id="listing-filters">
+                <label class="filter-search">
+                    <i class="bi bi-search" aria-hidden="true"></i>
+                    <input class="filter-search-input" type="search" id="listing-search" placeholder="Search your listings" aria-label="Search your listings">
+                </label>
+                <select class="filter-button" id="listing-status-filter" aria-label="Filter by listing status">
+                    <option value="all" selected>All statuses</option>
+                    <option value="active">Active</option>
+                    <option value="sold">Sold</option>
+                    <option value="archived">Unavailable</option>
+                </select>
+            </form>
+            <div class="seller-list" id="seller-list">
+                {% for listing in listings %}
+                    {% include 'seller/listing_card.html' %}
+                {% empty %}
+                    <p class="empty-state">You have not published any listings yet.</p>
+                {% endfor %}
+                <p class="empty-state" id="no-filter-results" hidden>No listings match your filters.</p>
+            </div>
+        </section>
+    </main>
+</div>
+
+{% include 'seller/add_listing_modal.html' %}
+{% include 'seller/manage_listing_modal.html' %}
+
+<div class="modal-overlay" id="delete-confirm-modal" hidden>
+    <div class="modal-dialog">
+        <h2>Delete this listing?</h2>
+        <p>This can't be undone. The listing will be removed from the marketplace.</p>
+        <div class="delete-actions">
+            <button class="btn btn-outline" type="button" data-close-modal="delete-confirm-modal">Cancel</button>
+            <form id="delete-listing-form" method="post">
+                {% csrf_token %}
+                <button class="btn btn-delete" type="submit">Delete</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/seller/seller-core.js' %}" defer></script>
+<script src="{% static 'js/seller/seller-dashboard.js' %}" defer></script>
+{% endblock %}

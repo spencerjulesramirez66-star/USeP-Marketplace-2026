@@ -1,0 +1,26 @@
+{# Scrolling message thread (data-* hooks for messaging/js live on this root). Needs: conversation, conversation_messages, chat_participant, last_message_id, server_time. #}
+        <div class="messaging-thread"
+             data-shared-url="{% url 'messaging:conversation_shared' conversation.id %}"
+             data-poll-url="{% url 'messaging:conversation_new_messages' conversation.id %}"
+             data-read-url="{% url 'messaging:conversation_read' conversation.id %}"
+             data-other-avatar="{{ chat_participant.avatar_url }}"
+             data-typing-url="{% url 'messaging:conversation_typing' conversation.id %}"
+             data-links-url="{% url 'messaging:conversation_links' conversation.id %}"
+             data-link-preview-url="{% url 'messaging:link_preview' %}"
+             data-delete-url-template="{% url 'messaging:delete_message' conversation.id 0 %}"
+             data-edit-url-template="{% url 'messaging:edit_message' conversation.id 0 %}"
+             data-history-url-template="{% url 'messaging:message_history' conversation.id 0 %}"
+             data-clear-url="{% url 'messaging:clear_conversation' conversation.id %}"
+             data-last-message-id="{{ last_message_id }}"
+             data-server-time="{{ server_time }}">
+{% include 'messaging/components/listing_context.html' %}
+            <div class="messaging-thread-intro">
+                <div class="messaging-thread-mark"><i class="bi bi-shop" aria-hidden="true"></i></div>
+                <strong>{{ conversation.listing.title }}</strong>
+                <span>Keep meetups in public campus locations.</span>
+            </div>
+            {% for message in conversation_messages %}
+                {% include 'messaging/components/message.html' %}
+            {% endfor %}
+            <div class="messaging-thread-bottom" aria-hidden="true"></div>
+        </div>

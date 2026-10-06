@@ -1,0 +1,190 @@
+main{
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.dashboard-shell {
+    min-height: 100dvh;
+    background: linear-gradient(135deg, #fffaf4 0%, var(--color-background) 52%, #eef5ff 100%);
+}
+
+.dashboard-main {
+    padding: 2rem 2.5rem;
+}
+
+/* Page heading banner (dark red banner with the circle decoration) */
+.dashboard-banner {
+    position: relative;
+    overflow: hidden;
+    padding: 1.8rem 2rem;
+    background: linear-gradient(135deg, #f4efe9 0%, #f7f7f7 45%, #eef5ff 100%);
+    border: 1px solid rgba(15, 23, 42, 0.09);
+    border-radius: 1.2rem;
+    color: var(--color-text);
+    box-shadow: none;
+}
+.dashboard-banner::after {
+    content: none;
+}
+.dashboard-banner h1 {
+    position: relative;
+    z-index: 1;
+    color: var(--color-text);
+    font-size: clamp(2.3rem, 5vw, 4rem);
+    letter-spacing: -0.04em;
+    line-height: 0.98;
+}
+.dashboard-banner .eyebrow {
+    position: relative;
+    z-index: 1;
+    color: #d97706;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+.dashboard-banner p:not(.eyebrow) {
+    position: relative;
+    z-index: 1;
+    margin-top: 0.6rem;
+    color: #4b5563;
+}
+.dashboard-banner .btn,
+.dashboard-banner .status-pill {
+    position: relative;
+    z-index: 1;
+}
+
+.heading-actions{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    align-items:center
+}
+
+/* Stat cards */
+.stat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+.stat-card {
+    position: relative;
+    overflow: hidden;
+    padding: 1.3rem 1.5rem;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-top: 4px solid var(--color-primary);
+    border-radius: 0.65rem;
+    box-shadow: 0 8px 20px rgba(23, 23, 23, 0.05);
+}
+.stat-card::after {
+    position: absolute;
+    right: -28px;
+    bottom: -42px;
+    width: 105px;
+    height: 105px;
+    border: 12px solid var(--color-secondary);
+    border-radius: 50%;
+    opacity: 0.35;
+    content: "";
+}
+.stat-card-accent { border-top-color: var(--color-accent); }
+.stat-card-gold { border-top-color: var(--color-secondary-dark); }
+.stat-kicker {
+    display: block;
+    margin-bottom: 0.8rem;
+    color: var(--color-primary);
+    font-family: var(--secondary-font);
+    font-size: 0.67rem;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+}
+.stat-card-accent .stat-kicker { color: var(--color-accent); }
+.stat-card-gold .stat-kicker { color: var(--color-secondary-dark); }
+.stat-label {
+    display: block;
+    color: var(--color-text-muted);
+    font-family: var(--secondary-font);
+    font-size: 0.8rem;
+}
+.stat-card strong {
+    position: relative;
+    z-index: 1;
+    display: block;
+    margin: 0.35rem 0;
+    color: var(--color-primary);
+    font-size: 2.2rem;
+}
+.stat-card-accent strong { color: var(--color-accent); }
+.stat-card-gold strong { color: var(--color-secondary-dark); }
+.stat-card small {
+    display: block;
+    color: var(--color-text-muted);
+    font-family: var(--secondary-font);
+    font-size: 0.8rem;
+}
+
+/* Info / tip banner */
+.note-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+    padding: 1.25rem 1.5rem;
+    background: #fff7ed;
+    border-left: 4px solid var(--color-secondary);
+    border-radius: 0.5rem;
+}
+.note-banner-mark {
+    display: grid;
+    place-items: center;
+    width: 25px;
+    height: 25px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    color: var(--color-surface);
+    background: var(--color-secondary-dark);
+    font-weight: 700;
+}
+.note-banner h2 { margin-bottom: 0.25rem; font-size: 1rem; }
+.note-banner p { color: var(--color-text-secondary); font-size: 0.9rem; }
+
+/* Status pills (listing status badges) */
+.status-pill {
+    padding: 0.2rem 0.5rem;
+    border-radius: 99px;
+    color: #166534;
+    background: #dcfce7;
+    font-family: var(--secondary-font);
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+.status-pill-sold { color: #991b1b; background: #fee2e2; }
+.status-pill-unavailable { color: #9a3412; background: #ffedd5; }
+
+/* Generic surface panel */
+.panel {
+    padding: 1.25rem;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 0.75rem;
+    box-shadow: 0 10px 25px rgba(23, 23, 23, 0.06);
+}
+
+/* Empty state */
+.empty-state {
+    padding: 2rem;
+    text-align: center;
+    color: var(--color-text-muted);
+    background: var(--color-surface);
+    border: 1px dashed var(--color-border);
+    border-radius: 0.65rem;
+}
+
+@media (max-width: 768px) {
+    .dashboard-main { padding-top: 1.5rem; }
+    .dashboard-banner { align-items: flex-start; flex-direction: column; }
+    .stat-grid { grid-template-columns: 1fr; gap: 0.7rem; margin-bottom: 2.5rem; }
+}

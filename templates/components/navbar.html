@@ -1,0 +1,117 @@
+{% load static %}
+
+<nav id="navbar">
+    <button type="button" id="categories-menu-btn" class="hamburger-btn" aria-label="Open navigation" aria-expanded="false" aria-controls="categories-menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+    <a href="{% url 'dashboard:buyer' %}" class="navbar-brand">
+        <img class="site-logo" src="{% static 'images/site-logo.png' %}" alt="USeP Marketplace Logo">
+        <span class="navbar-site-name">USeP Marketplace</span>
+    </a>
+
+    <div class="navbar-links" aria-label="Main navigation">
+        <a href="{% url 'dashboard:buyer' %}" class="nav-link{% if request.resolver_match.url_name == 'buyer' or request.resolver_match.url_name == 'buyer_detail' or request.resolver_match.url_name == 'buyer_cart' %} active{% endif %}" {% if request.resolver_match.url_name == 'buyer' or request.resolver_match.url_name == 'buyer_detail' or request.resolver_match.url_name == 'buyer_cart' %} aria-current="page"{% endif %}>Shop</a>
+       
+        {% if request.user.is_authenticated %}
+            <a href="{% url 'dashboard:seller' %}" class="nav-link{% if request.resolver_match.url_name == 'seller' or request.resolver_match.url_name == 'edit_listing' %} active{% endif %}" {% if request.resolver_match.url_name == 'seller' or request.resolver_match.url_name == 'edit_listing' %} aria-current="page"{% endif %}>My products</a>
+        {% endif %}
+    </div>
+
+    <form class="navbar-search" method="get" action="{% url 'dashboard:buyer' %}">
+        <i class="bi bi-search"></i>
+        <input
+            class="form-control"
+            type="search"
+            name="q"
+            placeholder="Search products, services..."
+            value="{{ request.GET.q }}"
+            autocomplete="off"
+            aria-label="Search products or services"
+        >
+        <button class="navbar-mobile-search-submit" type="button" aria-label="Search marketplace" title="Search marketplace"><i class="bi bi-search" aria-hidden="true"></i></button>
+    </form>
+
+    <div class="navbar-actions">
+        <a href="{% url 'dashboard:buyer_cart' %}" class="navbar-icon-btn cart-link" aria-label="Cart">
+            <i class="bi bi-cart3"></i>
+            <span id="navbar-cart-badge" class="navbar-badge">{% if request.user.is_authenticated %}{{ request.user.saved_items.count }}{% else %}0{% endif %}</span>
+        </a>
+
+        {% if request.user.is_authenticated %}
+        <a href="{% url 'messaging:conversation_list' %}" class="navbar-icon-btn" aria-label="Messages" data-unread-count-url="{% url 'messaging:unread_message_count' %}" data-notification-socket-path="/ws/notifications/">
+            <i class="bi bi-chat-dots"></i>
+            <span class="navbar-badge navbar-message-badge" data-message-unread-badge{% if not unread_message_count %} hidden{% endif %}>{% if unread_message_count > 99 %}99+{% else %}{{ unread_message_count }}{% endif %}</span>
+        </a>
+        {% endif %}
+
+        {% if request.user.is_authenticated %}
+        <div class="navbar-profile">
+            <button
+                type="button"
+                id="profile-toggle"
+                aria-haspopup="true"
+                aria-expanded="false"
+            >
+                <img
+                    class="profile-avatar"
+                    src="{{ request.user.avatar_url }}"
+                    alt="{{ request.user.first_name }}'s profile picture"
+                >
+            </button>
+            <div id="profile-dropdown" class="dropdown-menu">
+            <div class="dropdown-header">
+                <img
+                    class="profile-avatar-lg"
+                    src="{{ request.user.avatar_url }}"
+                    alt="{{ request.user.first_name }}'s profile picture"
+                >
+                <div class="dropdown-user-info">
+                    <span class="dropdown-name">{{ request.user.first_name }} {{ request.user.last_name }}</span>
+                    <span class="dropdown-email">{{ request.user.email }}</span>
+                </div>
+            </div>
+            <a href="{% url 'profile' %}" class="dropdown-item">
+                <i class="bi bi-person"></i>
+                View Profile
+            </a>
+            <form method="post" action="{% url 'logout' %}">
+                {% csrf_token %}
+                <button type="submit" class="dropdown-item dropdown-item-danger">
+                    <i class="bi bi-box-arrow-right"></i>
+                    Logout
+                </button>
+            </form>
+        </div>
+    </div>
+        {% else %}
+        <a href="{% url 'login' %}" class="navbar-login-btn">Login</a>
+        {% endif %}
+    </div>
+</nav>
+
+<div id="categories-menu" class="categories-menu" aria-hidden="true">
+    <div class="categories-menu-content">
+        <nav class="mobile-primary-links" aria-label="Mobile navigation">
+            <a href="{% url 'dashboard:buyer' %}"><i class="bi bi-shop" aria-hidden="true"></i>Shop</a>
+            {% if request.user.is_authenticated %}
+            <a href="{% url 'dashboard:seller' %}"><i class="bi bi-box-seam" aria-hidden="true"></i>My products</a>
+            {% else %}
+            <a href="{% url 'login' %}"><i class="bi bi-box-arrow-in-right" aria-hidden="true"></i>Login</a>
+            {% endif %}
+        </nav>
+        <h3>Browse Categories</h3>
+        <ul class="categories-menu-list">
+            {% for category in categories %}
+                <li>
+                    <a href="{% url 'dashboard:buyer' %}?category={{ category.slug }}{% if query %}&q={{ query|urlencode }}{% endif %}">
+                        {{ category.label }}
+                        <span class="category-count">{{ category.count }}</span>
+                    </a>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>

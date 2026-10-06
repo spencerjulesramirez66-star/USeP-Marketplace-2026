@@ -1,0 +1,747 @@
+/* ==========================================================================
+   Messaging: in-conversation message search
+   Search bar that replaces the chat header, plus the dropdown results panel.
+   Markup: messaging/components/chat_header.html + message_search_panel.html
+   Colors / fonts: use the :root variables from base.css (no hard-coded colors).
+   ========================================================================== */
+
+.messaging-message-search-header {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.messaging-message-search-header[hidden] {
+  display: none;
+}
+
+.messaging-message-search-panel {
+  position: absolute;
+  z-index: 4;
+  top: 78px;
+  right: 0;
+  left: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 0.55rem;
+  width: auto;
+  max-height: min(55dvh, 460px);
+  padding: 0.8rem;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-top: 0;
+  border-radius: 0 0 0.8rem 0.8rem;
+  background: var(--color-surface);
+  box-shadow: 0 14px 32px color-mix(in srgb, var(--color-text) 16%, transparent);
+  animation: messaging-search-enter 180ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.messaging-message-search-panel[hidden] {
+  display: none;
+}
+
+.messaging-message-search-panel.is-closing {
+  animation: messaging-search-exit 160ms cubic-bezier(0.2, 0, 0, 1) forwards;
+}
+
+.messaging-message-search-header {
+  animation: messaging-search-enter 180ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.messaging-message-search-header.is-closing {
+  animation: messaging-search-exit 160ms cubic-bezier(0.2, 0, 0, 1) forwards;
+}
+
+.messaging-message-search-header .messaging-message-search-controls {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 20%, var(--color-border));
+  border-radius: 0.6rem;
+  color: var(--color-text-muted);
+  background: color-mix(in srgb, var(--color-primary) 4%, var(--color-surface));
+}
+
+.messaging-message-search-header .messaging-message-search-controls input {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  outline: 0;
+  color: var(--color-text);
+  background: transparent;
+}
+
+.messaging-message-search-header > button {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: var(--color-text-muted);
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background-color 140ms cubic-bezier(0.2, 0, 0, 1),
+    transform 100ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.messaging-message-search-header > button:hover,
+.messaging-message-search-header > button:focus-visible {
+  color: var(--color-text-secondary);
+  background: var(--color-border);
+  outline: 0;
+  transform: translateY(-1px);
+}
+
+.messaging-message-search-header > button:active {
+  transform: scale(0.94);
+}
+
+.messaging-message-search-status {
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+}
+
+.messaging-message-search-results {
+  display: grid;
+  min-height: 0;
+  gap: 0.35rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.messaging-message-search-result {
+  display: grid;
+  gap: 0.16rem;
+  width: 100%;
+  padding: 0.6rem;
+  border: 1px solid transparent;
+  border-radius: 0.6rem;
+  color: var(--color-text);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  animation: messaging-search-enter 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.messaging-message-search-result:hover,
+.messaging-message-search-result:focus-visible {
+  border-color: color-mix(in srgb, var(--color-secondary) 35%, var(--color-surface));
+  background: color-mix(in srgb, var(--color-primary) 4%, var(--color-surface));
+  outline: 0;
+}
+
+.messaging-message-search-result.is-selected {
+  border-color: color-mix(in srgb, var(--color-primary) 20%, var(--color-border));
+  background: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface));
+}
+
+.messaging-message-search-result strong {
+  font-size: 0.8rem;
+}
+
+.messaging-message-search-result span {
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.messaging-message-search-result time {
+  color: var(--color-text-muted);
+  font-size: 0.7rem;
+}
+
+.messaging-message-search-result mark {
+  padding: 0;
+  color: inherit;
+  background: color-mix(in srgb, var(--color-secondary) 30%, var(--color-surface));
+}
+
+.messaging-message-search-header {
+  gap: 0.55rem;
+}
+
+.messaging-message-search-header .messaging-message-search-controls {
+  min-height: 42px;
+  padding: 0.5rem 0.75rem;
+  border-color: var(--color-border);
+  border-radius: 0.7rem;
+  background: var(--color-background);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-surface) 70%, transparent);
+  transition:
+    border-color 140ms cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 140ms cubic-bezier(0.2, 0, 0, 1),
+    background-color 140ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.messaging-message-search-header .messaging-message-search-controls:focus-within {
+  border-color: color-mix(in srgb, var(--color-secondary) 60%, var(--color-surface));
+  background: var(--color-surface);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-secondary) 14%, transparent);
+}
+
+.messaging-message-search-header .messaging-message-search-controls > i {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.messaging-message-search-header .messaging-message-search-controls input {
+  font-size: 0.9rem;
+  line-height: 1.3;
+}
+
+.messaging-message-search-header .messaging-message-search-controls input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.messaging-message-search-header > button {
+  width: 38px;
+  height: 38px;
+  color: var(--color-text-muted);
+}
+
+.messaging-message-search-panel {
+  border-color: var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 98%, transparent);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--color-text) 14%, transparent);
+}
+
+.messaging-message-search-status {
+  margin: 0;
+  padding: 0.15rem 0.2rem 0.35rem;
+  color: var(--color-text-muted);
+  font-size: 0.76rem;
+}
+
+.messaging-message-search-results {
+  gap: 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.messaging-message-search-result {
+  gap: 0.24rem;
+  padding: 0.72rem 0.7rem;
+  border-width: 0 0 1px;
+  border-radius: 0;
+  border-bottom-color: var(--color-border);
+  transition:
+    background-color 120ms cubic-bezier(0.2, 0, 0, 1),
+    transform 100ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.messaging-message-search-result:last-child {
+  border-bottom: 0;
+}
+
+.messaging-message-search-result:hover,
+.messaging-message-search-result:focus-visible {
+  border-color: var(--color-border);
+  background: color-mix(in srgb, var(--color-primary) 4%, var(--color-surface));
+}
+
+.messaging-message-search-result:active {
+  transform: scale(0.995);
+}
+
+.messaging-message-search-result.is-selected {
+  border-left: 3px solid var(--color-secondary);
+  padding-left: calc(0.7rem - 3px);
+  background: color-mix(in srgb, var(--color-primary) 6%, var(--color-surface));
+}
+
+.messaging-message-search-result strong {
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.messaging-message-search-result span {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  line-height: 1.35;
+  text-overflow: clip;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.messaging-message-search-result time {
+  color: var(--color-text-muted);
+  font-size: 0.68rem;
+}
+
+.messaging-message-search-result mark {
+  border-radius: 0.16rem;
+  color: inherit;
+  background: color-mix(in srgb, var(--color-secondary) 25%, var(--color-surface));
+}
+
+.messaging-message-search-results::-webkit-scrollbar {
+  width: 7px;
+}
+
+.messaging-message-search-results::-webkit-scrollbar-thumb {
+  border: 2px solid color-mix(in srgb, var(--color-surface) 98%, transparent);
+  border-radius: 999px;
+  background: var(--color-border);
+}
+
+.messaging-message-search-header {
+  gap: 0.65rem;
+}
+
+.messaging-message-search-header .messaging-message-search-controls {
+  min-height: 42px;
+  padding: 0.55rem 0.9rem;
+  border-color: transparent;
+  border-radius: 999px;
+  background: var(--color-surface-muted);
+  box-shadow: none;
+}
+
+.messaging-message-search-header .messaging-message-search-controls:focus-within {
+  border-color: var(--color-secondary);
+  background: var(--color-surface-muted);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-secondary) 14%, transparent);
+}
+
+.messaging-message-search-header .messaging-message-search-controls > i {
+  color: var(--color-text-muted);
+  font-size: 1rem;
+}
+
+.messaging-message-search-header .messaging-message-search-controls input {
+  font: inherit;
+  color: var(--color-text);
+  line-height: normal;
+}
+
+.messaging-message-search-header .messaging-message-search-controls input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.messaging-message-search-header > button {
+  width: 42px;
+  height: 42px;
+  border: 1px solid transparent;
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface));
+}
+
+.messaging-message-search-header > button:hover,
+.messaging-message-search-header > button:focus-visible {
+  border-color: color-mix(in srgb, var(--color-primary) 20%, var(--color-border));
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 15%, var(--color-surface));
+  box-shadow: 0 4px 10px color-mix(in srgb, var(--color-primary-dark) 12%, transparent);
+}
+
+.messaging-message-search-header > button:active {
+  transform: scale(0.97);
+}
+
+.messaging-message-search-controls {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 0.65rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  animation: messaging-search-enter 180ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.messaging-message-search-field {
+  display: flex;
+  min-width: 0;
+  min-height: 42px;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: var(--color-text-muted);
+  background: var(--color-surface-muted);
+  transition:
+    border-color 140ms cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 140ms cubic-bezier(0.2, 0, 0, 1),
+    background-color 140ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.messaging-message-search-field:focus-within {
+  border-color: var(--color-secondary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-secondary) 14%, transparent);
+}
+
+.messaging-message-search-field > i {
+  flex: 0 0 auto;
+  color: var(--color-text-muted);
+  font-size: 1rem;
+}
+
+#messaging-message-search-input {
+  min-width: 0;
+  flex: 1 1 auto;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  appearance: none;
+  color: var(--color-text);
+  background: transparent;
+  font: inherit;
+  line-height: normal;
+}
+
+#messaging-message-search-input::placeholder {
+  color: var(--color-text-muted);
+}
+
+#messaging-message-search-close {
+  display: inline-flex;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  appearance: none;
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface));
+  box-shadow: none;
+  cursor: pointer;
+  transition:
+    border-color 120ms cubic-bezier(0.2, 0, 0, 1),
+    background-color 120ms cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 120ms cubic-bezier(0.2, 0, 0, 1),
+    transform 100ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+#messaging-message-search-close:hover,
+#messaging-message-search-close:focus-visible {
+  border-color: color-mix(in srgb, var(--color-primary) 20%, var(--color-border));
+  background: color-mix(in srgb, var(--color-primary) 15%, var(--color-surface));
+  box-shadow: 0 4px 10px color-mix(in srgb, var(--color-primary-dark) 12%, transparent);
+  outline: 0;
+}
+
+#messaging-message-search-close:active {
+  transform: scale(0.97);
+}
+
+.messaging-message-search-counter {
+  flex: 0 0 auto;
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.messaging-message-search-nav-button {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  appearance: none;
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface));
+  box-shadow: none;
+  cursor: pointer;
+  transition:
+    border-color 120ms cubic-bezier(0.2, 0, 0, 1),
+    background-color 120ms cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 120ms cubic-bezier(0.2, 0, 0, 1),
+    transform 100ms cubic-bezier(0.2, 0, 0, 1),
+    opacity 120ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.messaging-message-search-nav-button:hover:not(:disabled),
+.messaging-message-search-nav-button:focus-visible:not(:disabled) {
+  border-color: color-mix(in srgb, var(--color-primary) 20%, var(--color-border));
+  background: color-mix(in srgb, var(--color-primary) 15%, var(--color-surface));
+  box-shadow: 0 4px 10px color-mix(in srgb, var(--color-primary-dark) 12%, transparent);
+  outline: 0;
+}
+
+.messaging-message-search-nav-button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.messaging-message-search-nav-button:disabled {
+  opacity: 0.42;
+  cursor: default;
+}
+
+.messaging-message-search-nav-button[hidden],
+.messaging-message-search-counter[hidden] {
+  display: none;
+}
+
+.messaging-message-search-status {
+  margin: 0;
+  padding: 0.15rem 0.2rem 0.45rem;
+  color: var(--color-text-muted);
+  font-size: 0.76rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .messaging-message-search-controls {
+    animation: none;
+  }
+}
+
+.messaging-message-search-controls.messaging-message-search-controls {
+  display: flex;
+  width: 100%;
+  height: 42px;
+  min-height: 42px;
+  max-height: 42px;
+  min-width: 0;
+  box-sizing: border-box;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 0.35rem;
+  padding: 0.3rem 0.45rem 0.3rem 0.8rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: var(--color-text-muted);
+  background: var(--color-surface-muted);
+  box-shadow: none;
+}
+
+.messaging-message-search-controls.messaging-message-search-controls:focus-within {
+  border-color: var(--color-secondary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-secondary) 14%, transparent);
+}
+
+.messaging-message-search-field {
+  min-height: 0;
+  height: auto;
+  gap: 0.6rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.messaging-message-search-field:focus-within {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.messaging-message-search-counter {
+  padding: 0 0.25rem 0 0.35rem;
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.messaging-message-search-navigation {
+  height: 28px;
+  border: 0;
+  border-left: 1px solid var(--color-border);
+  border-radius: 0;
+  background: transparent;
+}
+
+.messaging-message-search-nav-button {
+  width: 29px;
+  height: 28px;
+  color: var(--color-text-muted);
+}
+
+.messaging-message-search-nav-button + .messaging-message-search-nav-button {
+  border-left: 0;
+}
+
+.messaging-message-search-nav-button:hover:not(:disabled),
+.messaging-message-search-nav-button:focus-visible:not(:disabled) {
+  color: var(--color-text-secondary);
+  background: color-mix(in srgb, var(--color-text-muted) 10%, transparent);
+  box-shadow: none;
+}
+
+#messaging-message-search-close {
+  width: 29px;
+  height: 28px;
+  margin-left: 0.1rem;
+  color: var(--color-text-muted);
+  background: transparent;
+}
+
+#messaging-message-search-close:hover,
+#messaging-message-search-close:focus-visible {
+  color: var(--color-text-secondary);
+  background: color-mix(in srgb, var(--color-text-muted) 10%, transparent);
+  box-shadow: none;
+}
+
+.messaging-message-search-panel {
+  top: 86px;
+  border: 1px solid var(--color-border);
+  border-radius: 0.85rem;
+  background: var(--color-surface);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--color-text) 12%, transparent);
+}
+
+.messaging-message-search-results {
+  overflow-y: auto;
+}
+
+@media (max-width: 560px) {
+  .messaging-message-search-controls.messaging-message-search-controls {
+    gap: 0.2rem;
+    padding-right: 0.25rem;
+    padding-left: 0.65rem;
+  }
+
+  .messaging-message-search-counter {
+    display: none;
+  }
+
+  .messaging-message-search-navigation {
+    height: 30px;
+  }
+
+  .messaging-message-search-nav-button,
+  #messaging-message-search-close {
+    width: 30px;
+    height: 30px;
+  }
+}
+
+.messaging-message-search-controls {
+  gap: 0.5rem;
+}
+
+.messaging-message-search-counter {
+  padding: 0 0.1rem;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.messaging-message-search-navigation {
+  display: inline-flex;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 0.65rem;
+  background: var(--color-background);
+}
+
+.messaging-message-search-navigation:has(#messaging-message-search-previous[hidden]):has( #messaging-message-search-next[hidden] ) {
+  display: none;
+}
+
+.messaging-message-search-nav-button {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 0;
+  color: var(--color-text-muted);
+  background: transparent;
+  box-shadow: none;
+}
+
+.messaging-message-search-nav-button + .messaging-message-search-nav-button {
+  border-left: 1px solid var(--color-border);
+}
+
+.messaging-message-search-nav-button:hover:not(:disabled),
+.messaging-message-search-nav-button:focus-visible:not(:disabled) {
+  border-color: transparent;
+  color: var(--color-text-secondary);
+  background: var(--color-border);
+  box-shadow: none;
+}
+
+.messaging-message-search-nav-button:disabled {
+  opacity: 0.42;
+}
+
+#messaging-message-search-close {
+  width: 34px;
+  height: 34px;
+  margin-left: 0.15rem;
+  color: var(--color-text-muted);
+  background: var(--color-surface-muted);
+}
+
+#messaging-message-search-close:hover,
+#messaging-message-search-close:focus-visible {
+  border-color: transparent;
+  color: var(--color-text-secondary);
+  background: var(--color-border);
+  box-shadow: none;
+}
+
+@media (max-width: 560px) {
+  .messaging-message-search-controls {
+    gap: 0.4rem;
+  }
+
+  .messaging-message-search-counter {
+    display: none;
+  }
+
+  .messaging-message-search-navigation,
+  .messaging-message-search-nav-button,
+  #messaging-message-search-close {
+    height: 36px;
+  }
+
+  .messaging-message-search-nav-button {
+    width: 36px;
+  }
+
+  #messaging-message-search-close {
+    width: 36px;
+    margin-left: 0;
+  }
+}
+
+@keyframes messaging-search-exit {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .messaging-message-search-panel,
+  .messaging-message-search-panel.is-closing,
+  .messaging-message-search-result {
+    animation: none;
+  }
+}

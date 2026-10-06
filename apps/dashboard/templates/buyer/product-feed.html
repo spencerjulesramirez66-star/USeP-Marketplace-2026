@@ -1,0 +1,58 @@
+{% comment %}
+    buyer/product-feed.html
+    Context: items, query, selected_category, categories, seller_filter, seller_profile
+             detail_querystring (optional, e.g. "?q=lamp&category=dorm" built once in the view)
+{% endcomment %}
+<header class="feed-header">
+    {% if seller_filter and seller_profile %}
+        <p class="eyebrow">Seller storefront</p>
+        <h2>Products by {{ seller_profile.name }}</h2>
+    {% elif query %}
+        <p class="eyebrow">Search</p>
+        <h2>Results for &ldquo;{{ query }}&rdquo;</h2>
+    {% elif selected_category and selected_category != 'all' %}
+        <p class="eyebrow">Browsing</p>
+        <h2>{% for category in categories %}{% if category.slug == selected_category %}{{ category.label }}{% endif %}{% endfor %}</h2>
+    {% else %}
+        <p class="eyebrow">Fresh listings</p>
+        <h2>Recommended for you</h2>
+    {% endif %}
+</header>
+
+<div class="product-grid">
+    {% for item in items %}
+        {% url 'dashboard:buyer_detail' item.slug as detail_url %}
+        <article class="product-card">
+            <a class="product-image-link" href="{{ detail_url }}{{ detail_querystring }}" tabindex="-1" aria-hidden="true">
+                <img class="product-image" src="{{ item.image_url }}" alt="{{ item.title }}" loading="lazy">
+            </a>
+
+            <div class="product-content">
+                <p class="product-price">{{ item.price_label }}</p>
+                <h3 class="product-title">
+                    <a class="product-title-link" href="{{ detail_url }}{{ detail_querystring }}">{{ item.title }}</a>
+                </h3>
+                {% if item.status == 'SOLD' or item.status == 'ARCHIVED' %}
+                    <p class="product-status">{{ item.get_status_display }}</p>
+                {% endif %}
+                <p class="product-subtitle">{{ item.condition }} &bull; {{ item.location }}</p>
+
+                <div class="product-footer">
+                    <a class="seller-info" href="{% url 'dashboard:buyer' %}?seller={{ item.seller_id }}">
+                        <img class="listing-seller-avatar" src="{{ item.seller_avatar_url }}" alt="" width="32" height="32" loading="lazy">
+                        <span>
+                            <strong>{{ item.seller_name }}</strong>
+                            <small>{{ item.seller_role }}</small>
+                        </span>
+                    </a>
+                    <span class="view-count"><i class="bi bi-eye" aria-hidden="true"></i> {{ item.views }}</span>
+                </div>
+            </div>
+        </article>
+    {% empty %}
+        <div class="no-results panel">
+            <h3>No listings match your search.</h3>
+            <p>Try another keyword or switch to a different category.</p>
+        </div>
+    {% endfor %}
+</div>

@@ -1,0 +1,99 @@
+.site-footer {
+    background: var(--color-text);
+    color: color-mix(in srgb, var(--color-surface) 80%, transparent);
+    margin-top: 2rem;
+}
+
+.footer-inner {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr 1fr 1fr;
+    gap: 1.5rem;
+    padding: 2.5rem 0 1.5rem;
+}
+
+.footer-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    color: var(--color-surface);
+    font-weight: 700;
+}
+
+.footer-inner h4 {
+    color: var(--color-surface);
+    margin-bottom: 0.8rem;
+}
+
+.footer-inner ul {
+    list-style: none;
+    display: grid;
+    gap: 0.55rem;
+}
+
+.footer-inner a {
+    color: color-mix(in srgb, var(--color-surface) 72%, transparent);
+    text-decoration: none;
+}
+
+.footer-bottom {
+    border-top: 1px solid color-mix(in srgb, var(--color-surface) 12%, transparent);
+    padding: 1rem 0;
+    text-align: center;
+    color: color-mix(in srgb, var(--color-surface) 72%, transparent);
+}
+
+.back-to-top {
+    position: fixed;
+    right: 1.5rem;
+    bottom: 1.5rem;
+    width: 50px;
+    height: 50px;
+    border: none;
+    border-radius: 50%;
+    background: var(--color-primary);
+    color: var(--color-surface);
+    box-shadow: 0 14px 26px color-mix(in srgb, var(--color-primary) 28%, transparent);
+    cursor: pointer;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(10px);
+    transition: all 0.2s ease;
+    z-index: 1000;
+}
+
+.back-to-top.visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.back-to-top:hover {
+    transform: translateY(-3px);
+}
+
+.product-card p {
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+}
+
+.product-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-top: 0.9rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--color-border);
+}
+
+@media (max-width: 760px) {
+    .site-footer { margin-top: 1.5rem; }
+    .footer-inner { grid-template-columns: 1fr; gap: 1.55rem; padding: 2rem 1.25rem 1.75rem; }
+    .footer-brand { margin-bottom: .65rem; }
+    .footer-inner h4 { margin-bottom: .65rem; font-size: .95rem; }
+    .footer-inner ul { gap: .55rem; }
+    .footer-inner a { display: inline-flex; min-height: 32px; align-items: center; font-size: .9rem; }
+    .footer-bottom { padding: 1rem 1.25rem 1.5rem; font-size: .8rem; text-align: left; }
+    .back-to-top { right: 1rem; bottom: 1rem; width: 44px; height: 44px; }
+}

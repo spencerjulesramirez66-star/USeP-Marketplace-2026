@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}
+    USeP Marketplace - Verify Email
+{% endblock %}
+
+{% block meta_description %}
+    Verify your email address for USeP Marketplace.
+{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/verify.css' %}">
+{% endblock %}
+
+
+{% block content %}
+
+<main id="verify-container">
+
+    <section id="title-container">
+         <header class="brand">
+            <img
+                class="site-logo"
+                src="{% static 'images/site-logo.png' %}"
+                alt="USeP Marketplace Logo"
+            >
+        </header>
+        
+        <h1>Verify your email</h1>
+
+        <p>
+            We've sent a 6-digit verification code to
+            <span class="email-display">{{ email }}</span>.
+        </p>
+
+    </section>
+
+
+    <section id="form-container">
+
+        <form class="form" method="post">
+
+            {% csrf_token %}
+
+            <div class="otp-inputs">
+                <input
+                    class="form-control otp"
+                    name="otp1"
+                    type="text"
+                    maxlength="1"
+                    inputmode="numeric"
+                    autocomplete="one-time-code"
+                    aria-label="OTP digit 1"
+                    required
+                >
+
+                <input
+                    class="form-control otp"
+                    name="otp2"
+                    type="text"
+                    maxlength="1"
+                    inputmode="numeric"
+                    aria-label="OTP digit 2"
+                    required
+                >
+
+                <input
+                    class="form-control otp"
+                    name="otp3"
+                    type="text"
+                    maxlength="1"
+                    inputmode="numeric"
+                    aria-label="OTP digit 3"
+                    required
+                >
+
+                <input
+                    class="form-control otp"
+                    name="otp4"
+                    type="text"
+                    maxlength="1"
+                    inputmode="numeric"
+                    aria-label="OTP digit 4"
+                    required
+                >
+
+                <input
+                    class="form-control otp"
+                    name="otp5"
+                    type="text"
+                    maxlength="1"
+                    inputmode="numeric"
+                    aria-label="OTP digit 5"
+                    required
+                >
+
+                <input
+                    class="form-control otp"
+                    name="otp6"
+                    type="text"
+                    maxlength="1"
+                    inputmode="numeric"
+                    aria-label="OTP digit 6"
+                    required
+                >
+
+            </div>
+            <div class="form-group">
+                <button class="btn btn-primary" type="submit">
+                    Confirm
+                </button>
+            </div>
+
+        </form>
+
+    </section>
+
+
+        <section id="resend-container">
+
+        <p>
+            Didn't receive the code?
+        </p>
+
+        <form method="post">
+            {% csrf_token %}
+            <button class="btn btn-link" type="submit" name="resend_otp" value="1">
+                Resend OTP
+            </button>
+        </form>
+
+    </section>
+
+</main>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/verify.js' %}"></script>
+{% endblock %}

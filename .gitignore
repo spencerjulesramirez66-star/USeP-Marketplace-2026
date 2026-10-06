@@ -1,0 +1,35 @@
+# Virtual Environment Variables
+.venv/
+
+# Environment Variables
+.env
+
+# Test
+apps/test
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Django
+media/
+logs/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Cache
+.mypy_cache/
+
+# Notes
+notes.txt
+
+# Server Stuff
+staticfiles/
+.env
+backup-usep-marketplace-20260919-234334.sql
