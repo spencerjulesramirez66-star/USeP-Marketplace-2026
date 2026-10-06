@@ -6,7 +6,7 @@ from django.utils import timezone
 from apps.accounts.models import User
 from apps.messaging.models import Conversation, Message
 from .forms import ListingForm
-from .models import Category, Listing, SavedItem
+from .models import Category, Listing, ListingReview, SavedItem
 
 # Conversation/typing/read/search/unsend tests moved to
 # apps.messaging.tests, alongside the views and models they exercise.
@@ -67,6 +67,123 @@ class BuyerDashboardViewsTests(TestCase):
         response = self.client.get(reverse('dashboard:buyer_detail', args=['engineering-mechanics-textbook']))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Stock available')
+
+    def test_buyer_can_post_and_update_a_listing_review(self):
+        seller = User.objects.create_user(
+            email='review-listing-owner@example.com',
+            password='StrongPassword123!',
+            first_name='Listing',
+            last_name='Owner',
+            contact_num='09123456763',
+            email_verified=True,
+            is_first_login=False,
+        )
+        category = Category.objects.get(slug='textbooks')
+        listing = Listing.objects.create(
+            seller=seller,
+            category=category,
+            title='Review test textbook',
+            slug='review-test-textbook',
+            description='A listing used to test ratings and reviews.',
+            price='100.00',
+            condition='Good condition',
+            location='Library',
+        )
+        buyer = User.objects.create_user(
+            email='reviewer@example.com',
+            password='StrongPassword123!',
+            first_name='Campus',
+            last_name='Reviewer',
+            contact_num='09123456762',
+            email_verified=True,
+            is_first_login=False,
+        )
+        self.client.force_login(buyer)
+
+        post_response = self.client.post(
+            reverse('dashboard:submit_listing_review', args=[listing.slug]),
+            {'rating': '5', 'body': 'Exactly what I needed.'},
+        )
+
+        self.assertEqual(post_response.status_code, 302)
+        review = ListingReview.objects.get(listing=listing, reviewer=buyer)
+        self.assertEqual(review.rating, 5)
+        detail_response = self.client.get(reverse('dashboard:buyer_detail', args=[listing.slug]))
+        self.assertEqual(detail_response.context['average_rating'], 5)
+        self.assertEqual(detail_response.context['review_count'], 1)
+        self.assertContains(detail_response, 'Ratings &amp; reviews')
+        self.assertContains(detail_response, 'Exactly what I needed.')
+
+        update_response = self.client.post(
+            reverse('dashboard:submit_listing_review', args=[listing.slug]),
+            {'rating': '4', 'body': 'Updated after another week of use.'},
+        )
+
+        self.assertEqual(update_response.status_code, 302)
+        self.assertEqual(ListingReview.objects.filter(listing=listing).count(), 1)
+        review.refresh_from_db()
+        self.assertEqual(review.rating, 4)
+        self.assertEqual(review.body, 'Updated after another week of use.')
+
+    def test_listing_owner_cannot_review_their_own_listing(self):
+        seller = User.objects.create_user(
+            email='review-owner@example.com',
+            password='StrongPassword123!',
+            first_name='Listing',
+            last_name='Owner',
+            contact_num='09123456761',
+            email_verified=True,
+            is_first_login=False,
+        )
+        listing = Listing.objects.create(
+            seller=seller,
+            category=Category.objects.get(slug='textbooks'),
+            title='Owner review test',
+            slug='owner-review-test',
+            description='A listing used to test owner review restrictions.',
+            price='100.00',
+            condition='Good condition',
+            location='Library',
+        )
+        self.client.force_login(seller)
+
+        response = self.client.post(
+            reverse('dashboard:submit_listing_review', args=[listing.slug]),
+            {'rating': '5', 'body': 'My own listing.'},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(ListingReview.objects.filter(listing=listing).exists())
+
+    def test_anonymous_buyer_must_log_in_to_review(self):
+        seller = User.objects.create_user(
+            email='anonymous-review-owner@example.com',
+            password='StrongPassword123!',
+            first_name='Listing',
+            last_name='Owner',
+            contact_num='09123456760',
+            email_verified=True,
+            is_first_login=False,
+        )
+        listing = Listing.objects.create(
+            seller=seller,
+            category=Category.objects.get(slug='textbooks'),
+            title='Anonymous review test',
+            slug='anonymous-review-test',
+            description='A listing used to test review authentication.',
+            price='100.00',
+            condition='Good condition',
+            location='Library',
+        )
+
+        response = self.client.post(
+            reverse('dashboard:submit_listing_review', args=[listing.slug]),
+            {'rating': '5', 'body': 'A review.'},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/login/', response['Location'])
+        self.assertFalse(ListingReview.objects.filter(listing=listing).exists())
 
     def test_buyer_search_and_category_filter_routes(self):
         response = self.client.get(reverse('dashboard:buyer') + '?q=calculator')

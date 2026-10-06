@@ -3,7 +3,26 @@ from decimal import Decimal, InvalidOperation
 
 from django import forms
 
-from .models import Category, Listing
+from .models import Category, Listing, ListingReview
+
+MAX_REVIEW_PHOTOS = 5
+MAX_REVIEW_PHOTO_SIZE_BYTES = 10 * 1024 * 1024
+ALLOWED_REVIEW_PHOTO_TYPES = {'image/gif', 'image/jpeg', 'image/png', 'image/webp'}
+
+
+class MultipleImageInput(forms.ClearableFileInput):
+    allow_multiple_selected = True
+
+
+class MultipleImageField(forms.ImageField):
+    widget = MultipleImageInput
+
+    def clean(self, data, initial=None):
+        if isinstance(data, (list, tuple)):
+            return [super(MultipleImageField, self).clean(item, initial) for item in data]
+        if data in self.empty_values:
+            return []
+        return [super().clean(data, initial)]
 
 PRODUCT_CONDITIONS = [
     'Like new',
@@ -131,6 +150,41 @@ class ListingForm(forms.ModelForm):
     @staticmethod
     def _is_service_category(category):
         return bool(category) and getattr(category, 'slug', '').lower() == 'services'
+
+
+class ListingReviewForm(forms.ModelForm):
+    photos = MultipleImageField(
+        required=False,
+        widget=MultipleImageInput(attrs={
+            'class': 'listing-review-photo-input',
+            'aria-label': 'Add photos',
+            'accept': 'image/gif,image/jpeg,image/png,image/webp',
+            'data-max-photos': MAX_REVIEW_PHOTOS,
+            'data-max-size': MAX_REVIEW_PHOTO_SIZE_BYTES,
+        }),
+    )
+
+    class Meta:
+        model = ListingReview
+        fields = ['rating', 'body']
+        widgets = {
+            'body': forms.Textarea(attrs={
+                'rows': 4,
+                'maxlength': 2000,
+                'placeholder': 'Share your experience with this product or service...',
+            }),
+        }
+
+    def clean_photos(self):
+        photos = self.cleaned_data['photos']
+        if len(photos) > MAX_REVIEW_PHOTOS:
+            raise forms.ValidationError(f'Attach at most {MAX_REVIEW_PHOTOS} photos to a review.')
+        for photo in photos:
+            if photo.size > MAX_REVIEW_PHOTO_SIZE_BYTES:
+                raise forms.ValidationError('Review photos must be 10 MB or smaller.')
+            if photo.content_type not in ALLOWED_REVIEW_PHOTO_TYPES:
+                raise forms.ValidationError('Upload JPEG, PNG, GIF, or WebP images only.')
+        return photos
 
 
 # MessageForm has moved to apps.messaging.forms.
