@@ -85,6 +85,24 @@
     white-space: nowrap;
 }
 
+.seller-reputation {
+    display: grid;
+    gap: 0.35rem;
+    flex: 1 1 14rem;
+    padding: 0.9rem 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--buyer-radius-md);
+    background: var(--color-surface-muted);
+}
+
+.seller-reputation h2,
+.seller-reputation p { margin: 0; }
+.seller-reputation h2 { font-size: 1rem; }
+.seller-reputation p { color: var(--color-text-muted); font-size: 0.9rem; }
+.seller-reputation p strong { color: var(--color-text); }
+.seller-reputation-stars { display: flex; gap: 0.16rem; }
+.seller-reputation-stars.product-rating-stars { gap: 0.16rem; font-size: inherit; }
+
 @media (max-width: 760px) {
     .seller-profile { padding: 1.25rem; }
     .seller-profile-content { flex-direction: column; text-align: center; }
