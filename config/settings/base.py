@@ -38,6 +38,7 @@ AUTH_USER_MODEL = "accounts.User"
 
 INSTALLED_APPS = [
     'daphne',
+    'apps.administrator.apps.AdministratorConfig',
     'apps.dashboard.apps.DashboardConfig',
     'channels',
     'apps.messaging',

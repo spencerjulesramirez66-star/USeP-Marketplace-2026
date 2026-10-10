@@ -3,7 +3,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from apps.accounts.models import User
+from apps.accounts.models import Roles, User
 from apps.messaging.models import Conversation, Message
 from .forms import ListingForm
 from .models import Category, Listing, ListingReview, SavedItem
@@ -13,6 +13,70 @@ from .models import Category, Listing, ListingReview, SavedItem
 # Conversation and Message are still imported here because
 # test_deleting_a_listing_with_messages_archives_it_and_keeps_the_conversation
 # needs them to set up a listing that has message history.
+
+
+@override_settings(ALLOWED_HOSTS=['testserver'])
+class AdministratorLoginRedirectTests(TestCase):
+    def create_admin(self, *, is_first_login=False):
+        return User.objects.create_user(
+            email='administrator@example.com',
+            password='StrongPassword123!',
+            first_name='Campus',
+            last_name='Administrator',
+            contact_num='08889990000',
+            email_verified=True,
+            is_first_login=is_first_login,
+            role=Roles.ADMIN,
+            is_staff=True,
+            is_superuser=True,
+        )
+
+    def test_admin_login_redirects_to_administrator_dashboard(self):
+        self.create_admin()
+
+        response = self.client.post(reverse('login'), {
+            'email': 'administrator@example.com',
+            'password': 'StrongPassword123!',
+        })
+
+        self.assertRedirects(response, reverse('dashboard'))
+
+    def test_first_login_admin_redirects_after_password_change(self):
+        self.create_admin(is_first_login=True)
+        login_response = self.client.post(reverse('login'), {
+            'email': 'administrator@example.com',
+            'password': 'StrongPassword123!',
+        })
+        self.assertRedirects(login_response, reverse('change_password'))
+
+        password_response = self.client.post(reverse('change_password'), {
+            'current_password': 'StrongPassword123!',
+            'new_password': 'AnotherSecurePass456!',
+            'confirm_password': 'AnotherSecurePass456!',
+        })
+
+        self.assertRedirects(password_response, reverse('dashboard'))
+
+    def test_admin_sections_open_separate_pages(self):
+        self.create_admin()
+        self.client.force_login(User.objects.get(email='administrator@example.com'))
+
+        sections = (
+            ('dashboard', 'overview', 'Overview'),
+            ('admin_accounts', 'accounts', 'Accounts'),
+            ('admin_listings', 'listings', 'Listings'),
+            ('admin_categories', 'categories', 'Categories'),
+            ('admin_reports', 'reports', 'Reports'),
+            ('admin_activity', 'activity', 'Activity log'),
+            ('admin_settings', 'settings', 'Settings'),
+        )
+
+        for route_name, active_section, section_title in sections:
+            with self.subTest(section=active_section):
+                response = self.client.get(reverse(route_name))
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.context['active_section'], active_section)
+                self.assertEqual(response.context['section_title'], section_title)
 
 
 @override_settings(ALLOWED_HOSTS=['testserver'])

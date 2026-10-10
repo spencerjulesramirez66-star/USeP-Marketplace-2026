@@ -14,7 +14,7 @@ from django.http import JsonResponse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.http import JsonResponse
 
-from .models import User, EmailOTP, OTPPurpose
+from .models import User, EmailOTP, OTPPurpose, Roles
 from .utils import generate_otp, send_otp_email
 from throttle import check_and_hit, reset, get_client_ip, RateLimitExceeded
 
@@ -356,6 +356,9 @@ def redirect_user(user, next_url=None):
         require_https=False,
     ):
         return redirect(next_url)
+
+    if user.is_superuser or user.role == Roles.ADMIN:
+        return redirect("dashboard")
 
     return redirect("dashboard:buyer")
 
