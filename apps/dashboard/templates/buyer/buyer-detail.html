@@ -95,6 +95,114 @@
             {% endif %}
         </section>
 
+        <section class="listing-reviews panel" id="listing-reviews" aria-labelledby="listing-reviews-title">
+            <header class="listing-reviews-heading">
+                <div>
+                    <p class="eyebrow">Customer feedback</p>
+                    <h2 id="listing-reviews-title">Ratings &amp; reviews</h2>
+                </div>
+                <span>{{ review_count }} review{{ review_count|pluralize }}</span>
+            </header>
+
+            <div class="listing-review-summary">
+                <div class="listing-review-average">
+                    <strong>{{ average_rating|floatformat:1 }}</strong>
+                    <span>out of 5</span>
+                    <div class="listing-review-stars" aria-label="{{ average_rating|floatformat:1 }} out of 5 stars">
+                        {% for star in rating_stars %}<i class="bi {% if star <= average_rating %}bi-star-fill{% else %}bi-star{% endif %}" aria-hidden="true"></i>{% endfor %}
+                    </div>
+                    <span>Average rating</span>
+                </div>
+                <div class="listing-rating-breakdown" aria-label="Rating breakdown">
+                    {% for row in rating_breakdown %}
+                    <div class="listing-rating-row">
+                        <span>{{ row.value }} star</span>
+                        <div class="listing-rating-track" role="progressbar" aria-label="{{ row.value }} stars" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ row.percentage }}"><span style="width: {{ row.percentage }}%"></span></div>
+                        <span>{{ row.count }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="listing-review-content">
+                <div class="listing-review-list">
+                    <h3>Product and service reviews</h3>
+                    {% for review in listing_reviews %}
+                    <article class="listing-review">
+                        <div class="listing-review-author">
+                            <strong>{{ review.reviewer_name }}</strong>
+                            <time datetime="{{ review.updated_at|date:'c' }}">{{ review.updated_at|date:'M j, Y' }}</time>
+                        </div>
+                        <div class="listing-review-stars" aria-label="{{ review.rating }} out of 5 stars">
+                            {% for star in rating_stars %}<i class="bi {% if star <= review.rating %}bi-star-fill{% else %}bi-star{% endif %}" aria-hidden="true"></i>{% endfor %}
+                        </div>
+                        <p>{{ review.body|linebreaksbr }}</p>
+                        {% with photos=review.photos.all %}
+                        {% if photos %}
+                        <div class="listing-review-photos" aria-label="Photos shared with this review">
+                            {% for photo in photos %}<a href="{{ photo.image.url }}" target="_blank" rel="noopener"><img src="{{ photo.image.url }}" alt="Photo shared by {{ review.reviewer_name }}" loading="lazy"></a>{% endfor %}
+                        </div>
+                        {% endif %}
+                        {% endwith %}
+                    </article>
+                    {% empty %}
+                    <p class="listing-reviews-empty">No reviews yet. Be the first to share your experience.</p>
+                    {% endfor %}
+                </div>
+
+                <div class="listing-review-form-wrap">
+                    {% if not request.user.is_authenticated %}
+                        <h3>Rate this listing</h3>
+                        <p><a href="{% url 'login' %}?next={{ request.get_full_path|urlencode }}">Log in to leave a review.</a></p>
+                    {% elif can_edit %}
+                        <h3>Seller account</h3>
+                        <p>You can't review your own listing.</p>
+                    {% else %}
+                        <h3>{% if user_review %}Update your review{% else %}Write a review{% endif %}</h3>
+                        <form method="post" enctype="multipart/form-data" action="{% url 'dashboard:submit_listing_review' item.slug %}#listing-reviews" class="listing-review-form" data-existing-photo-count="{{ user_review_photo_count }}">
+                            {% csrf_token %}
+                            <fieldset>
+                                <legend>Your rating</legend>
+                                <div class="listing-review-rating-options">
+                                    {% for option in rating_options %}
+                                    <label>
+                                        <input type="radio" name="rating" value="{{ option.value }}" required{% if user_review.rating == option.value %} checked{% endif %}>
+                                        <span aria-hidden="true">{% for star in option.stars %}<i class="bi bi-star-fill"></i>{% endfor %}</span>
+                                        <span class="listing-review-rating-label">{{ option.value }} star{{ option.value|pluralize }}</span>
+                                    </label>
+                                    {% endfor %}
+                                </div>
+                            </fieldset>
+                            <label for="{{ review_form.body.id_for_label }}">Your review</label>
+                            {{ review_form.body }}
+                            {% if user_review_photo_count %}
+                            <p class="listing-review-photo-note">Remove any current photo you want to replace. Changes apply when you save the review.</p>
+                            <div class="listing-review-existing-photos" aria-label="Your current review photos">
+                                {% for photo in user_review.photos.all %}
+                                <figure class="listing-review-existing-photo" data-existing-review-photo data-photo-id="{{ photo.id }}">
+                                    <img src="{{ photo.image.url }}" alt="Your review photo" loading="lazy">
+                                    <button type="button" data-remove-review-photo aria-label="Remove review photo"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                                </figure>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                            {{ review_form.photos }}
+                            <label class="listing-review-photo-button" for="{{ review_form.photos.id_for_label }}" aria-label="Add photos" title="Add photos">
+                                <i class="bi bi-camera-fill" aria-hidden="true"></i>
+                                <span>Add photos</span>
+                            </label>
+                            <p class="listing-review-photo-note" data-review-photo-limit>
+                                {% if remaining_review_photos %}Add up to {{ remaining_review_photos }} more photo{{ remaining_review_photos|pluralize }} (10 MB each).{% else %}Remove a current photo to add a replacement.{% endif %}
+                            </p>
+                            <div class="listing-review-photo-warning" data-review-photo-warning role="alert" hidden></div>
+                            <div class="listing-review-photo-preview" id="listing-review-photo-preview" hidden aria-live="polite"></div>
+                            <button class="btn btn-primary" type="submit">{% if user_review %}Save review{% else %}Post review{% endif %}</button>
+                        </form>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+
         {% if can_edit %}
             <details class="detail-edit panel">
                 <summary class="btn btn-outline">Edit listing</summary>
@@ -187,4 +295,5 @@
 {% block extra_js %}
 <script src="{% static 'js/buyer/detail-gallery.js' %}" defer></script>
 <script src="{% static 'js/buyer/detail-edit-modal.js' %}" defer></script>
+<script src="{% static 'js/buyer/review-photos.js' %}" defer></script>
 {% endblock %}
