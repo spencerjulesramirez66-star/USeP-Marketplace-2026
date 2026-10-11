@@ -37,6 +37,21 @@
                 {% endif %}
                 <p class="product-subtitle">{{ item.condition }} &bull; {{ item.location }}</p>
 
+                {% if user.is_authenticated and user.id != item.seller_id and item.status != 'SOLD' and item.status != 'ARCHIVED' %}
+                    {% url 'messaging:start_conversation' item.slug as start_url %}
+                    <button type="button"
+                            class="product-message-btn"
+                            data-message-open
+                            data-start-url="{{ start_url }}"
+                            data-title="{{ item.title }}"
+                            data-price="{{ item.price_label }}"
+                            data-image="{{ item.image_url }}"
+                            data-seller="{{ item.seller_name }}">
+                        <i class="bi bi-chat-dots" aria-hidden="true"></i>
+                        <span>Message seller</span>
+                    </button>
+                {% endif %}
+
                 <div class="product-footer">
                     <a class="seller-info" href="{% url 'dashboard:buyer' %}?seller={{ item.seller_id }}">
                         <img class="listing-seller-avatar" src="{{ item.seller_avatar_url }}" alt="" width="32" height="32" loading="lazy">
@@ -56,3 +71,41 @@
         </div>
     {% endfor %}
 </div>
+
+{% if user.is_authenticated %}
+<dialog class="quick-message" id="quick-message-dialog" aria-labelledby="quick-message-title">
+    <form class="quick-message__form" method="post" novalidate>
+        {% csrf_token %}
+        <header class="quick-message__header">
+            <h3 id="quick-message-title">Message seller</h3>
+            <button type="button" class="quick-message__close" data-message-close aria-label="Close">&times;</button>
+        </header>
+
+        <div class="quick-message__listing">
+            <img class="quick-message__thumb" alt="" width="56" height="56">
+            <div>
+                <strong class="quick-message__item-title"></strong>
+                <small class="quick-message__item-meta"></small>
+            </div>
+        </div>
+
+        <label class="visually-hidden" for="quick-message-body">Your message</label>
+        <textarea id="quick-message-body" name="body" rows="4" maxlength="2000"
+                  placeholder="Ask the seller about this listing..." required></textarea>
+
+        <div class="quick-message__chips" aria-label="Quick replies">
+            <button type="button" data-chip="Hi! Is this still available?">Is this still available?</button>
+            <button type="button" data-chip="Hi! Is the price negotiable?">Is the price negotiable?</button>
+            <button type="button" data-chip="Hi! Where can we meet on campus?">Where can we meet?</button>
+        </div>
+
+        <p class="quick-message__error" role="alert" hidden></p>
+
+        <footer class="quick-message__actions">
+            <span class="quick-message__count"><span data-count>0</span>/2000</span>
+            <button type="button" class="quick-message__cancel" data-message-close>Cancel</button>
+            <button type="submit" class="quick-message__send">Send message</button>
+        </footer>
+    </form>
+</dialog>
+{% endif %}

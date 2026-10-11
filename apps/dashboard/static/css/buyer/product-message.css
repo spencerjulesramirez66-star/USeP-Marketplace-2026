@@ -1,0 +1,74 @@
+.product-message-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    width: 100%;
+    margin: 0.6rem 0 0.2rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--primary, #7b1113);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--primary, #7b1113);
+    font: inherit;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+.product-message-btn:hover,
+.product-message-btn:focus-visible {
+    background: var(--primary, #7b1113);
+    color: #fff;
+}
+
+.quick-message {
+    width: min(92vw, 460px);
+    padding: 0;
+    border: 0;
+    border-radius: 14px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+.quick-message::backdrop { background: rgba(0, 0, 0, 0.5); }
+
+.quick-message__form { display: flex; flex-direction: column; gap: 0.85rem; padding: 1.1rem 1.25rem 1.25rem; }
+.quick-message__header { display: flex; align-items: center; justify-content: space-between; }
+.quick-message__header h3 { margin: 0; font-size: 1.1rem; }
+.quick-message__close { border: 0; background: none; font-size: 1.6rem; line-height: 1; cursor: pointer; color: #666; }
+
+.quick-message__listing {
+    display: flex; align-items: center; gap: 0.75rem;
+    padding: 0.6rem; border-radius: 10px; background: #f5f5f5;
+}
+.quick-message__thumb { width: 56px; height: 56px; border-radius: 8px; object-fit: cover; background: #ddd; }
+.quick-message__listing strong { display: block; font-size: 0.95rem; }
+.quick-message__listing small { color: #666; }
+
+.quick-message textarea {
+    width: 100%; resize: vertical; padding: 0.7rem 0.8rem;
+    border: 1px solid #ccc; border-radius: 10px; font: inherit; box-sizing: border-box;
+}
+.quick-message textarea:focus { outline: 2px solid var(--primary, #7b1113); outline-offset: 1px; }
+
+.quick-message__chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.quick-message__chips button {
+    padding: 0.3rem 0.7rem; border: 1px solid #ddd; border-radius: 999px;
+    background: #fff; font: inherit; font-size: 0.8rem; cursor: pointer;
+}
+.quick-message__chips button:hover { background: #f0f0f0; }
+
+.quick-message__error { margin: 0; color: #b00020; font-size: 0.85rem; }
+
+.quick-message__actions { display: flex; align-items: center; gap: 0.5rem; }
+.quick-message__count { margin-right: auto; font-size: 0.8rem; color: #888; }
+.quick-message__cancel, .quick-message__send {
+    padding: 0.5rem 1rem; border-radius: 8px; font: inherit; font-weight: 600; cursor: pointer;
+}
+.quick-message__cancel { border: 1px solid #ccc; background: #fff; }
+.quick-message__send { border: 0; background: var(--primary, #7b1113); color: #fff; }
+.quick-message__send:disabled { opacity: 0.6; cursor: wait; }
+
+.visually-hidden {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip: rect(0 0 0 0); white-space: nowrap;
+}
