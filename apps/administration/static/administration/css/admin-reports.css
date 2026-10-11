@@ -1,0 +1,14 @@
+/* ==========================================================================
+   partials/sections/reports.html
+   ========================================================================== */
+
+.report-columns {
+    grid-template-columns: 1.2fr 1.5fr 1.2fr 1fr 1fr;
+}
+
+/* five columns need a minimum width on phones; the table head scrolls sideways */
+@media (max-width: 28.75em) {
+    .report-columns {
+        grid-template-columns: repeat(5, minmax(6rem, 1fr));
+    }
+}

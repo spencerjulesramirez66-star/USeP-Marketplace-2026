@@ -1,0 +1,31 @@
+{% load static %}
+{% comment %}
+    Administrator sidebar. Included by components/navbar.html when
+    is_admin_area and is_marketplace_admin are both true (see context_processors.py).
+    Do NOT give this an id="navbar": navbar.css would style it as the top bar.
+    The profile menu at the bottom is the shared components/profile_menu.html.
+    Optional context: active_section
+{% endcomment %}
+<aside class="admin-sidebar" aria-label="Administrator sidebar">
+    <a class="admin-brand" href="{% url 'admin:index' %}" aria-label="USeP Marketplace administrator overview">
+        <img class="brand-mark" src="{% static 'images/site-logo.png' %}" alt="">
+        <span class="brand-copy"><strong>USeP</strong><small>MARKETPLACE ADMIN</small></span>
+    </a>
+
+    <nav class="admin-navigation" aria-label="Administrator navigation">
+        <span class="nav-caption">WORKSPACE</span>
+        <a class="admin-nav-link{% if active_section == 'overview' %} active{% endif %}" href="{% url 'admin:index' %}"{% if active_section == 'overview' %} aria-current="page"{% endif %}><i class="bi bi-grid-1x2" aria-hidden="true"></i>Overview</a>
+        <a class="admin-nav-link{% if active_section == 'accounts' %} active{% endif %}" href="{% url 'administration:accounts' %}"{% if active_section == 'accounts' %} aria-current="page"{% endif %}><i class="bi bi-people" aria-hidden="true"></i>Accounts</a>
+        <a class="admin-nav-link{% if active_section == 'listings' %} active{% endif %}" href="{% url 'administration:listings' %}"{% if active_section == 'listings' %} aria-current="page"{% endif %}><i class="bi bi-bag" aria-hidden="true"></i>Listings</a>
+        <a class="admin-nav-link{% if active_section == 'categories' %} active{% endif %}" href="{% url 'administration:categories' %}"{% if active_section == 'categories' %} aria-current="page"{% endif %}><i class="bi bi-tags" aria-hidden="true"></i>Categories</a>
+
+        <span class="nav-caption nav-caption-spaced">TRUST &amp; SAFETY</span>
+        <a class="admin-nav-link{% if active_section == 'reports' %} active{% endif %}" href="{% url 'administration:reports' %}"{% if active_section == 'reports' %} aria-current="page"{% endif %}><i class="bi bi-flag" aria-hidden="true"></i>Reports</a>
+        <a class="admin-nav-link{% if active_section == 'activity' %} active{% endif %}" href="{% url 'administration:activity' %}"{% if active_section == 'activity' %} aria-current="page"{% endif %}><i class="bi bi-clock-history" aria-hidden="true"></i>Activity log</a>
+    </nav>
+
+    <div class="sidebar-bottom">
+        <a class="admin-nav-link" href="{% url 'dashboard:buyer' %}"><i class="bi bi-shop" aria-hidden="true"></i>View marketplace</a>
+        {% include 'components/profile-menu.html' with variant='sidebar' %}
+    </div>
+</aside>

@@ -1,0 +1,57 @@
+{% load static %}
+{# Account directory. Behaviour lives in static/administration/js/admin-accounts.js #}
+<section class="panel area-panel accounts-panel" id="accounts-app"
+         data-base-url="{% url 'administration:accounts' %}"
+         data-csrf="{{ csrf_token }}">
+
+    <div class="panel-heading">
+        <div><p class="eyebrow">Members</p><h2>Account directory</h2></div>
+        <button class="acct-btn acct-btn-primary" type="button" id="acct-new">
+            <i class="bi bi-plus-lg" aria-hidden="true"></i>New account
+        </button>
+    </div>
+
+    <div class="acct-toolbar">
+        <label class="acct-search">
+            <i class="bi bi-search" aria-hidden="true"></i>
+            <input type="search" id="acct-search" placeholder="Search name, email, ID or phone" aria-label="Search accounts">
+        </label>
+        <select id="acct-type-filter" class="acct-select" aria-label="Filter by account type">
+            <option value="">All types</option>
+            <option value="student">Students</option>
+            <option value="staff">Staff</option>
+            <option value="admin">Admins</option>
+        </select>
+    </div>
+
+    <div class="acct-tabs" id="acct-tabs" role="tablist" aria-label="Account status">
+        <button type="button" role="tab" data-status="active" aria-selected="true">Active <span class="acct-count" data-count="active">0</span></button>
+        <button type="button" role="tab" data-status="suspended" aria-selected="false">Suspended <span class="acct-count" data-count="suspended">0</span></button>
+        <button type="button" role="tab" data-status="deleted" aria-selected="false">Deleted <span class="acct-count" data-count="deleted">0</span></button>
+    </div>
+
+    <div class="table-heading account-columns">
+        <span>ACCOUNT</span><span>ROLE</span><span>STATUS</span><span>JOINED</span><span aria-hidden="true"></span>
+    </div>
+
+    <div class="acct-list" id="acct-list" aria-live="polite"></div>
+
+    <div class="workspace-empty acct-empty" id="acct-empty" hidden>
+        <span class="empty-icon"><i class="bi bi-people" aria-hidden="true"></i></span>
+        <strong id="acct-empty-title">No accounts found</strong>
+        <span id="acct-empty-text"></span>
+    </div>
+
+    <div class="acct-pager" id="acct-pager" hidden>
+        <span id="acct-pager-info"></span>
+        <div>
+            <button type="button" class="acct-btn" id="acct-prev"><i class="bi bi-chevron-left" aria-hidden="true"></i>Previous</button>
+            <button type="button" class="acct-btn" id="acct-next">Next<i class="bi bi-chevron-right" aria-hidden="true"></i></button>
+        </div>
+    </div>
+
+    {% include 'administration/partials/accounts/dialogs.html' %}
+</section>
+
+{{ account_options|json_script:"account-options" }}
+<script src="{% static 'administration/js/admin-accounts.js' %}" defer></script>

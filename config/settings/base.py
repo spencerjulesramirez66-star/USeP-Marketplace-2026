@@ -38,12 +38,12 @@ AUTH_USER_MODEL = "accounts.User"
 
 INSTALLED_APPS = [
     'daphne',
-    'apps.administrator.apps.AdministratorConfig',
+    'apps.administration.admin_config.MarketplaceAdminConfig',
+    'apps.administration',
     'apps.dashboard.apps.DashboardConfig',
     'channels',
     'apps.messaging',
     'apps.accounts',
-    'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -61,6 +61,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    "accounts.middleware.ForcePasswordChangeMiddleware",
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -77,6 +78,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'apps.administration.context_processors.admin_context',
             ],
         },
     },

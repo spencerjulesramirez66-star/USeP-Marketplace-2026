@@ -34,6 +34,11 @@
 .navbar-brand .site-logo {
     width: 40px;
     height: auto;
+
+    padding: 3px;
+    border-radius: 6px;
+    background: var(--color-surface);
+    object-fit: contain;
 }
 
 .navbar-site-name {
@@ -491,6 +496,8 @@
 
     .navbar-brand .site-logo {
         width: 32px;
+        padding: 2px;
+        border-radius: 5px;
     }
 
     .navbar-site-name {

@@ -2,6 +2,8 @@ from django.contrib.auth.decorators import user_passes_test
 from django.http import Http404
 from django.shortcuts import render
 
+from .account_queries import form_options
+from .permissions import is_marketplace_admin
 
 ADMIN_SECTIONS = {
     'overview': ('Overview', 'CAMPUS MARKETPLACE'),
@@ -10,20 +12,25 @@ ADMIN_SECTIONS = {
     'categories': ('Categories', 'MARKETPLACE SETUP'),
     'reports': ('Reports', 'TRUST & SAFETY'),
     'activity': ('Activity log', 'AUDIT'),
-    'settings': ('Settings', 'PREFERENCES'),
 }
 
 
-@user_passes_test(
-    lambda user: user.is_superuser or getattr(user, 'role', None) == 'ADMIN'
-)
+def extra_context(section):
+    """Data a section's partial needs. Sections without an entry get nothing extra."""
+    if section == 'accounts':
+        return {'account_options': form_options()}
+    return {}
+
+
+@user_passes_test(is_marketplace_admin)
 def administrator_page(request, section='overview'):
     if section not in ADMIN_SECTIONS:
         raise Http404
 
     section_title, section_eyebrow = ADMIN_SECTIONS[section]
-    return render(request, 'administrator/dashboard.html', {
+    return render(request, 'administration/dashboard.html', {
         'active_section': section,
         'section_title': section_title,
         'section_eyebrow': section_eyebrow,
+        **extra_context(section),
     })

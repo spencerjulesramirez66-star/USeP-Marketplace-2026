@@ -1,0 +1,18 @@
+{% extends 'administration/base_admin.html' %}
+{% load static %}
+
+{% block extra_css %}
+    {{ block.super }}
+    <link rel="stylesheet" href="{% static 'administration/css/admin-dashboard.css' %}">
+    {# one stylesheet per section: admin-overview.css, admin-accounts.css, ... #}
+    {% with 'administration/css/admin-'|add:active_section|add:'.css' as section_css %}
+    <link rel="stylesheet" href="{% static section_css %}">
+    {% endwith %}
+{% endblock %}
+
+{% block admin_content %}
+    {% include 'administration/partials/page_heading.html' %}
+
+    {# active_section is validated against ADMIN_SECTIONS in views.py / sites.py #}
+    {% include 'administration/partials/sections/'|add:active_section|add:'.html' %}
+{% endblock %}

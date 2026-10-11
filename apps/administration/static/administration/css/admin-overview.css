@@ -1,0 +1,220 @@
+/* ==========================================================================
+   partials/sections/overview.html
+   ========================================================================== */
+
+
+/* --------------------------------------------------------------------------
+   Metric cards
+   -------------------------------------------------------------------------- */
+
+.metric-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.metric-block {
+    position: relative;
+    min-width: 0;
+    padding: 1rem 1.25rem;
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+    border-top: 0.25rem solid var(--color-primary);
+    border-radius: 0.625rem;
+    background: var(--color-surface);
+    box-shadow: 0 0.125rem 0.75rem color-mix(in srgb, var(--color-text) 7%, transparent);
+}
+
+.metric-coral { border-top-color: var(--color-primary-light); }
+.metric-gold  { border-top-color: var(--color-secondary-dark); }
+.metric-blue  { border-top-color: var(--color-accent); }
+
+.metric-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    color: var(--color-text-secondary);
+    font-size: 0.9375rem;
+}
+
+.metric-top i {
+    display: grid;
+    place-items: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 0.375rem;
+    font-size: 1.0625rem;
+}
+
+.metric-green .metric-top i {
+    background: color-mix(in srgb, var(--color-primary) 12%, var(--color-surface));
+    color: var(--color-primary-dark);
+}
+
+.metric-coral .metric-top i {
+    background: color-mix(in srgb, var(--color-primary) 12%, var(--color-surface));
+    color: var(--color-primary);
+}
+
+.metric-gold .metric-top i {
+    background: color-mix(in srgb, var(--color-secondary) 18%, var(--color-surface));
+    color: color-mix(in srgb, var(--color-secondary-dark) 60%, black);
+}
+
+.metric-blue .metric-top i {
+    background: color-mix(in srgb, var(--color-accent) 12%, var(--color-surface));
+    color: var(--color-accent);
+}
+
+.metric-block > strong {
+    display: block;
+    margin: 0.5rem 0 0.125rem;
+    font-family: var(--primary-font), sans-serif;
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1.1;
+}
+
+.metric-block > small {
+    color: var(--color-text-secondary);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+}
+
+
+/* --------------------------------------------------------------------------
+   Needs-attention panel
+   -------------------------------------------------------------------------- */
+
+.overview-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+}
+
+.attention-panel {
+    padding: 1.5rem;
+}
+
+.attention-row {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    min-height: 4.5rem;
+    border-top: 1px solid var(--color-border);
+}
+
+.panel-heading + .attention-row {
+    margin-top: 0.75rem;
+}
+
+.attention-icon {
+    display: grid;
+    flex: 0 0 auto;
+    place-items: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 0.375rem;
+    font-size: 1.125rem;
+}
+
+.icon-coral {
+    background: color-mix(in srgb, var(--color-primary) 12%, var(--color-surface));
+    color: var(--color-primary-dark);
+}
+
+.icon-gold {
+    background: color-mix(in srgb, var(--color-secondary) 18%, var(--color-surface));
+    color: color-mix(in srgb, var(--color-secondary-dark) 60%, black);
+}
+
+.icon-blue {
+    background: color-mix(in srgb, var(--color-accent) 12%, var(--color-surface));
+    color: var(--color-accent);
+}
+
+.attention-copy {
+    display: grid;
+    flex: 1;
+    gap: 0.125rem;
+}
+
+.attention-copy strong {
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.attention-copy small {
+    color: var(--color-text-secondary);
+    font-size: 0.875rem;
+    line-height: 1.3;
+}
+
+.attention-value {
+    color: var(--color-text-secondary);
+    font-family: var(--primary-font), sans-serif;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.attention-chevron {
+    display: inline-block;
+    color: var(--color-text-muted);
+    font-size: 0.875rem;
+    transition: transform 140ms ease, color 140ms ease;
+}
+
+.attention-row:hover .attention-chevron {
+    color: var(--color-primary);
+    transform: translateX(0.1875rem);
+}
+
+
+/* --------------------------------------------------------------------------
+   Responsive
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 62.5em) {
+    .metric-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 45em) {
+    .overview-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 28.75em) {
+    .metric-grid {
+        gap: 0.75rem;
+    }
+
+    .metric-block {
+        padding: 0.75rem;
+    }
+
+    .metric-top {
+        align-items: flex-start;
+        font-size: 0.875rem;
+    }
+
+    .metric-top i {
+        width: 2rem;
+        height: 2rem;
+        font-size: 0.9375rem;
+    }
+
+    .metric-block > strong {
+        font-size: 1.75rem;
+    }
+
+    .attention-row {
+        gap: 0.625rem;
+    }
+}
