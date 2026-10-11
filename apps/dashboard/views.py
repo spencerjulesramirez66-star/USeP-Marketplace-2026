@@ -1,12 +1,10 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db.models import Avg, Count, Exists, OuterRef, Q
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
-from datetime import timedelta
 from django.views.decorators.http import require_POST
 
 from apps.accounts.models import User
@@ -20,7 +18,16 @@ from .forms import (
     ListingReviewForm,
     validate_listing_images,
 )
-from .models import Category, Listing, ListingImage, ListingReview, ListingReviewPhoto, SavedItem, rating_star_states
+from .models import Category, Listing, ListingImage, ListingReview, ListingReviewPhoto, SavedItem
+from .services.listing_images import remove_listing_images, save_listing_images
+from .services.listing_lifecycle import (
+    EXPIRED,
+    RESTORED,
+    eligible_recycle_bin_listings,
+    move_to_recycle_bin,
+    restore_recycled_listing,
+)
+from .services.ratings import seller_reputation
 
 RECOMMENDATION_WEIGHTS = {
     'popularity': 0.5,
@@ -75,12 +82,6 @@ def _seller_profile(user):
         role = 'Student seller'
         student_profile = user.student_profile
         program = str(student_profile.program or student_profile.major.program)
-    reputation = ListingReview.objects.filter(
-        listing__seller=user,
-    ).exclude(listing__status=Listing.Status.DRAFT).aggregate(
-        average=Avg('rating'),
-        total=Count('id'),
-    )
     return {
         'id': user.pk,
         'name': f'{user.first_name} {user.last_name}'.strip() or user.email,
@@ -90,23 +91,24 @@ def _seller_profile(user):
         'contact': user.contact_num,
         'program': program,
         'campus': campus,
-        'reputation_average': reputation['average'],
-        'reputation_count': reputation['total'],
-        'reputation_star_states': rating_star_states(reputation['average']),
+        **seller_reputation(user),
     }
 
 
 @login_required
 def setup_seller_dashboard(request):
     listing_view = request.GET.get('view', 'listings')
+    if listing_view == 'archived':
+        raise Http404('Archived listings are only available to administrators.')
     all_listings = Listing.objects.filter(seller=request.user).select_related('category')
     lifecycle_state = {
         'recycle': Listing.Lifecycle.RECYCLE_BIN,
-        'archived': Listing.Lifecycle.ARCHIVED,
     }.get(listing_view, Listing.Lifecycle.NORMAL)
     if lifecycle_state == Listing.Lifecycle.NORMAL:
         listing_view = 'listings'
     listings = all_listings.filter(lifecycle_state=lifecycle_state)
+    if listing_view == 'recycle':
+        listings = eligible_recycle_bin_listings(listings)
     active_listings = all_listings.filter(
         status=Listing.Status.ACTIVE,
         lifecycle_state=Listing.Lifecycle.NORMAL,
@@ -122,8 +124,9 @@ def setup_seller_dashboard(request):
         'sold_count': all_listings.filter(status=Listing.Status.SOLD).count(),
         'manage_listing_id': request.GET.get('manage'),
         'listing_view': listing_view,
-        'recycle_bin_count': all_listings.filter(lifecycle_state=Listing.Lifecycle.RECYCLE_BIN).count(),
-        'archived_listing_count': all_listings.filter(lifecycle_state=Listing.Lifecycle.ARCHIVED).count(),
+        'recycle_bin_count': eligible_recycle_bin_listings(
+            all_listings.filter(lifecycle_state=Listing.Lifecycle.RECYCLE_BIN),
+        ).count(),
     }
     return render(request, 'seller/dashboard.html', context)
 
@@ -158,7 +161,7 @@ def create_listing(request):
         if uploaded_images:
             listing.image = uploaded_images[0]
             listing.save(update_fields=['image', 'updated_at'])
-            _save_listing_images(listing, uploaded_images)
+            save_listing_images(listing, uploaded_images)
         messages.success(request, 'Your listing has been saved.')
     else:
         messages.error(request, f'Listing was not saved: {form.errors.as_text()}')
@@ -219,12 +222,12 @@ def edit_listing(request, listing_id):
             listing.image_urls = [url for url in listing.image_urls if url not in remove_urls]
             listing.save(update_fields=['image_urls', 'updated_at'])
         if remove_ids:
-            _remove_listing_images(listing, remove_ids)
+            remove_listing_images(listing, remove_ids)
         if not listing.listing_images.exists() and not listing.image_urls:
             listing.image = None
             listing.save(update_fields=['image', 'updated_at'])
         if uploaded_images:
-            _save_listing_images(listing, uploaded_images)
+            save_listing_images(listing, uploaded_images)
         messages.success(request, 'Your listing has been updated.')
     else:
         messages.error(request, f'Listing was not updated: {form.errors.as_text()}')
@@ -241,32 +244,9 @@ def delete_listing_image(request, listing_id, image_id):
             listing__seller=request.user,
             listing__lifecycle_state=Listing.Lifecycle.NORMAL,
         )
-        _remove_listing_images(image.listing, [image.id])
+        remove_listing_images(image.listing, [image.id])
         messages.success(request, 'Photo removed from the listing.')
     return redirect(request.POST.get('next') or 'dashboard:seller')
-
-
-def _save_listing_images(listing, uploaded_images):
-    for image in uploaded_images:
-        if not listing.image:
-            listing.image = image
-            listing.save(update_fields=['image', 'updated_at'])
-        ListingImage.objects.create(listing=listing, image=image)
-
-
-def _remove_listing_images(listing, image_ids):
-    images = list(ListingImage.objects.filter(listing=listing, id__in=image_ids))
-    if not images:
-        return
-    primary_names = {image.image.name for image in images}
-    ListingImage.objects.filter(id__in=[image.id for image in images]).delete()
-    if listing.image and listing.image.name in primary_names:
-        replacement = listing.listing_images.first()
-        listing.image = replacement.image if replacement else None
-        listing.save(update_fields=['image', 'updated_at'])
-    elif not listing.listing_images.exists() and not listing.image_urls and listing.image:
-        listing.image = None
-        listing.save(update_fields=['image', 'updated_at'])
 
 
 @login_required
@@ -277,17 +257,7 @@ def delete_listing(request, listing_id):
         messages.info(request, 'This listing is already unavailable.')
         return redirect('dashboard:seller')
 
-    now = timezone.now()
-    retention_days = settings.LISTING_RECYCLE_BIN_RETENTION_DAYS
-    listing.lifecycle_state = Listing.Lifecycle.RECYCLE_BIN
-    listing.recycled_at = now
-    listing.recycle_bin_expires_at = (
-        now + timedelta(days=retention_days) if retention_days else None
-    )
-    listing.archived_at = None
-    listing.save(update_fields=[
-        'lifecycle_state', 'recycled_at', 'recycle_bin_expires_at', 'archived_at', 'updated_at',
-    ])
+    move_to_recycle_bin(listing)
     messages.success(request, 'The listing moved to the Recycle Bin and is hidden from public browsing.')
     return redirect('dashboard:seller')
 
@@ -295,19 +265,11 @@ def delete_listing(request, listing_id):
 @login_required
 @require_POST
 def restore_listing(request, listing_id):
-    restored = Listing.objects.filter(
-        pk=listing_id,
-        seller=request.user,
-        lifecycle_state=Listing.Lifecycle.RECYCLE_BIN,
-    ).update(
-        lifecycle_state=Listing.Lifecycle.NORMAL,
-        recycled_at=None,
-        recycle_bin_expires_at=None,
-        archived_at=None,
-        updated_at=timezone.now(),
-    )
-    if restored:
+    result = restore_recycled_listing(listing_id, request.user)
+    if result == RESTORED:
         messages.success(request, 'Listing restored. Its previous stock and availability status were kept.')
+    elif result == EXPIRED:
+        messages.info(request, 'This listing reached its 30-day Recycle Bin limit and is no longer available to restore.')
     else:
         messages.info(request, 'This listing is no longer available to restore.')
     return redirect('dashboard:seller')

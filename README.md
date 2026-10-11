@@ -222,13 +222,15 @@ python manage.py collectstatic
 
 ## Process recycle-bin expiry
 
-Recycle-bin expiry is disabled by default. Set `LISTING_RECYCLE_BIN_RETENTION_DAYS` in the Django settings only after a retention duration is approved, then schedule this command with the deployment's existing scheduler:
+Listings are restorable for 30 full days after entering the Recycle Bin. The command below archives eligible listings without deleting the listing or its related records:
 
 ```bash
 python manage.py archive_recycled_listings
 ```
 
-The command only archives listings that are still in the Recycle Bin; it never permanently deletes listings or related records.
+This repository does not configure a scheduler. Configure the deployment scheduler to run the command at least once daily, independently of web requests. For Windows Task Scheduler, create a daily task whose **Program/script** is the project virtual environment's `python.exe` and whose **Add arguments** are `manage.py archive_recycled_listings`; set **Start in** to the project root. For Linux cron, run `0 0 * * * /path/to/.venv/bin/python /path/to/project/manage.py archive_recycled_listings`.
+
+The command only archives listings that are still in the Recycle Bin; repeated runs are safe and never permanently delete listing data or related records.
 
 ---
 

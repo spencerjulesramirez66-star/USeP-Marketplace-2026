@@ -7,10 +7,15 @@ from django.utils import timezone
 from datetime import timedelta
 from io import StringIO
 
-from apps.accounts.models import User
+from apps.accounts.models import Roles, User
 from apps.messaging.models import Conversation, Message
 from .forms import ListingForm, ListingReviewForm, validate_listing_images
 from .models import Category, Listing, ListingReview, SavedItem
+from .services.listing_lifecycle import (
+    RESTORED,
+    archive_expired_recycled_listings,
+    restore_recycled_listing,
+)
 
 # Conversation/typing/read/search/unsend tests moved to
 # apps.messaging.tests, alongside the views and models they exercise.
@@ -138,6 +143,7 @@ class BuyerDashboardViewsTests(TestCase):
         expired.refresh_from_db()
         self.assertEqual(expired.lifecycle_state, Listing.Lifecycle.ARCHIVED)
 
+    @override_settings(LISTING_RECYCLE_BIN_RETENTION_DAYS=None)
     def test_recycle_bin_expiry_does_nothing_without_a_retention_setting(self):
         category = Category.objects.get(slug='textbooks')
         seller = User.objects.create_user(
@@ -155,6 +161,105 @@ class BuyerDashboardViewsTests(TestCase):
         call_command('archive_recycled_listings', stdout=StringIO())
         listing.refresh_from_db()
         self.assertEqual(listing.lifecycle_state, Listing.Lifecycle.RECYCLE_BIN)
+
+    def test_seller_cannot_request_the_removed_archived_dashboard_view(self):
+        seller = User.objects.create_user(
+            email='archive-view-seller@example.com', password='StrongPassword123!',
+            first_name='Archive', last_name='Seller', contact_num='09123456728',
+            email_verified=True, is_first_login=False,
+        )
+        self.client.force_login(seller)
+
+        response = self.client.get(reverse('dashboard:seller'), {'view': 'archived'})
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_recycle_boundary_allows_29_days_and_rejects_exactly_30_days(self):
+        category = Category.objects.get(slug='textbooks')
+        seller = User.objects.create_user(
+            email='boundary-owner@example.com', password='StrongPassword123!',
+            first_name='Boundary', last_name='Owner', contact_num='09123456727',
+            email_verified=True, is_first_login=False,
+        )
+        now = timezone.now()
+        eligible = Listing.objects.create(
+            seller=seller, category=category, title='Twenty-nine day listing', slug='twenty-nine-day-listing',
+            description='A listing.', price='100.00', condition='Good condition', location='Library',
+            lifecycle_state=Listing.Lifecycle.RECYCLE_BIN,
+            recycled_at=now - timedelta(days=29),
+        )
+        expired = Listing.objects.create(
+            seller=seller, category=category, title='Thirty day listing', slug='thirty-day-listing',
+            description='A listing.', price='100.00', condition='Good condition', location='Library',
+            lifecycle_state=Listing.Lifecycle.RECYCLE_BIN,
+            recycled_at=now - timedelta(days=30),
+        )
+
+        self.assertEqual(restore_recycled_listing(eligible.pk, seller, now), RESTORED)
+        self.client.force_login(seller)
+        recycle_bin = self.client.get(reverse('dashboard:seller'), {'view': 'recycle'})
+        self.assertNotContains(recycle_bin, expired.title)
+        self.client.post(reverse('dashboard:restore_listing', args=[expired.pk]))
+        eligible.refresh_from_db()
+        expired.refresh_from_db()
+        self.assertEqual(eligible.lifecycle_state, Listing.Lifecycle.NORMAL)
+        self.assertEqual(expired.lifecycle_state, Listing.Lifecycle.ARCHIVED)
+
+    def test_archive_processor_only_archives_listings_at_the_exact_cutoff(self):
+        category = Category.objects.get(slug='textbooks')
+        seller = User.objects.create_user(
+            email='processor-owner@example.com', password='StrongPassword123!',
+            first_name='Processor', last_name='Owner', contact_num='09123456726',
+            email_verified=True, is_first_login=False,
+        )
+        now = timezone.now()
+        before_cutoff = Listing.objects.create(
+            seller=seller, category=category, title='Still restorable', slug='still-restorable',
+            description='A listing.', price='100.00', condition='Good condition', location='Library',
+            lifecycle_state=Listing.Lifecycle.RECYCLE_BIN,
+            recycled_at=now - timedelta(days=30) + timedelta(microseconds=1),
+        )
+        at_cutoff = Listing.objects.create(
+            seller=seller, category=category, title='Ready to archive', slug='ready-to-archive',
+            description='A listing.', price='100.00', condition='Good condition', location='Library',
+            lifecycle_state=Listing.Lifecycle.RECYCLE_BIN,
+            recycled_at=now - timedelta(days=30),
+        )
+
+        self.assertEqual(archive_expired_recycled_listings(now), 1)
+        self.assertEqual(archive_expired_recycled_listings(now), 0)
+        before_cutoff.refresh_from_db()
+        at_cutoff.refresh_from_db()
+        self.assertEqual(before_cutoff.lifecycle_state, Listing.Lifecycle.RECYCLE_BIN)
+        self.assertEqual(at_cutoff.lifecycle_state, Listing.Lifecycle.ARCHIVED)
+
+    def test_archive_admin_is_available_only_to_the_existing_admin_role(self):
+        category = Category.objects.get(slug='textbooks')
+        administrator = User.objects.create_user(
+            email='archive-admin@example.com', password='StrongPassword123!',
+            first_name='Archive', last_name='Admin', contact_num='09123456725',
+            email_verified=True, is_first_login=False, is_staff=True, role=Roles.ADMIN,
+        )
+        staff_user = User.objects.create_user(
+            email='archive-staff@example.com', password='StrongPassword123!',
+            first_name='Archive', last_name='Staff', contact_num='09123456724',
+            email_verified=True, is_first_login=False, is_staff=True,
+        )
+        archived = Listing.objects.create(
+            seller=administrator, category=category, title='Administrative archive', slug='administrative-archive',
+            description='A listing.', price='100.00', condition='Good condition', location='Library',
+            lifecycle_state=Listing.Lifecycle.ARCHIVED,
+            archived_at=timezone.now(),
+        )
+        archive_url = reverse('admin:dashboard_listing_changelist')
+
+        self.client.force_login(administrator)
+        response = self.client.get(archive_url, {'lifecycle_state__exact': Listing.Lifecycle.ARCHIVED})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, archived.title)
+
+        self.client.force_login(staff_user)
+        self.assertEqual(self.client.get(archive_url).status_code, 403)
 
     def test_listing_photo_validation_enforces_existing_count_and_image_types(self):
         valid_images = [

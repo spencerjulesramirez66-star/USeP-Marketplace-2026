@@ -130,8 +130,8 @@ USE_I18N = True
 
 USE_TZ = True
 
-# A product decision: recycle-bin expiry stays disabled until a duration is set.
-LISTING_RECYCLE_BIN_RETENTION_DAYS = None
+# Listings remain restorable for 30 full days after entering the Recycle Bin.
+LISTING_RECYCLE_BIN_RETENTION_DAYS = 30
 
 
 # Static files (CSS, JavaScript, Images)
