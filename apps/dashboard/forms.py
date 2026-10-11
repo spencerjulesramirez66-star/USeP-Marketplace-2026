@@ -8,6 +8,18 @@ from .models import Category, Listing, ListingReview
 MAX_REVIEW_PHOTOS = 5
 MAX_REVIEW_PHOTO_SIZE_BYTES = 10 * 1024 * 1024
 ALLOWED_REVIEW_PHOTO_TYPES = {'image/gif', 'image/jpeg', 'image/png', 'image/webp'}
+MAX_LISTING_PHOTOS = 8
+ALLOWED_LISTING_IMAGE_TYPES = {'image/gif', 'image/jpeg', 'image/png', 'image/webp'}
+
+
+def validate_listing_images(images, existing_count=0):
+    images = list(images)
+    if existing_count + len(images) > MAX_LISTING_PHOTOS:
+        raise forms.ValidationError(f'A listing can include up to {MAX_LISTING_PHOTOS} photos.')
+    invalid = [image.name for image in images if image.content_type not in ALLOWED_LISTING_IMAGE_TYPES]
+    if invalid:
+        raise forms.ValidationError('Upload JPEG, PNG, GIF, or WebP images only.')
+    return images
 
 
 class MultipleImageInput(forms.ClearableFileInput):
@@ -185,6 +197,12 @@ class ListingReviewForm(forms.ModelForm):
             if photo.content_type not in ALLOWED_REVIEW_PHOTO_TYPES:
                 raise forms.ValidationError('Upload JPEG, PNG, GIF, or WebP images only.')
         return photos
+
+    def clean_rating(self):
+        rating = self.cleaned_data.get('rating')
+        if rating not in ListingReview.Rating.values:
+            raise forms.ValidationError('Select a whole-star rating from 1 to 5.')
+        return rating
 
 
 # MessageForm has moved to apps.messaging.forms.

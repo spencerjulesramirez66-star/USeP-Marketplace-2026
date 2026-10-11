@@ -68,6 +68,31 @@
     color: var(--color-primary);
 }
 
+.product-rating {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    min-height: 1.2rem;
+    margin: 0 0 0.5rem;
+    color: var(--color-text);
+    font-size: 0.8rem;
+    line-height: 1.2;
+}
+
+.product-rating-stars {
+    display: flex;
+    gap: 0.125rem;
+    color: #FFC107;
+    font-size: 0.9rem;
+}
+
+.product-rating-stars .bi::before { color: #FFC107; }
+
+.product-rating-average { font-weight: 700; }
+.product-rating-count,
+.product-rating-empty { color: var(--color-text-muted); }
+
 .product-title-link::after {
     content: '';
     position: absolute;
@@ -162,6 +187,8 @@
     .product-content { padding: 0.45rem 0.15rem 0.35rem; }
     .product-price { margin: 0; font-size: 0.95rem; }
     .product-title { min-height: 0; font-size: 0.85rem; -webkit-line-clamp: 1; }
+    .product-rating { margin-bottom: 0.3rem; font-size: 0.75rem; }
+    .product-rating-stars { font-size: 0.85rem; }
 
     .product-subtitle,
     .product-footer { display: none; }

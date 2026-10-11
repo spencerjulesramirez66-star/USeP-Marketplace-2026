@@ -41,7 +41,10 @@ def start_conversation(buyer, listing):
     if conversation:
         return conversation
 
-    if listing.status in (listing.Status.DRAFT, listing.Status.ARCHIVED):
+    if (
+        listing.lifecycle_state != listing.Lifecycle.NORMAL
+        or listing.status in (listing.Status.DRAFT, listing.Status.ARCHIVED)
+    ):
         raise PermissionDenied('This listing is not available.')
     return Conversation.objects.create(buyer=buyer, seller=listing.seller, listing=listing)
 

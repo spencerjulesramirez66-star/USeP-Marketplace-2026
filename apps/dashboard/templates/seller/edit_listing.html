@@ -25,6 +25,7 @@
             {% csrf_token %}
             <section class="edit-listing-gallery">
                 <h2>Listing photos</h2>
+                <p class="photo-upload-hint">Choose JPEG, PNG, GIF, or WebP photos. A listing can have up to 8 photos; no file-size limit is configured.</p>
                 <div class="manage-gallery edit-gallery" aria-label="Uploaded listing photos">
                     {% for image in listing.listing_images.all %}
                         <div class="manage-gallery-item">
@@ -36,7 +37,7 @@
                     {% endfor %}
                 </div>
                 <label class="change-photo" for="edit-listing-images">Add more photos</label>
-                <input class="image-input" name="images" id="edit-listing-images" type="file" accept="image/*" multiple>
+                <input class="image-input" name="images" id="edit-listing-images" type="file" accept="image/jpeg,image/png,image/gif,image/webp" multiple>
                 <div id="edit-removed-images"></div>
             </section>
 

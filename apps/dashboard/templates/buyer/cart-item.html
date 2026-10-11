@@ -10,7 +10,7 @@
 
     <div class="cart-listing-info">
         {% if sold %}
-            <span class="status-pill status-pill-sold">Sold</span>
+            <span class="status-pill status-pill-sold">{% if listing.lifecycle_state != 'NORMAL' or listing.status == 'ARCHIVED' %}Unavailable{% else %}Sold{% endif %}</span>
         {% else %}
             <span class="status-pill status-pill-active">In cart</span>
         {% endif %}

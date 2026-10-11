@@ -130,6 +130,9 @@ USE_I18N = True
 
 USE_TZ = True
 
+# A product decision: recycle-bin expiry stays disabled until a duration is set.
+LISTING_RECYCLE_BIN_RETENTION_DAYS = None
+
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/

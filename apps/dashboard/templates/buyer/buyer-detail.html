@@ -76,13 +76,16 @@
         </section>
 
         <section class="seller-profile panel" aria-label="Seller information">
-            {% include 'buyer/seller-profile.html' with seller=seller_info other_products_count=other_products|length seller_id=item.seller_id %}
+            {% include 'buyer/seller-profile.html' with seller=seller_info other_products_count=other_products|length seller_id=item.seller_id rating_stars=rating_stars %}
         </section>
 
         <section class="detail-info panel">
             <div class="detail-copy">
                 <h2 class="eyebrow">Description</h2>
-                <p>{{ item.description|linebreaksbr }}</p>
+                <div class="listing-description" id="listing-description-{{ item.id }}" data-listing-description>
+                    <p>{{ item.description|linebreaksbr }}</p>
+                </div>
+                <button class="listing-description-toggle" type="button" hidden data-description-toggle aria-controls="listing-description-{{ item.id }}" aria-expanded="false">Read more</button>
             </div>
 
             {% if item.highlights %}
@@ -117,7 +120,7 @@
                     {% for row in rating_breakdown %}
                     <div class="listing-rating-row">
                         <span>{{ row.value }} star</span>
-                        <div class="listing-rating-track" role="progressbar" aria-label="{{ row.value }} stars" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ row.percentage }}"><span style="width: {{ row.percentage }}%"></span></div>
+                        <progress class="listing-rating-track" aria-label="{{ row.value }} stars" value="{{ row.percentage }}" max="100">{{ row.percentage }}%</progress>
                         <span>{{ row.count }}</span>
                     </div>
                     {% endfor %}
@@ -146,7 +149,7 @@
                         {% endwith %}
                     </article>
                     {% empty %}
-                    <p class="listing-reviews-empty">No reviews yet. Be the first to share your experience.</p>
+                    <p class="listing-reviews-empty">No ratings yet for this listing. Be the first to share your experience.</p>
                     {% endfor %}
                 </div>
 
@@ -163,18 +166,21 @@
                             {% csrf_token %}
                             <fieldset>
                                 <legend>Your rating</legend>
-                                <div class="listing-review-rating-options">
+                                <div class="listing-review-rating-options" data-rating-selector>
                                     {% for option in rating_options %}
-                                    <label>
-                                        <input type="radio" name="rating" value="{{ option.value }}" required{% if user_review.rating == option.value %} checked{% endif %}>
-                                        <span aria-hidden="true">{% for star in option.stars %}<i class="bi bi-star-fill"></i>{% endfor %}</span>
+                                    <label class="listing-review-rating-star" data-rating-star data-rating-value="{{ option.value }}">
+                                        <input type="radio" name="rating" value="{{ option.value }}" required{% if selected_rating == option.value %} checked{% endif %}>
+                                        <i class="bi bi-star" aria-hidden="true"></i>
                                         <span class="listing-review-rating-label">{{ option.value }} star{{ option.value|pluralize }}</span>
                                     </label>
                                     {% endfor %}
                                 </div>
+                                <p class="listing-review-rating-indicator" data-rating-indicator aria-live="polite">{% if selected_rating %}{{ selected_rating }} out of 5{% else %}Select a rating{% endif %}</p>
+                                {% for error in review_form.rating.errors %}<p class="listing-review-field-error" role="alert">{{ error }}</p>{% endfor %}
                             </fieldset>
                             <label for="{{ review_form.body.id_for_label }}">Your review</label>
                             {{ review_form.body }}
+                            {% for error in review_form.body.errors %}<p class="listing-review-field-error" role="alert">{{ error }}</p>{% endfor %}
                             {% if user_review_photo_count %}
                             <p class="listing-review-photo-note">Remove any current photo you want to replace. Changes apply when you save the review.</p>
                             <div class="listing-review-existing-photos" aria-label="Your current review photos">
@@ -200,6 +206,39 @@
                         </form>
                     {% endif %}
                 </div>
+            </div>
+        </section>
+
+        <section class="seller-other-reviews panel" aria-labelledby="seller-other-reviews-title">
+            <header>
+                <p class="eyebrow">Seller feedback</p>
+                <h2 id="seller-other-reviews-title">Ratings from this seller&rsquo;s other listings</h2>
+                <p>These ratings are from other listings by the same seller, not this listing.</p>
+                {% if seller_other_review_count %}
+                <p><strong>{{ seller_other_review_average|floatformat:1 }} out of 5</strong> from {{ seller_other_review_count }} rating{{ seller_other_review_count|pluralize }} on other listings.</p>
+                {% endif %}
+            </header>
+            <div class="listing-review-list">
+                {% if seller_other_review_count %}
+                {% for review in seller_other_reviews %}
+                <article class="listing-review">
+                    <div class="listing-review-author">
+                        <strong>{{ review.reviewer_name }}</strong>
+                        <time datetime="{{ review.updated_at|date:'c' }}">{{ review.updated_at|date:'M j, Y' }}</time>
+                    </div>
+                    <p class="listing-review-source">From <a href="{{ review.listing.get_absolute_url }}">{{ review.listing.title }}</a></p>
+                    <div class="listing-review-stars" aria-label="{{ review.rating }} out of 5 stars">
+                        {% for star in rating_stars %}<i class="bi {% if star <= review.rating %}bi-star-fill{% else %}bi-star{% endif %}" aria-hidden="true"></i>{% endfor %}
+                    </div>
+                    <p>{{ review.body|linebreaksbr }}</p>
+                    {% with photos=review.photos.all %}
+                    {% if photos %}<div class="listing-review-photos" aria-label="Photos shared with this review">{% for photo in photos %}<a href="{{ photo.image.url }}" target="_blank" rel="noopener"><img src="{{ photo.image.url }}" alt="Photo shared by {{ review.reviewer_name }}" loading="lazy"></a>{% endfor %}</div>{% endif %}
+                    {% endwith %}
+                </article>
+                {% endfor %}
+                {% else %}
+                <p class="listing-reviews-empty">No ratings from this seller&rsquo;s other listings yet.</p>
+                {% endif %}
             </div>
         </section>
 
@@ -296,4 +335,6 @@
 <script src="{% static 'js/buyer/detail-gallery.js' %}" defer></script>
 <script src="{% static 'js/buyer/detail-edit-modal.js' %}" defer></script>
 <script src="{% static 'js/buyer/review-photos.js' %}" defer></script>
+<script src="{% static 'js/buyer/description-toggle.js' %}" defer></script>
+<script src="{% static 'js/buyer/rating-selector.js' %}" defer></script>
 {% endblock %}

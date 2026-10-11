@@ -1,11 +1,15 @@
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.exceptions import ValidationError
+from django.core.management import call_command
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
+from datetime import timedelta
+from io import StringIO
 
 from apps.accounts.models import User
 from apps.messaging.models import Conversation, Message
-from .forms import ListingForm
+from .forms import ListingForm, ListingReviewForm, validate_listing_images
 from .models import Category, Listing, ListingReview, SavedItem
 
 # Conversation/typing/read/search/unsend tests moved to
@@ -39,14 +43,22 @@ class BuyerDashboardViewsTests(TestCase):
         # Starting a chat about the listing is exercised in
         # apps.messaging.tests (messaging:start_conversation).
 
-    def test_deleting_a_listing_with_messages_archives_it_and_keeps_the_conversation(self):
-        seller = User.objects.get(email='test.seller@usep.edu.ph')
+    def test_deleting_a_listing_moves_it_to_the_recycle_bin_and_keeps_the_conversation(self):
+        category = Category.objects.get(slug='textbooks')
+        seller = User.objects.create_user(
+            email='history-seller@example.com', password='StrongPassword123!',
+            first_name='History', last_name='Seller', contact_num='09123456730',
+            email_verified=True, is_first_login=False,
+        )
         buyer = User.objects.create_user(
             email='history-buyer@example.com', password='StrongPassword123!',
             first_name='History', last_name='Buyer', contact_num='09123456774',
             email_verified=True, is_first_login=False,
         )
-        listing = Listing.objects.filter(seller=seller, status=Listing.Status.ACTIVE).first()
+        listing = Listing.objects.create(
+            seller=seller, category=category, title='History listing', slug='history-listing',
+            description='A listing.', price='100.00', condition='Good condition', location='Library',
+        )
         conversation = Conversation.objects.create(buyer=buyer, seller=seller, listing=listing)
         Message.objects.create(conversation=conversation, sender=buyer, body='Please keep this history.')
         self.client.force_login(seller)
@@ -55,9 +67,135 @@ class BuyerDashboardViewsTests(TestCase):
 
         self.assertRedirects(response, reverse('dashboard:seller'))
         listing.refresh_from_db()
-        self.assertEqual(listing.status, Listing.Status.ARCHIVED)
+        self.assertEqual(listing.status, Listing.Status.ACTIVE)
+        self.assertEqual(listing.lifecycle_state, Listing.Lifecycle.RECYCLE_BIN)
         self.assertTrue(Conversation.objects.filter(pk=conversation.pk).exists())
         self.assertTrue(Message.objects.filter(conversation=conversation).exists())
+
+    def test_recycled_listing_is_hidden_publicly_and_restored_by_its_owner(self):
+        category = Category.objects.get(slug='textbooks')
+        seller = User.objects.create_user(
+            email='recycle-owner@example.com', password='StrongPassword123!',
+            first_name='Recycle', last_name='Owner', contact_num='09123456731',
+            email_verified=True, is_first_login=False,
+        )
+        other_user = User.objects.create_user(
+            email='recycle-other@example.com', password='StrongPassword123!',
+            first_name='Other', last_name='User', contact_num='09123456732',
+            email_verified=True, is_first_login=False,
+        )
+        listing = Listing.objects.create(
+            seller=seller, category=category, title='Recoverable listing', slug='recoverable-listing',
+            description='A listing.', price='100.00', condition='Good condition', location='Library',
+            stock_quantity=4,
+        )
+        self.client.force_login(seller)
+        self.client.post(reverse('dashboard:delete_listing', args=[listing.pk]))
+        listing.refresh_from_db()
+        self.assertEqual(listing.lifecycle_state, Listing.Lifecycle.RECYCLE_BIN)
+        self.assertEqual(listing.stock_quantity, 4)
+        self.assertEqual(self.client.get(reverse('dashboard:buyer_detail', args=[listing.slug])).status_code, 404)
+
+        self.client.force_login(other_user)
+        self.assertNotContains(self.client.get(reverse('dashboard:buyer')), listing.title)
+        self.client.post(reverse('dashboard:restore_listing', args=[listing.pk]))
+        listing.refresh_from_db()
+        self.assertEqual(listing.lifecycle_state, Listing.Lifecycle.RECYCLE_BIN)
+
+        self.client.force_login(seller)
+        self.client.post(reverse('dashboard:restore_listing', args=[listing.pk]))
+        listing.refresh_from_db()
+        self.assertEqual(listing.lifecycle_state, Listing.Lifecycle.NORMAL)
+        self.assertEqual(listing.stock_quantity, 4)
+        self.assertEqual(self.client.get(reverse('dashboard:buyer_detail', args=[listing.slug])).status_code, 200)
+
+    @override_settings(LISTING_RECYCLE_BIN_RETENTION_DAYS=1)
+    def test_recycle_bin_expiry_archives_only_listings_still_in_the_bin(self):
+        category = Category.objects.get(slug='textbooks')
+        seller = User.objects.create_user(
+            email='expiry-owner@example.com', password='StrongPassword123!',
+            first_name='Expiry', last_name='Owner', contact_num='09123456733',
+            email_verified=True, is_first_login=False,
+        )
+        expired = Listing.objects.create(
+            seller=seller, category=category, title='Expired bin listing', slug='expired-bin-listing',
+            description='A listing.', price='100.00', condition='Good condition', location='Library',
+            lifecycle_state=Listing.Lifecycle.RECYCLE_BIN,
+            recycled_at=timezone.now() - timedelta(days=2),
+            recycle_bin_expires_at=timezone.now() - timedelta(seconds=1),
+        )
+        restored = Listing.objects.create(
+            seller=seller, category=category, title='Restored listing', slug='restored-bin-listing',
+            description='A listing.', price='100.00', condition='Good condition', location='Library',
+        )
+
+        call_command('archive_recycled_listings', stdout=StringIO())
+        expired.refresh_from_db()
+        restored.refresh_from_db()
+        self.assertEqual(expired.lifecycle_state, Listing.Lifecycle.ARCHIVED)
+        self.assertEqual(restored.lifecycle_state, Listing.Lifecycle.NORMAL)
+        call_command('archive_recycled_listings', stdout=StringIO())
+        expired.refresh_from_db()
+        self.assertEqual(expired.lifecycle_state, Listing.Lifecycle.ARCHIVED)
+
+    def test_recycle_bin_expiry_does_nothing_without_a_retention_setting(self):
+        category = Category.objects.get(slug='textbooks')
+        seller = User.objects.create_user(
+            email='disabled-expiry-owner@example.com', password='StrongPassword123!',
+            first_name='Disabled', last_name='Expiry', contact_num='09123456734',
+            email_verified=True, is_first_login=False,
+        )
+        listing = Listing.objects.create(
+            seller=seller, category=category, title='Retained listing', slug='retained-listing',
+            description='A listing.', price='100.00', condition='Good condition', location='Library',
+            lifecycle_state=Listing.Lifecycle.RECYCLE_BIN,
+            recycled_at=timezone.now() - timedelta(days=2),
+        )
+
+        call_command('archive_recycled_listings', stdout=StringIO())
+        listing.refresh_from_db()
+        self.assertEqual(listing.lifecycle_state, Listing.Lifecycle.RECYCLE_BIN)
+
+    def test_listing_photo_validation_enforces_existing_count_and_image_types(self):
+        valid_images = [
+            SimpleUploadedFile(f'photo-{index}.jpg', b'photo', content_type='image/jpeg')
+            for index in range(8)
+        ]
+        self.assertEqual(validate_listing_images(valid_images), valid_images)
+        with self.assertRaisesMessage(ValidationError, 'up to 8 photos'):
+            validate_listing_images(valid_images, existing_count=1)
+        with self.assertRaisesMessage(ValidationError, 'JPEG, PNG, GIF, or WebP'):
+            validate_listing_images([
+                SimpleUploadedFile('photo.pdf', b'file', content_type='application/pdf'),
+            ])
+
+    def test_recycling_a_listing_keeps_its_valid_seller_reputation_rating(self):
+        category = Category.objects.get(slug='textbooks')
+        seller = User.objects.create_user(
+            email='reputation-retention-seller@example.com', password='StrongPassword123!',
+            first_name='Reputation', last_name='Retention', contact_num='09123456735',
+            email_verified=True, is_first_login=False,
+        )
+        buyer = User.objects.create_user(
+            email='reputation-retention-buyer@example.com', password='StrongPassword123!',
+            first_name='Rating', last_name='Buyer', contact_num='09123456736',
+            email_verified=True, is_first_login=False,
+        )
+        visible_listing = Listing.objects.create(
+            seller=seller, category=category, title='Visible reputation listing', slug='visible-reputation-listing',
+            description='A listing.', price='100.00', condition='Good condition', location='Library',
+        )
+        recycled_listing = Listing.objects.create(
+            seller=seller, category=category, title='Recycled reputation listing', slug='recycled-reputation-listing',
+            description='A listing.', price='100.00', condition='Good condition', location='Library',
+            lifecycle_state=Listing.Lifecycle.RECYCLE_BIN,
+            recycled_at=timezone.now(),
+        )
+        ListingReview.objects.create(listing=recycled_listing, reviewer=buyer, rating=5, body='Valid review.')
+
+        response = self.client.get(reverse('dashboard:buyer_detail', args=[visible_listing.slug]))
+        self.assertEqual(response.context['seller_info']['reputation_count'], 1)
+        self.assertEqual(float(response.context['seller_info']['reputation_average']), 5.0)
 
     def test_buyer_listing_page_loads(self):
         response = self.client.get(reverse('dashboard:buyer'))
@@ -718,3 +856,248 @@ class BuyerDashboardViewsTests(TestCase):
             'status': Listing.Status.ACTIVE,
         })
         self.assertTrue(form.is_valid())
+
+    def test_review_form_rejects_missing_or_non_whole_star_ratings(self):
+        for rating in ['', '4.5', '0', '6', 'five']:
+            form = ListingReviewForm(data={'rating': rating, 'body': 'A valid review body.'})
+            self.assertFalse(form.is_valid(), rating)
+            self.assertIn('rating', form.errors)
+
+    def test_review_submission_preserves_bound_values_after_validation_error(self):
+        seller = User.objects.create_user(
+            email='review-validation-seller@example.com', password='StrongPassword123!',
+            first_name='Review', last_name='Seller', contact_num='09123456719',
+            email_verified=True, is_first_login=False,
+        )
+        buyer = User.objects.create_user(
+            email='review-validation-buyer@example.com', password='StrongPassword123!',
+            first_name='Review', last_name='Buyer', contact_num='09123456718',
+            email_verified=True, is_first_login=False,
+        )
+        listing = Listing.objects.create(
+            seller=seller, category=Category.objects.get(slug='textbooks'),
+            title='Validation review listing', slug='validation-review-listing',
+            description='A listing for review validation.', price='100.00',
+            condition='Good condition', location='Library',
+        )
+        self.client.force_login(buyer)
+
+        response = self.client.post(
+            reverse('dashboard:submit_listing_review', args=[listing.slug]),
+            {'rating': '4.5', 'body': 'Keep this review text.'},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Keep this review text.')
+        self.assertContains(response, 'Select a valid choice.')
+        self.assertFalse(ListingReview.objects.filter(listing=listing).exists())
+
+    def test_review_submission_saves_each_whole_star_value(self):
+        seller = User.objects.create_user(
+            email='whole-star-seller@example.com', password='StrongPassword123!',
+            first_name='Whole', last_name='Star', contact_num='09123456713',
+            email_verified=True, is_first_login=False,
+        )
+        buyer = User.objects.create_user(
+            email='whole-star-buyer@example.com', password='StrongPassword123!',
+            first_name='Whole', last_name='Buyer', contact_num='09123456712',
+            email_verified=True, is_first_login=False,
+        )
+        listing = Listing.objects.create(
+            seller=seller, category=Category.objects.get(slug='textbooks'),
+            title='Whole star listing', slug='whole-star-listing',
+            description='A listing.', price='100.00', condition='Good condition', location='Library',
+        )
+        self.client.force_login(buyer)
+
+        for rating in range(1, 6):
+            response = self.client.post(
+                reverse('dashboard:submit_listing_review', args=[listing.slug]),
+                {'rating': str(rating), 'body': f'{rating} star review.'},
+            )
+            self.assertEqual(response.status_code, 302)
+            self.assertEqual(
+                ListingReview.objects.get(listing=listing, reviewer=buyer).rating,
+                rating,
+            )
+
+    def test_seller_reputation_is_weighted_and_does_not_include_other_sellers(self):
+        category = Category.objects.get(slug='textbooks')
+        seller = User.objects.create_user(
+            email='reputation-seller@example.com', password='StrongPassword123!',
+            first_name='Reputation', last_name='Seller', contact_num='09123456717',
+            email_verified=True, is_first_login=False,
+        )
+        other_seller = User.objects.create_user(
+            email='other-reputation-seller@example.com', password='StrongPassword123!',
+            first_name='Other', last_name='Seller', contact_num='09123456716',
+            email_verified=True, is_first_login=False,
+        )
+        first_listing = Listing.objects.create(
+            seller=seller, category=category, title='Highly rated listing', slug='highly-rated-listing',
+            description='A listing.', price='100.00', condition='Good condition', location='Library',
+        )
+        second_listing = Listing.objects.create(
+            seller=seller, category=category, title='Lower rated listing', slug='lower-rated-listing',
+            description='A listing.', price='100.00', condition='Good condition', location='Library',
+        )
+        other_listing = Listing.objects.create(
+            seller=other_seller, category=category, title='Other seller listing', slug='other-seller-listing',
+            description='A listing.', price='100.00', condition='Good condition', location='Library',
+        )
+        listings_and_ratings = [(first_listing, 5)] + [(second_listing, 1)] * 9 + [(other_listing, 5)]
+        for index, (listing, rating) in enumerate(listings_and_ratings):
+            reviewer = User.objects.create_user(
+                email=f'reputation-reviewer-{index}@example.com', password='StrongPassword123!',
+                first_name='Reviewer', last_name=str(index), contact_num=f'09123456{700 + index:03d}',
+                email_verified=True, is_first_login=False,
+            )
+            ListingReview.objects.create(listing=listing, reviewer=reviewer, rating=rating, body='Review.')
+
+        response = self.client.get(reverse('dashboard:buyer_detail', args=[first_listing.slug]))
+
+        seller_info = response.context['seller_info']
+        self.assertEqual(seller_info['reputation_count'], 10)
+        self.assertEqual(float(seller_info['reputation_average']), 1.4)
+        self.assertEqual(
+            seller_info['reputation_star_states'],
+            ['full', 'half', 'empty', 'empty', 'empty'],
+        )
+        self.assertContains(response, '1.4 out of 5')
+        self.assertContains(response, 'bi-star-half')
+
+    def test_other_listing_reviews_section_renders_for_every_rating_combination(self):
+        category = Category.objects.get(slug='textbooks')
+        seller = User.objects.create_user(
+            email='fallback-seller@example.com', password='StrongPassword123!',
+            first_name='Fallback', last_name='Seller', contact_num='09123456715',
+            email_verified=True, is_first_login=False,
+        )
+        current_listing = Listing.objects.create(
+            seller=seller, category=category, title='Unrated listing', slug='unrated-listing',
+            description='A listing.', price='100.00', condition='Good condition', location='Library',
+        )
+        other_listing = Listing.objects.create(
+            seller=seller, category=category, title='Reviewed listing', slug='reviewed-listing',
+            description='A listing.', price='100.00', condition='Good condition', location='Library',
+        )
+        reviewer = User.objects.create_user(
+            email='fallback-reviewer@example.com', password='StrongPassword123!',
+            first_name='Fallback', last_name='Reviewer', contact_num='09123456714',
+            email_verified=True, is_first_login=False,
+        )
+
+        response = self.client.get(reverse('dashboard:buyer_detail', args=[current_listing.slug]))
+        self.assertEqual(response.context['seller_other_review_count'], 0)
+        self.assertContains(response, 'Ratings from this seller&rsquo;s other listings')
+        self.assertContains(response, 'No ratings from this seller&rsquo;s other listings yet.')
+        content = response.content.decode()
+        self.assertLess(
+            content.index('No ratings yet for this listing.'),
+            content.index('Ratings from this seller&rsquo;s other listings'),
+        )
+
+        ListingReview.objects.create(listing=other_listing, reviewer=reviewer, rating=5, body='Other listing review.')
+
+        response = self.client.get(reverse('dashboard:buyer_detail', args=[current_listing.slug]))
+
+        self.assertEqual(response.context['review_count'], 0)
+        self.assertEqual(response.context['seller_other_review_count'], 1)
+        self.assertContains(response, 'Ratings from this seller&rsquo;s other listings')
+        self.assertContains(response, 'Reviewed listing')
+        content = response.content.decode()
+        self.assertLess(
+            content.index('No ratings yet for this listing.'),
+            content.index('Ratings from this seller&rsquo;s other listings'),
+        )
+
+        current_review = ListingReview.objects.create(
+            listing=current_listing, reviewer=seller, rating=4, body='Current listing review.',
+        )
+        response = self.client.get(reverse('dashboard:buyer_detail', args=[current_listing.slug]))
+        self.assertEqual(response.context['review_count'], 1)
+        self.assertEqual(response.context['average_rating'], 4)
+        self.assertEqual(response.context['seller_other_review_count'], 1)
+        self.assertContains(response, 'Ratings from this seller&rsquo;s other listings')
+        content = response.content.decode()
+        self.assertLess(
+            content.index('Current listing review.'),
+            content.index('Ratings from this seller&rsquo;s other listings'),
+        )
+
+        ListingReview.objects.filter(listing=other_listing).delete()
+        response = self.client.get(reverse('dashboard:buyer_detail', args=[current_listing.slug]))
+        self.assertEqual(response.context['review_count'], 1)
+        self.assertEqual(response.context['seller_other_review_count'], 0)
+        self.assertContains(response, 'Ratings from this seller&rsquo;s other listings')
+        self.assertContains(response, 'No ratings from this seller&rsquo;s other listings yet.')
+        content = response.content.decode()
+        self.assertLess(
+            content.index('Current listing review.'),
+            content.index('Ratings from this seller&rsquo;s other listings'),
+        )
+
+        current_review.delete()
+        response = self.client.get(reverse('dashboard:buyer_detail', args=[current_listing.slug]))
+        self.assertEqual(response.context['review_count'], 0)
+        self.assertEqual(response.context['seller_other_review_count'], 0)
+        self.assertContains(response, 'No ratings yet for this listing.')
+        self.assertContains(response, 'No ratings from this seller&rsquo;s other listings yet.')
+
+    def test_product_cards_show_listing_specific_rating_summaries(self):
+        category = Category.objects.get(slug='textbooks')
+        seller = User.objects.create_user(
+            email='card-rating-seller@example.com', password='StrongPassword123!',
+            first_name='Card', last_name='Seller', contact_num='09123456711',
+            email_verified=True, is_first_login=False,
+        )
+        buyer = User.objects.create_user(
+            email='card-rating-buyer@example.com', password='StrongPassword123!',
+            first_name='Card', last_name='Buyer', contact_num='09123456710',
+            email_verified=True, is_first_login=False,
+        )
+        one_rating_listing = Listing.objects.create(
+            seller=seller, category=category, title='One rating listing', slug='one-rating-listing',
+            description='A listing.', price='100.00', condition='Good condition', location='Library',
+        )
+        average_listing = Listing.objects.create(
+            seller=seller, category=category, title='Average rating listing', slug='average-rating-listing',
+            description='A listing.', price='100.00', condition='Good condition', location='Library',
+        )
+        fractional_listing = Listing.objects.create(
+            seller=seller, category=category, title='Fractional rating listing', slug='fractional-rating-listing',
+            description='A listing.', price='100.00', condition='Good condition', location='Library',
+        )
+        unrated_listing = Listing.objects.create(
+            seller=seller, category=category, title='Unrated card listing', slug='unrated-card-listing',
+            description='A listing.', price='100.00', condition='Good condition', location='Library',
+        )
+        rating_data = (
+            [(one_rating_listing, 5)]
+            + [(average_listing, rating) for rating in (5, 4, 3)]
+            + [(fractional_listing, rating) for rating in (5, 4, 4)]
+        )
+        for index, (listing, rating) in enumerate(rating_data):
+            reviewer = User.objects.create_user(
+                email=f'card-rating-reviewer-{index}@example.com', password='StrongPassword123!',
+                first_name='Card', last_name=f'Reviewer {index}', contact_num=f'09123456{800 + index:03d}',
+                email_verified=True, is_first_login=False,
+            )
+            ListingReview.objects.create(listing=listing, reviewer=reviewer, rating=rating, body='Review.')
+        SavedItem.objects.create(buyer=buyer, listing=average_listing)
+        self.client.force_login(buyer)
+
+        response = self.client.get(reverse('dashboard:buyer'))
+
+        items = {item.pk: item for item in response.context['items']}
+        self.assertEqual((float(items[one_rating_listing.pk].rating_average), items[one_rating_listing.pk].rating_count), (5.0, 1))
+        self.assertEqual((float(items[average_listing.pk].rating_average), items[average_listing.pk].rating_count), (4.0, 3))
+        self.assertAlmostEqual(float(items[fractional_listing.pk].rating_average), 4.3, places=1)
+        self.assertEqual(items[fractional_listing.pk].rating_count, 3)
+        self.assertIsNone(items[unrated_listing.pk].rating_average)
+        self.assertEqual(items[unrated_listing.pk].rating_count, 0)
+        self.assertContains(response, 'Rated 5.0 out of 5 based on 1 rating.')
+        self.assertContains(response, 'Rated 4.0 out of 5 based on 3 ratings.')
+        self.assertContains(response, 'Rated 4.3 out of 5 based on 3 ratings.')
+        self.assertContains(response, 'No ratings yet')
+        self.assertContains(response, 'bi-star-half')

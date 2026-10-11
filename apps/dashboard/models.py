@@ -6,6 +6,18 @@ from django.urls import reverse
 from django.utils.text import slugify
 from img_compress import compress_to_webp
 
+
+def rating_star_states(average):
+	if average is None:
+		return []
+
+	rounded_average = int(float(average) * 2 + 0.5) / 2
+	return [
+		'full' if rounded_average >= star else 'half' if rounded_average == star - 0.5 else 'empty'
+		for star in range(1, 6)
+	]
+
+
 class Category(models.Model):
 	name = models.CharField(max_length=100, unique=True)
 	slug = models.SlugField(max_length=110, unique=True)
@@ -18,6 +30,11 @@ class Category(models.Model):
 
 
 class Listing(models.Model):
+	class Lifecycle(models.TextChoices):
+		NORMAL = 'NORMAL', 'Normal'
+		RECYCLE_BIN = 'RECYCLE_BIN', 'Recycle bin'
+		ARCHIVED = 'ARCHIVED', 'Archived'
+
 	class Status(models.TextChoices):
 		DRAFT = 'DRAFT', 'Draft'
 		ACTIVE = 'ACTIVE', 'Active'
@@ -56,6 +73,14 @@ class Listing(models.Model):
 	views = models.PositiveIntegerField(default=0)
 	created_at = models.DateTimeField(auto_now_add=True)
 	updated_at = models.DateTimeField(auto_now=True)
+	lifecycle_state = models.CharField(
+		max_length=12,
+		choices=Lifecycle.choices,
+		default=Lifecycle.NORMAL,
+	)
+	recycled_at = models.DateTimeField(blank=True, null=True)
+	recycle_bin_expires_at = models.DateTimeField(blank=True, null=True)
+	archived_at = models.DateTimeField(blank=True, null=True)
 
 	class Meta:
 		ordering = ['-created_at']
@@ -66,6 +91,10 @@ class Listing(models.Model):
 
 	def __str__(self):
 		return self.title
+
+	@property
+	def is_public(self):
+		return self.lifecycle_state == self.Lifecycle.NORMAL
 
 	def save(self, *args, **kwargs):
 		if not self.slug:
@@ -132,6 +161,10 @@ class Listing(models.Model):
 		if self.seller.profile_picture:
 			return self.seller.profile_picture.url
 		return static('images/default-avatar.jpg')
+
+	@property
+	def rating_star_states(self):
+		return rating_star_states(getattr(self, 'rating_average', None))
 
 	@property
 	def gallery_urls(self):

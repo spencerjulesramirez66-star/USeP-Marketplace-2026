@@ -12,8 +12,9 @@
             <section class="preview-panel">
                 <img id="manage-image" src="" alt="">
                 <div class="manage-gallery" id="manage-gallery" aria-label="Uploaded listing photos"></div>
+                <p class="photo-upload-hint">Choose JPEG, PNG, GIF, or WebP photos. A listing can have up to 8 photos; no file-size limit is configured.</p>
                 <label class="change-photo" for="manage-item-image">Add more photos</label>
-                <input class="image-input" name="images" id="manage-item-image" type="file" accept="image/*" multiple>
+                <input class="image-input" name="images" id="manage-item-image" type="file" accept="image/jpeg,image/png,image/gif,image/webp" multiple>
                 <div id="manage-removed-images"></div>
                 <div class="preview-stats"><span>Listing views</span><strong id="manage-views">0</strong></div>
             </section>

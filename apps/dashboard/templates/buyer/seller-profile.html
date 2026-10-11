@@ -11,7 +11,7 @@
          width="64" height="64" loading="lazy">
 
     <div class="seller-profile-info">
-        <strong class="seller-name" > <a href="{% url 'dashboard:buyer' %}?seller={{ item.seller_id }}">{{ seller.name }}</a></strong>
+        <strong class="seller-name" > <a href="{% url 'dashboard:buyer' %}?seller={{ seller.id }}">{{ seller.name }}</a></strong>
         <small class="seller-role">{{ seller.role }}</small>
     </div>
 
@@ -24,6 +24,19 @@
             <li><i class="bi bi-box-seam" aria-hidden="true"></i> {{ seller.listing_count }} active listing{{ seller.listing_count|pluralize }}</li>
         {% endif %}
     </ul>
+
+    <section class="seller-reputation" aria-labelledby="seller-reputation-title">
+        <h2 id="seller-reputation-title">Seller Reputation</h2>
+        {% if seller.reputation_count %}
+            <div class="seller-reputation-stars product-rating-stars" aria-label="{{ seller.reputation_average|floatformat:1 }} out of 5 stars">
+                {% for state in seller.reputation_star_states %}<i class="bi {% if state == 'full' %}bi-star-fill{% elif state == 'half' %}bi-star-half{% else %}bi-star{% endif %}" aria-hidden="true"></i>{% endfor %}
+            </div>
+            <p><strong>{{ seller.reputation_average|floatformat:1 }} out of 5</strong></p>
+            <p>Based on {{ seller.reputation_count }} rating{{ seller.reputation_count|pluralize }} across this seller&rsquo;s listings.</p>
+        {% else %}
+            <p>No ratings yet.</p>
+        {% endif %}
+    </section>
 
     {% if back_link %}
         <a href="{% url 'dashboard:buyer' %}" class="btn btn-sm btn-outline">

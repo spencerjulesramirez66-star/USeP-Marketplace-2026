@@ -41,6 +41,12 @@
         </section>
 
         <section class="seller-listings">
+            <nav class="seller-listing-views" aria-label="Listing management views">
+                <a href="{% url 'dashboard:seller' %}"{% if listing_view == 'listings' %} aria-current="page"{% endif %}>Listings</a>
+                <a href="{% url 'dashboard:seller' %}?view=recycle"{% if listing_view == 'recycle' %} aria-current="page"{% endif %}>Recycle Bin{% if recycle_bin_count %} ({{ recycle_bin_count }}){% endif %}</a>
+                <a href="{% url 'dashboard:seller' %}?view=archived"{% if listing_view == 'archived' %} aria-current="page"{% endif %}>Archived{% if archived_listing_count %} ({{ archived_listing_count }}){% endif %}</a>
+            </nav>
+            {% if listing_view == 'listings' %}
            <form class="listing-filters" id="listing-filters">
                 <label class="filter-search">
                     <i class="bi bi-search" aria-hidden="true"></i>
@@ -53,13 +59,14 @@
                     <option value="archived">Unavailable</option>
                 </select>
             </form>
+            {% endif %}
             <div class="seller-list" id="seller-list">
                 {% for listing in listings %}
                     {% include 'seller/listing_card.html' %}
                 {% empty %}
-                    <p class="empty-state">You have not published any listings yet.</p>
+                    <p class="empty-state">{% if listing_view == 'recycle' %}Your Recycle Bin is empty.{% elif listing_view == 'archived' %}You have no archived listings.{% else %}You have not published any listings yet.{% endif %}</p>
                 {% endfor %}
-                <p class="empty-state" id="no-filter-results" hidden>No listings match your filters.</p>
+                {% if listing_view == 'listings' %}<p class="empty-state" id="no-filter-results" hidden>No listings match your filters.</p>{% endif %}
             </div>
         </section>
     </main>
@@ -70,13 +77,13 @@
 
 <div class="modal-overlay" id="delete-confirm-modal" hidden>
     <div class="modal-dialog">
-        <h2>Delete this listing?</h2>
-        <p>This can't be undone. The listing will be removed from the marketplace.</p>
+        <h2>Move listing to Recycle Bin?</h2>
+        <p>This hides the listing from public browsing. You can restore it from the Recycle Bin later.</p>
         <div class="delete-actions">
             <button class="btn btn-outline" type="button" data-close-modal="delete-confirm-modal">Cancel</button>
             <form id="delete-listing-form" method="post">
                 {% csrf_token %}
-                <button class="btn btn-delete" type="submit">Delete</button>
+                <button class="btn btn-delete" type="submit">Move to Recycle Bin</button>
             </form>
         </div>
     </div>

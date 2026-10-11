@@ -1,9 +1,12 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db.models import Avg, Count, Exists, OuterRef, Q
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from datetime import timedelta
 from django.views.decorators.http import require_POST
 
 from apps.accounts.models import User
@@ -15,14 +18,16 @@ from .forms import (
     SERVICE_CONDITIONS,
     ListingForm,
     ListingReviewForm,
+    validate_listing_images,
 )
-from .models import Category, Listing, ListingImage, ListingReview, ListingReviewPhoto, SavedItem
+from .models import Category, Listing, ListingImage, ListingReview, ListingReviewPhoto, SavedItem, rating_star_states
 
 RECOMMENDATION_WEIGHTS = {
     'popularity': 0.5,
     'recency': 0.2,
     'affinity': 0.3,
 }
+REVIEW_DISPLAY_LIMIT = 10
 
 
 def _condition_options():
@@ -38,7 +43,10 @@ def _category_context():
         'id': None,
         'label': 'All',
         'slug': 'all',
-        'count': Listing.objects.filter(status=Listing.Status.ACTIVE).count(),
+        'count': Listing.objects.filter(
+            status=Listing.Status.ACTIVE,
+            lifecycle_state=Listing.Lifecycle.NORMAL,
+        ).count(),
     }]
     category_context.extend([
         {
@@ -48,6 +56,7 @@ def _category_context():
             'count': Listing.objects.filter(
                 category=category,
                 status=Listing.Status.ACTIVE,
+                lifecycle_state=Listing.Lifecycle.NORMAL,
             ).count(),
         }
         for category in categories
@@ -66,6 +75,12 @@ def _seller_profile(user):
         role = 'Student seller'
         student_profile = user.student_profile
         program = str(student_profile.program or student_profile.major.program)
+    reputation = ListingReview.objects.filter(
+        listing__seller=user,
+    ).exclude(listing__status=Listing.Status.DRAFT).aggregate(
+        average=Avg('rating'),
+        total=Count('id'),
+    )
     return {
         'id': user.pk,
         'name': f'{user.first_name} {user.last_name}'.strip() or user.email,
@@ -75,13 +90,27 @@ def _seller_profile(user):
         'contact': user.contact_num,
         'program': program,
         'campus': campus,
+        'reputation_average': reputation['average'],
+        'reputation_count': reputation['total'],
+        'reputation_star_states': rating_star_states(reputation['average']),
     }
 
 
 @login_required
 def setup_seller_dashboard(request):
-    listings = Listing.objects.filter(seller=request.user).select_related('category')
-    active_listings = listings.filter(status=Listing.Status.ACTIVE)
+    listing_view = request.GET.get('view', 'listings')
+    all_listings = Listing.objects.filter(seller=request.user).select_related('category')
+    lifecycle_state = {
+        'recycle': Listing.Lifecycle.RECYCLE_BIN,
+        'archived': Listing.Lifecycle.ARCHIVED,
+    }.get(listing_view, Listing.Lifecycle.NORMAL)
+    if lifecycle_state == Listing.Lifecycle.NORMAL:
+        listing_view = 'listings'
+    listings = all_listings.filter(lifecycle_state=lifecycle_state)
+    active_listings = all_listings.filter(
+        status=Listing.Status.ACTIVE,
+        lifecycle_state=Listing.Lifecycle.NORMAL,
+    )
     context = {
         'listings': listings,
         'listing_form': ListingForm(),
@@ -89,9 +118,12 @@ def setup_seller_dashboard(request):
         'condition_choices': [value for value, _ in CONDITION_CHOICES],
         'condition_options': _condition_options(),
         'active_count': active_listings.count(),
-        'total_views': sum(listing.views for listing in listings),
-        'sold_count': listings.filter(status=Listing.Status.SOLD).count(),
+        'total_views': sum(listing.views for listing in all_listings),
+        'sold_count': all_listings.filter(status=Listing.Status.SOLD).count(),
         'manage_listing_id': request.GET.get('manage'),
+        'listing_view': listing_view,
+        'recycle_bin_count': all_listings.filter(lifecycle_state=Listing.Lifecycle.RECYCLE_BIN).count(),
+        'archived_listing_count': all_listings.filter(lifecycle_state=Listing.Lifecycle.ARCHIVED).count(),
     }
     return render(request, 'seller/dashboard.html', context)
 
@@ -107,6 +139,12 @@ def create_listing(request):
     if request.method != 'POST':
         return redirect('dashboard:seller')
 
+    try:
+        uploaded_images = validate_listing_images(request.FILES.getlist('images'))
+    except ValidationError as error:
+        messages.error(request, f'Listing was not saved: {error}. Please reselect the photos and try again.')
+        return redirect('dashboard:seller')
+
     form = ListingForm(request.POST, request.FILES)
     if form.is_valid():
         listing = form.save(commit=False)
@@ -117,7 +155,6 @@ def create_listing(request):
         elif listing.stock_quantity is None:
             listing.stock_quantity = 0
         listing.save()
-        uploaded_images = request.FILES.getlist('images')[:8]
         if uploaded_images:
             listing.image = uploaded_images[0]
             listing.save(update_fields=['image', 'updated_at'])
@@ -130,7 +167,12 @@ def create_listing(request):
 
 @login_required
 def edit_listing(request, listing_id):
-    listing = get_object_or_404(Listing, pk=listing_id, seller=request.user)
+    listing = get_object_or_404(
+        Listing,
+        pk=listing_id,
+        seller=request.user,
+        lifecycle_state=Listing.Lifecycle.NORMAL,
+    )
     if request.method == 'GET':
         return render(
             request,
@@ -145,6 +187,18 @@ def edit_listing(request, listing_id):
     # ModelForm validation writes the POSTed values onto `listing`, so remember
     # the stock the seller had before this edit.
     previous_stock = listing.stock_quantity
+    remove_ids = [value for value in request.POST.getlist('remove_image_ids') if value.isdigit()]
+    remove_urls = request.POST.getlist('remove_image_urls')
+    kept_image_count = listing.listing_images.exclude(id__in=remove_ids).count()
+    kept_image_count += len([url for url in listing.image_urls if url not in remove_urls])
+    try:
+        uploaded_images = validate_listing_images(
+            request.FILES.getlist('images'),
+            existing_count=kept_image_count,
+        )
+    except ValidationError as error:
+        messages.error(request, f'Listing was not updated: {error}. Please reselect the new photos and try again.')
+        return redirect(request.POST.get('next') or 'dashboard:seller')
 
     form = ListingForm(request.POST, instance=listing)
     if form.is_valid():
@@ -161,8 +215,6 @@ def edit_listing(request, listing_id):
             # If they chose Draft/Archived in the same edit, that choice wins.
             updated_listing.status = Listing.Status.ACTIVE
         updated_listing.save()
-        remove_ids = [value for value in request.POST.getlist('remove_image_ids') if value.isdigit()]
-        remove_urls = request.POST.getlist('remove_image_urls')
         if remove_urls:
             listing.image_urls = [url for url in listing.image_urls if url not in remove_urls]
             listing.save(update_fields=['image_urls', 'updated_at'])
@@ -171,7 +223,6 @@ def edit_listing(request, listing_id):
         if not listing.listing_images.exists() and not listing.image_urls:
             listing.image = None
             listing.save(update_fields=['image', 'updated_at'])
-        uploaded_images = request.FILES.getlist('images')
         if uploaded_images:
             _save_listing_images(listing, uploaded_images)
         messages.success(request, 'Your listing has been updated.')
@@ -183,7 +234,13 @@ def edit_listing(request, listing_id):
 @login_required
 def delete_listing_image(request, listing_id, image_id):
     if request.method == 'POST':
-        image = get_object_or_404(ListingImage, pk=image_id, listing_id=listing_id, listing__seller=request.user)
+        image = get_object_or_404(
+            ListingImage,
+            pk=image_id,
+            listing_id=listing_id,
+            listing__seller=request.user,
+            listing__lifecycle_state=Listing.Lifecycle.NORMAL,
+        )
         _remove_listing_images(image.listing, [image.id])
         messages.success(request, 'Photo removed from the listing.')
     return redirect(request.POST.get('next') or 'dashboard:seller')
@@ -213,21 +270,46 @@ def _remove_listing_images(listing, image_ids):
 
 
 @login_required
+@require_POST
 def delete_listing(request, listing_id):
-    if request.method == 'POST':
-        listing = get_object_or_404(Listing, pk=listing_id, seller=request.user)
-        if listing.conversations.exists():
-            # Conversation.listing intentionally remains a required foreign key.
-            # Archive instead of cascading away a buyer and seller's history.
-            # (Conversation now lives in apps.messaging; the reverse accessor
-            # 'conversations' still works because that model's ForeignKey
-            # points at this Listing model.)
-            listing.status = Listing.Status.ARCHIVED
-            listing.save(update_fields=['status', 'updated_at'])
-            messages.success(request, 'The listing was archived so its message history remains available.')
-        else:
-            listing.delete()
-            messages.success(request, 'The listing was deleted.')
+    listing = get_object_or_404(Listing, pk=listing_id, seller=request.user)
+    if listing.lifecycle_state != Listing.Lifecycle.NORMAL:
+        messages.info(request, 'This listing is already unavailable.')
+        return redirect('dashboard:seller')
+
+    now = timezone.now()
+    retention_days = settings.LISTING_RECYCLE_BIN_RETENTION_DAYS
+    listing.lifecycle_state = Listing.Lifecycle.RECYCLE_BIN
+    listing.recycled_at = now
+    listing.recycle_bin_expires_at = (
+        now + timedelta(days=retention_days) if retention_days else None
+    )
+    listing.archived_at = None
+    listing.save(update_fields=[
+        'lifecycle_state', 'recycled_at', 'recycle_bin_expires_at', 'archived_at', 'updated_at',
+    ])
+    messages.success(request, 'The listing moved to the Recycle Bin and is hidden from public browsing.')
+    return redirect('dashboard:seller')
+
+
+@login_required
+@require_POST
+def restore_listing(request, listing_id):
+    restored = Listing.objects.filter(
+        pk=listing_id,
+        seller=request.user,
+        lifecycle_state=Listing.Lifecycle.RECYCLE_BIN,
+    ).update(
+        lifecycle_state=Listing.Lifecycle.NORMAL,
+        recycled_at=None,
+        recycle_bin_expires_at=None,
+        archived_at=None,
+        updated_at=timezone.now(),
+    )
+    if restored:
+        messages.success(request, 'Listing restored. Its previous stock and availability status were kept.')
+    else:
+        messages.info(request, 'This listing is no longer available to restore.')
     return redirect('dashboard:seller')
 
 
@@ -271,7 +353,16 @@ def setup_buyer_dashboard(request):
     query = request.GET.get('q', '').strip()
     category_slug = request.GET.get('category', 'all').strip().lower()
     seller_id = request.GET.get('seller')
-    listings = Listing.objects.filter(status=Listing.Status.ACTIVE).select_related('seller', 'category')
+    listings = Listing.objects.filter(
+        status=Listing.Status.ACTIVE,
+        lifecycle_state=Listing.Lifecycle.NORMAL,
+    ).select_related(
+        'seller',
+        'category',
+    ).annotate(
+        rating_average=Avg('reviews__rating'),
+        rating_count=Count('reviews'),
+    )
     if request.user.is_authenticated:
         cart_membership = SavedItem.objects.filter(
             buyer=request.user,
@@ -326,6 +417,7 @@ def setup_buyer_dashboard(request):
         'category_count': item_count,
         'seller_filter': seller_id,
         'seller_profile': seller_profile,
+        'rating_stars': range(1, 6),
     }
 
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -334,11 +426,13 @@ def setup_buyer_dashboard(request):
     return render(request, 'buyer/buyer-dashboard.html', context)
 
 
-def setup_buyer_item_detail(request, item_slug):
+def setup_buyer_item_detail(request, item_slug, review_form=None, increment_view=True):
     listing = get_object_or_404(
         Listing.objects.select_related('seller', 'category'),
         slug=item_slug,
     )
+    if listing.lifecycle_state != Listing.Lifecycle.NORMAL:
+        raise Http404('Listing not found.')
     saved_by_request_user = request.user.is_authenticated and SavedItem.objects.filter(
         buyer=request.user,
         listing=listing,
@@ -350,11 +444,13 @@ def setup_buyer_item_detail(request, item_slug):
         Listing.Status.ARCHIVED,
     ):
         raise Http404('Listing not found.')
-    Listing.objects.filter(pk=listing.pk).update(views=listing.views + 1)
-    listing.views += 1
+    if increment_view:
+        Listing.objects.filter(pk=listing.pk).update(views=listing.views + 1)
+        listing.views += 1
     other_products = Listing.objects.filter(
         seller=listing.seller,
         status=Listing.Status.ACTIVE,
+        lifecycle_state=Listing.Lifecycle.NORMAL,
     ).exclude(pk=listing.pk).select_related('category')
     gallery_images = [
         {'id': image.id, 'url': image.image.url}
@@ -384,6 +480,27 @@ def setup_buyer_item_detail(request, item_slug):
     can_review = request.user.is_authenticated and request.user.id != listing.seller_id
     user_review = listing_reviews.filter(reviewer=request.user).first() if can_review else None
     user_review_photo_count = user_review.photos.count() if user_review else 0
+    review_form = review_form if review_form is not None else ListingReviewForm(instance=user_review)
+    selected_rating = str(review_form['rating'].value() or '')
+
+    seller_other_reviews = ListingReview.objects.none()
+    seller_other_review_summary = {'average': None, 'total': 0}
+    seller_other_review_queryset = ListingReview.objects.filter(
+        listing__seller=listing.seller,
+    ).exclude(
+        listing=listing,
+    ).exclude(
+        listing__status=Listing.Status.DRAFT,
+    )
+    seller_other_review_summary = seller_other_review_queryset.aggregate(
+        average=Avg('rating'),
+        total=Count('id'),
+    )
+    if seller_other_review_summary['total']:
+        seller_other_reviews = (
+            seller_other_review_queryset.select_related('reviewer', 'listing')
+            .prefetch_related('photos')[:REVIEW_DISPLAY_LIMIT]
+        )
     item_context = {
         'id': listing.id,
         'slug': listing.slug,
@@ -422,17 +539,18 @@ def setup_buyer_item_detail(request, item_slug):
             'review_count': review_count,
             'rating_breakdown': rating_breakdown,
             'rating_stars': range(1, 6),
-            'rating_options': [
-                {'value': rating, 'stars': range(rating)}
-                for rating, _ in ListingReview.Rating.choices
-            ],
+            'rating_options': [{'value': str(rating)} for rating, _ in ListingReview.Rating.choices],
             'listing_reviews': listing_reviews,
+            'seller_other_reviews': seller_other_reviews,
+            'seller_other_review_average': seller_other_review_summary['average'],
+            'seller_other_review_count': seller_other_review_summary['total'],
             'can_review': can_review,
             'user_review': user_review,
+            'selected_rating': selected_rating,
             'user_review_photo_count': user_review_photo_count,
             'remaining_review_photos': MAX_REVIEW_PHOTOS - user_review_photo_count,
             'review_photo_limit': MAX_REVIEW_PHOTOS,
-            'review_form': ListingReviewForm(instance=user_review),
+            'review_form': review_form,
         },
     )
 
@@ -441,6 +559,8 @@ def setup_buyer_item_detail(request, item_slug):
 @require_POST
 def submit_listing_review(request, item_slug):
     listing = get_object_or_404(Listing, slug=item_slug)
+    if listing.lifecycle_state != Listing.Lifecycle.NORMAL:
+        raise Http404('Listing not found.')
     if listing.seller_id == request.user.id:
         messages.error(request, 'You cannot review your own listing.')
         return redirect(f'{listing.get_absolute_url()}#listing-reviews')
@@ -448,8 +568,12 @@ def submit_listing_review(request, item_slug):
     existing_review = ListingReview.objects.filter(listing=listing, reviewer=request.user).first()
     form = ListingReviewForm(request.POST, request.FILES, instance=existing_review)
     if not form.is_valid():
-        messages.error(request, 'Choose a rating from 1 to 5 and write a review of up to 2,000 characters.')
-        return redirect(f'{listing.get_absolute_url()}#listing-reviews')
+        return setup_buyer_item_detail(
+            request,
+            item_slug,
+            review_form=form,
+            increment_view=False,
+        )
 
     photos = form.cleaned_data['photos']
     photos_to_remove = list(
@@ -483,7 +607,7 @@ def toggle_saved_item(request, item_slug):
             messages.info(request, 'Listing removed from your saved items.')
         elif listing.seller_id == request.user.id:
             messages.error(request, 'You cannot add your own listing to your cart.')
-        elif listing.status == Listing.Status.ACTIVE:
+        elif listing.status == Listing.Status.ACTIVE and listing.lifecycle_state == Listing.Lifecycle.NORMAL:
             SavedItem.objects.create(buyer=request.user, listing=listing)
             messages.success(request, 'Listing saved for later.')
             saved = True
@@ -504,8 +628,14 @@ def setup_buyer_cart(request):
         'buyer/buyer-cart.html',
         {
             'saved_items': saved_items,
-            'active_saved_items': saved_items.exclude(listing__status=Listing.Status.SOLD),
-            'sold_saved_items': saved_items.filter(listing__status=Listing.Status.SOLD),
+            'active_saved_items': saved_items.filter(
+                listing__status=Listing.Status.ACTIVE,
+                listing__lifecycle_state=Listing.Lifecycle.NORMAL,
+            ),
+            'sold_saved_items': saved_items.exclude(
+                listing__status=Listing.Status.ACTIVE,
+                listing__lifecycle_state=Listing.Lifecycle.NORMAL,
+            ),
             'categories': _category_context(),
         },
     )

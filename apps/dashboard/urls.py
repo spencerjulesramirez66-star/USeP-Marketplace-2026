@@ -10,6 +10,7 @@ urlpatterns = [
     path('seller/listings/<int:listing_id>/edit/', views.edit_listing, name='edit_listing'),
     path('seller/listings/<int:listing_id>/images/<int:image_id>/delete/', views.delete_listing_image, name='delete_listing_image'),
     path('seller/listings/<int:listing_id>/delete/', views.delete_listing, name='delete_listing'),
+    path('seller/listings/<int:listing_id>/restore/', views.restore_listing, name='restore_listing'),
     path('buyer/', views.setup_buyer_dashboard, name='buyer'),
     path('buyer/cart/', views.setup_buyer_cart, name='buyer_cart'),
     path('buyer/<slug:item_slug>/save/', views.toggle_saved_item, name='toggle_saved_item'),
