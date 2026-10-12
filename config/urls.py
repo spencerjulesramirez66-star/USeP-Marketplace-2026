@@ -23,6 +23,7 @@ from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 from django.views.generic import RedirectView
 
 urlpatterns = [
+    path('admin/sections/', include('apps.administration.urls')),
     path('messaging/', include('apps.messaging.urls')),
     path('dashboard/', include('apps.dashboard.urls', namespace='dashboard')),
     path('', RedirectView.as_view(pattern_name='login', permanent=False)),

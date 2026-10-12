@@ -1,0 +1,83 @@
+/* ==========================================================================
+   partials/page_heading.html
+   ========================================================================== */
+
+.page-heading {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding: 1.25rem 1.5rem;
+    border: 1px solid var(--color-border);
+    border-radius: 1rem;
+    background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--color-primary) 7%, var(--color-surface)) 0%,
+        var(--color-surface) 50%,
+        color-mix(in srgb, var(--color-accent) 7%, var(--color-surface)) 100%
+    );
+}
+
+h1 {
+    margin-bottom: 0.25rem;
+    font-family: var(--primary-font), sans-serif;
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1.15;
+}
+
+.page-description {
+    margin: 0;
+    color: var(--color-text-secondary);
+    font-size: 1rem;
+    line-height: 1.6;
+}
+
+.preview-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid color-mix(in srgb, var(--color-success) 35%, var(--color-surface));
+    border-radius: 0.375rem;
+    background: color-mix(in srgb, var(--color-success) 12%, var(--color-surface));
+    color: color-mix(in srgb, var(--color-success) 60%, black);
+    font-size: 0.8125rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.preview-badge i {
+    font-size: 0.9375rem;
+}
+
+
+/* --------------------------------------------------------------------------
+   Responsive
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 45em) {
+    .page-heading {
+        align-items: flex-start;
+    }
+
+    h1 {
+        font-size: 1.625rem;
+    }
+
+    .page-description {
+        max-width: 28rem;
+    }
+}
+
+@media (max-width: 28.75em) {
+    .page-heading {
+        display: block;
+        padding: 1rem;
+    }
+
+    .preview-badge {
+        margin-top: 0.75rem;
+    }
+}

@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% load static %}
+{% comment %}
+    Shell for every administrator page: sidebar + topbar + content column.
+    Child templates fill {% block admin_content %}. Future Django-admin overrides
+    (templates/admin/base_site.html etc.) can extend this too.
+    CSS is one flat file per template (static/administration/css/):
+      base_admin.html -> admin-base.css        sidebar.html -> admin-sidebar.css
+      components/profile_menu.html -> admin-profile-menu.css
+      topbar.html -> admin-topbar.css          page_heading.html -> admin-page-heading.css
+      dashboard.html -> admin-dashboard.css + admin-<active_section>.css
+{% endcomment %}
+
+{% block title %}{{ section_title|default:"Administration" }} | Administrator | USeP Marketplace{% endblock %}
+
+{% block extra_css %}
+    <meta name="theme-color" content="#B91C1C">
+    <link rel="stylesheet" href="{% static 'administration/css/admin-base.css' %}">
+    <link rel="stylesheet" href="{% static 'administration/css/admin-sidebar.css' %}">
+    <link rel="stylesheet" href="{% static 'administration/css/admin-profile-menu.css' %}">
+    <link rel="stylesheet" href="{% static 'administration/css/admin-topbar.css' %}">
+    <link rel="stylesheet" href="{% static 'administration/css/admin-page-heading.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="admin-layout">
+    {# navbar.html renders the admin sidebar when is_admin_area and is_marketplace_admin are true #}
+    {% include 'components/navbar.html' %}
+
+    <main class="admin-main">
+        {% include 'administration/partials/topbar.html' %}
+
+        <div class="page-content">
+            {% block admin_content %}{% endblock %}
+
+            <footer class="admin-footer"><span>USeP Marketplace</span><span>Administrator workspace</span></footer>
+        </div>
+    </main>
+</div>
+{% endblock %}

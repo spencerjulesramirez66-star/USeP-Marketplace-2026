@@ -1,15 +1,21 @@
 from django.contrib.auth.base_user import BaseUserManager, AbstractBaseUser
 from django.contrib.auth.models import PermissionsMixin
 from django.templatetags.static import static
+from django.utils import timezone
+from django.core.exceptions import ValidationError
 from img_compress import compress_to_webp
 from django.db import models
+
+class Roles(models.TextChoices):
+    USER = 'USER', 'User'
+    ADMIN = 'ADMIN', 'Admin'
 
 
 class AccountManager(BaseUserManager):
 
     def create_user(self, email, password=None, **extra_fields):
         if not email:
-            raise ValueError('Email is required')
+            raise ValueError("Email is required")
 
         email = self.normalize_email(email)
 
@@ -24,22 +30,20 @@ class AccountManager(BaseUserManager):
         return user
 
     def create_superuser(self, email, password=None, **extra_fields):
-        extra_fields.setdefault('is_staff', True)
-        extra_fields.setdefault('is_superuser', True)
-        extra_fields.setdefault('is_active', True)
-        extra_fields.setdefault('role', Roles.ADMIN)
+        if not password:
+            raise ValueError("Superuser must have a password")
+
+        extra_fields["is_staff"] = True
+        extra_fields["is_superuser"] = True
+        extra_fields["is_active"] = True
+        extra_fields["role"] = Roles.ADMIN
+        extra_fields["is_first_login"] = False
 
         return self.create_user(
             email=email,
             password=password,
             **extra_fields
         )
-
-
-class Roles(models.TextChoices):
-    USER = 'USER', 'User'
-    ADMIN = 'ADMIN', 'Admin'
-
 
 class YearLevel(models.TextChoices):
     FIRST_YEAR = '1', '1st Year'
@@ -142,6 +146,10 @@ class User(AbstractBaseUser, PermissionsMixin):
         return static('images/default-avatar.jpg')
 
     @property
+    def is_admin(self):
+        return self.is_superuser or self.role == Roles.ADMIN
+
+    @property
     def is_seller(self):
         return hasattr(self, 'seller_profile')
 
@@ -188,12 +196,40 @@ class User(AbstractBaseUser, PermissionsMixin):
         auto_now_add=True
     )
 
-    USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = []
+    # Soft deletion
+    is_deleted = models.BooleanField(default=False)
+    deleted_at = models.DateTimeField(
+        blank=True,
+        null=True
+    )
+
+    USERNAME_FIELD = "email"
+
+    REQUIRED_FIELDS = [
+        "first_name",
+        "last_name",
+        "contact_num",
+    ]
 
     def save(self, *args, **kwargs):
+        update_fields = kwargs.get("update_fields")
+
+        # Store emails lowercase so login and lookups are case-insensitive.
+        if self.email:
+            self.email = self.email.lower()
+
+        # Admin-role accounts must be staff, or they can't enter the admin site.
+        if self.role == Roles.ADMIN and not self.is_staff:
+            self.is_staff = True
+            if update_fields is not None:
+                update_fields = {*update_fields, "is_staff"}
+                kwargs["update_fields"] = update_fields
+
+        saving_picture = update_fields is None or "profile_picture" in update_fields
+
         if (
-            self.profile_picture
+            saving_picture
+            and self.profile_picture
             and not self.profile_picture.name.lower().endswith('.webp')
         ):
             self.profile_picture = compress_to_webp(
@@ -205,6 +241,46 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.email
+
+    def suspend(self):
+        self.is_active = False
+        self.save(update_fields=["is_active"])
+
+
+    def reactivate(self):
+        if self.is_deleted:
+            raise ValueError("Cannot reactivate a deleted account.")
+
+        self.is_active = True
+        self.save(update_fields=["is_active"])
+
+
+    def soft_delete(self):
+        self.is_active = False
+        self.is_deleted = True
+        self.deleted_at = timezone.now()
+
+        self.save(update_fields=[
+            "is_active",
+            "is_deleted",
+            "deleted_at",
+        ])
+
+    def restore(self):
+        if not self.is_deleted:
+            return
+
+        self.is_deleted = False
+        self.deleted_at = None
+
+        # Remain inactive until an admin explicitly reactivates.
+        self.is_active = False
+
+        self.save(update_fields=[
+            "is_deleted",
+            "deleted_at",
+            "is_active",
+        ])
 
 
 class StudentProfile(models.Model):
@@ -245,6 +321,22 @@ class StudentProfile(models.Model):
 
     def __str__(self):
         return self.student_id
+
+    def clean(self):
+        super().clean()
+
+        if not self.major_id:
+            return
+
+        if not self.program_id:
+            raise ValidationError({
+                "major": "A program must be selected before selecting a major."
+            })
+
+        if self.major.program_id != self.program_id:
+            raise ValidationError({
+                "major": "The selected major does not belong to the selected program."
+            })
 
 
 class StaffProfile(models.Model):

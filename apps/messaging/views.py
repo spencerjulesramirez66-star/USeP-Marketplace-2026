@@ -1,4 +1,3 @@
-
 import logging, json
 
 from django.contrib.auth.decorators import login_required
@@ -171,18 +170,33 @@ def _handle_send(request, conversation, participant):
 
 
 @login_required
-@require_POST
 def start_conversation(request, item_slug):
-    """The 'Message seller' button on a listing page."""
-    listing = get_object_or_404(Listing.objects.select_related('seller'), slug=item_slug)
+    listing = get_object_or_404(Listing, slug=item_slug)
+
     try:
         conversation = services.start_conversation(request.user, listing)
-    except PermissionDenied as error:
-        return _json_error(str(error), 403) if _wants_json(request) else redirect(listing.get_absolute_url())
-    return redirect('messaging:conversation', conversation_id=conversation.id)
 
+        if request.method == 'POST':
+            body = (request.POST.get('body') or '').strip()
+            if not body:
+                raise ValidationError('Write a message first.')
+            if len(body) > services.MAX_BODY_LENGTH:
+                raise ValidationError(f'Messages are limited to {services.MAX_BODY_LENGTH} characters.')
+            services.send_message(conversation, request.user, body=body)
+    except PermissionDenied as exc:
+        if _wants_json(request):
+            return JsonResponse({'ok': False, 'error': str(exc) or 'Not allowed.'}, status=403)
+        raise
+    except ValidationError as exc:
+        if _wants_json(request):
+            return JsonResponse({'ok': False, 'error': ' '.join(exc.messages)}, status=400)
+        raise
 
-# ------------------------------------------------------------ sidebar / search
+    url = reverse('messaging:conversation', args=[conversation.pk])
+    if _wants_json(request):
+        return JsonResponse({'ok': True, 'redirect_url': url})
+    return redirect(url)
+
 
 @login_required
 @require_GET

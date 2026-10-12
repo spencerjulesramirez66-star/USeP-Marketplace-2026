@@ -1,4 +1,14 @@
 {% load static %}
+{% comment %}
+    One navigation include for the whole site.
+      - Admin area + admin user  -> administrator SIDEBAR (administration/partials/sidebar.html)
+      - Everywhere else          -> the normal marketplace top navbar below
+    is_admin_area / is_marketplace_admin come from apps.administration.context_processors.admin_context
+{% endcomment %}
+
+{% if is_admin_area and is_marketplace_admin %}
+    {% include 'administration/partials/sidebar.html' %}
+{% else %}
 
 <nav id="navbar">
     <button type="button" id="categories-menu-btn" class="hamburger-btn" aria-label="Open navigation" aria-expanded="false" aria-controls="categories-menu">
@@ -48,44 +58,7 @@
         {% endif %}
 
         {% if request.user.is_authenticated %}
-        <div class="navbar-profile">
-            <button
-                type="button"
-                id="profile-toggle"
-                aria-haspopup="true"
-                aria-expanded="false"
-            >
-                <img
-                    class="profile-avatar"
-                    src="{{ request.user.avatar_url }}"
-                    alt="{{ request.user.first_name }}'s profile picture"
-                >
-            </button>
-            <div id="profile-dropdown" class="dropdown-menu">
-            <div class="dropdown-header">
-                <img
-                    class="profile-avatar-lg"
-                    src="{{ request.user.avatar_url }}"
-                    alt="{{ request.user.first_name }}'s profile picture"
-                >
-                <div class="dropdown-user-info">
-                    <span class="dropdown-name">{{ request.user.first_name }} {{ request.user.last_name }}</span>
-                    <span class="dropdown-email">{{ request.user.email }}</span>
-                </div>
-            </div>
-            <a href="{% url 'profile' %}" class="dropdown-item">
-                <i class="bi bi-person"></i>
-                View Profile
-            </a>
-            <form method="post" action="{% url 'logout' %}">
-                {% csrf_token %}
-                <button type="submit" class="dropdown-item dropdown-item-danger">
-                    <i class="bi bi-box-arrow-right"></i>
-                    Logout
-                </button>
-            </form>
-        </div>
-    </div>
+        {% include 'components/profile-menu.html' %}
         {% else %}
         <a href="{% url 'login' %}" class="navbar-login-btn">Login</a>
         {% endif %}
@@ -101,6 +74,9 @@
             {% else %}
             <a href="{% url 'login' %}"><i class="bi bi-box-arrow-in-right" aria-hidden="true"></i>Login</a>
             {% endif %}
+            {% if is_marketplace_admin %}
+            <a href="{% url 'admin:index' %}"><i class="bi bi-speedometer2" aria-hidden="true"></i>Admin console</a>
+            {% endif %}
         </nav>
         <h3>Browse Categories</h3>
         <ul class="categories-menu-list">
@@ -115,3 +91,5 @@
         </ul>
     </div>
 </div>
+
+{% endif %}

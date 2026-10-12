@@ -1,0 +1,90 @@
+/* ==========================================================================
+   partials/topbar.html
+   ========================================================================== */
+
+.topbar {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    height: 4rem;
+    padding: 0 2rem;
+    border-bottom: 1px solid var(--color-border);
+    background: color-mix(in srgb, var(--color-surface) 95%, transparent);
+    backdrop-filter: blur(0.625rem);
+}
+
+.breadcrumbs {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--color-text-secondary);
+    font-size: 0.875rem;
+}
+
+.breadcrumbs i {
+    color: var(--color-text-secondary);
+    font-size: 0.75rem;
+}
+
+.breadcrumbs a {
+    color: var(--color-primary);
+    font-weight: 600;
+}
+
+.breadcrumbs a:hover {
+    color: var(--color-primary-dark);
+}
+
+.breadcrumbs strong {
+    color: var(--color-text);
+    font-weight: 700;
+}
+
+.topbar-status {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: color-mix(in srgb, var(--color-success) 60%, black);
+    font-size: 0.8125rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+}
+
+.status-dot {
+    flex: 0 0 auto;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: var(--color-success);
+}
+
+
+/* --------------------------------------------------------------------------
+   Responsive
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 62.5em) {
+    .topbar {
+        padding: 0 1.5rem;
+    }
+}
+
+@media (max-width: 45em) {
+    .topbar {
+        position: static;
+        height: 3.25rem;
+        padding: 0 1rem;
+    }
+}
+
+@media (max-width: 28.75em) {
+    .breadcrumbs {
+        gap: 0.375rem;
+        font-size: 0.8125rem;
+    }
+}

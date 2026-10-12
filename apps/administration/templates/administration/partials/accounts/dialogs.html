@@ -1,0 +1,115 @@
+{# Pop-ups used by the Accounts page: details drawer, create/edit form, confirmation, temporary password. #}
+
+{# ---------- Details drawer ---------- #}
+<dialog class="acct-dialog acct-drawer" id="acct-drawer" aria-labelledby="acct-drawer-name">
+    <div class="acct-dialog-body">
+        <header class="acct-dialog-head">
+            <div class="acct-drawer-person">
+                <img class="acct-avatar acct-avatar-lg" id="acct-drawer-avatar" alt="">
+                <div>
+                    <h3 id="acct-drawer-name"></h3>
+                    <div class="acct-badges" id="acct-drawer-badges"></div>
+                </div>
+            </div>
+            <button type="button" class="acct-icon-btn" data-close aria-label="Close"><i class="bi bi-x-lg"></i></button>
+        </header>
+        <div class="acct-dialog-scroll">
+            <p class="acct-note" id="acct-drawer-note" hidden></p>
+            <dl class="acct-details" id="acct-drawer-details"></dl>
+            {# Later: purchase / listing records can render into this slot. #}
+            <div id="acct-drawer-records" data-slot="records" hidden></div>
+        </div>
+        <footer class="acct-dialog-foot" id="acct-drawer-actions"></footer>
+    </div>
+</dialog>
+
+{# ---------- Create / edit form ---------- #}
+<dialog class="acct-dialog acct-modal" id="acct-form-dialog" aria-labelledby="acct-form-title">
+    <form class="acct-dialog-body" id="acct-form" autocomplete="off">
+        <header class="acct-dialog-head">
+            <h3 id="acct-form-title">New account</h3>
+            <button type="button" class="acct-icon-btn" data-close aria-label="Close"><i class="bi bi-x-lg"></i></button>
+        </header>
+
+        <div class="acct-dialog-scroll">
+            <p class="acct-form-error" id="acct-form-error" role="alert" hidden></p>
+
+            <div class="acct-type-switch" id="acct-type-switch" role="radiogroup" aria-label="Account type">
+                <label><input type="radio" name="account_type" value="student" checked><span><i class="bi bi-mortarboard" aria-hidden="true"></i>Student</span></label>
+                <label><input type="radio" name="account_type" value="staff"><span><i class="bi bi-briefcase" aria-hidden="true"></i>Staff</span></label>
+            </div>
+            <p class="acct-hint" id="acct-id-note"></p>
+
+            <fieldset class="acct-fieldset">
+                <legend>Personal details</legend>
+                <div class="acct-grid">
+                    <div class="acct-field" data-field="first_name"><label for="f-first">First name</label><input id="f-first" name="first_name" maxlength="100" required><span class="acct-error"></span></div>
+                    <div class="acct-field" data-field="middle_name"><label for="f-middle">Middle name <small>(optional)</small></label><input id="f-middle" name="middle_name" maxlength="100"><span class="acct-error"></span></div>
+                    <div class="acct-field" data-field="last_name"><label for="f-last">Last name</label><input id="f-last" name="last_name" maxlength="100" required><span class="acct-error"></span></div>
+                    <div class="acct-field" data-field="contact_num"><label for="f-phone">Mobile number</label><input id="f-phone" name="contact_num" inputmode="numeric" maxlength="11" pattern="09[0-9]{9}" placeholder="09123456789" title="11 digits, starting with 09" required><span class="acct-error"></span></div>
+                    <div class="acct-field acct-wide" data-field="email"><label for="f-email">Email</label><input id="f-email" name="email" type="email" required><span class="acct-error"></span></div>
+                </div>
+            </fieldset>
+
+            <fieldset class="acct-fieldset" data-type-section="student">
+                <legend>Student details</legend>
+                <div class="acct-grid">
+                    <div class="acct-field" data-field="enrollment_year" id="f-year-wrap"><label for="f-year">Year enrolled</label><input id="f-year" name="enrollment_year" type="number" min="2000"><span class="acct-error"></span></div>
+                    <div class="acct-field" data-field="year_level"><label for="f-level">Year level <small>(optional)</small></label><select id="f-level" name="year_level"></select><span class="acct-error"></span></div>
+                    <div class="acct-field acct-wide" data-field="college"><label for="f-college">College <small>(optional)</small></label><select id="f-college"></select><span class="acct-error"></span></div>
+                    <div class="acct-field acct-wide" data-field="program"><label for="f-program">Program</label><select id="f-program" name="program"></select><span class="acct-error"></span></div>
+                    <div class="acct-field acct-wide" data-field="major"><label for="f-major">Major</label><select id="f-major" name="major"></select><span class="acct-error"></span></div>
+                </div>
+            </fieldset>
+
+            <fieldset class="acct-fieldset" data-type-section="staff" disabled>
+                <legend>Staff details</legend>
+                <div class="acct-grid">
+                    <div class="acct-field" data-field="campus"><label for="f-campus">Campus</label><select id="f-campus" name="campus" required></select><span class="acct-error"></span></div>
+                    <div class="acct-field" data-field="staff_type"><label for="f-stafftype">Staff type</label><select id="f-stafftype" name="staff_type" required></select><span class="acct-error"></span></div>
+                </div>
+            </fieldset>
+        </div>
+
+        <footer class="acct-dialog-foot">
+            <button type="button" class="acct-btn" data-close>Cancel</button>
+            <button type="submit" class="acct-btn acct-btn-primary" id="acct-form-submit">Create account</button>
+        </footer>
+    </form>
+</dialog>
+
+{# ---------- Confirm (suspend, delete, ...) ---------- #}
+<dialog class="acct-dialog acct-modal acct-modal-small" id="acct-confirm-dialog" aria-labelledby="acct-confirm-title">
+    <form method="dialog" class="acct-dialog-body" id="acct-confirm-form">
+        <header class="acct-dialog-head"><h3 id="acct-confirm-title"></h3></header>
+        <div class="acct-dialog-scroll">
+            <p id="acct-confirm-text"></p>
+            <div class="acct-field" id="acct-confirm-reason-wrap">
+                <label for="acct-confirm-reason">Reason <small>(saved in the activity log)</small></label>
+                <textarea id="acct-confirm-reason" name="reason" rows="3" maxlength="500" required></textarea>
+            </div>
+        </div>
+        <footer class="acct-dialog-foot">
+            <button type="submit" class="acct-btn" value="cancel" formnovalidate>Cancel</button>
+            <button type="submit" class="acct-btn" id="acct-confirm-ok" value="confirm">Confirm</button>
+        </footer>
+    </form>
+</dialog>
+
+{# ---------- Temporary password (shown once) ---------- #}
+<dialog class="acct-dialog acct-modal acct-modal-small" id="acct-password-dialog" aria-labelledby="acct-password-title">
+    <div class="acct-dialog-body">
+        <header class="acct-dialog-head"><h3 id="acct-password-title"></h3></header>
+        <div class="acct-dialog-scroll">
+            <p id="acct-password-text"></p>
+            <div class="acct-password">
+                <code id="acct-password-value"></code>
+                <button type="button" class="acct-btn" id="acct-password-copy"><i class="bi bi-clipboard" aria-hidden="true"></i>Copy</button>
+            </div>
+            <p class="acct-hint">This is shown only once. Share it privately. The person will be asked to choose their own password when they first sign in.</p>
+        </div>
+        <footer class="acct-dialog-foot"><button type="button" class="acct-btn acct-btn-primary" data-close>Done</button></footer>
+    </div>
+</dialog>
+
+<div class="acct-toasts" id="acct-toasts" aria-live="polite"></div>

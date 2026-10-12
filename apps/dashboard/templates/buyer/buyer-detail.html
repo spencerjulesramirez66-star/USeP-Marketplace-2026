@@ -6,6 +6,7 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
 <link rel="stylesheet" href="{% static 'css/buyer/buyer.css' %}">
+<link rel="stylesheet" href="{% static 'css/buyer/product-message.css' %}">
 {% endblock %}
 
 {% block content %}
@@ -51,11 +52,23 @@
                 {% elif item.status == 'ARCHIVED' %}
                     <p class="btn btn-outline detail-action detail-action-disabled">Unavailable</p>
                 {% else %}
+                    {% url 'messaging:start_conversation' item.slug as start_url %}
                     <form method="post" action="{% url 'dashboard:toggle_saved_item' item.slug %}">
                         {% csrf_token %}
                         <input type="hidden" name="next" value="{{ request.path }}">
                         <button class="btn btn-outline detail-action" type="submit">{% if is_saved %}Remove from cart{% else %}Add to cart{% endif %}</button>
                     </form>
+                    <button type="button"
+                            class="btn btn-outline detail-action product-message-btn"
+                            data-message-open
+                            data-start-url="{{ start_url }}"
+                            data-title="{{ item.title }}"
+                            data-price="{{ item.price_label }}"
+                            data-image="{{ item.image_url }}"
+                            data-seller="{{ item.seller }}">
+                        <i class="bi bi-chat-dots" aria-hidden="true"></i>
+                        <span>Message seller</span>
+                    </button>
                 {% endif %}
             </aside>
         </section>
@@ -119,6 +132,7 @@
                 </form>
             </details>
         {% endif %}
+        {% if user.is_authenticated %}{% include 'buyer/partials/quick_message_dialog.html' %}{% endif %}
     </main>
 </div>
 {% endblock %}
@@ -129,4 +143,5 @@
 <script src="{% static 'js/buyer/review-photos.js' %}" defer></script>
 <script src="{% static 'js/buyer/description-toggle.js' %}" defer></script>
 <script src="{% static 'js/buyer/rating-selector.js' %}" defer></script>
+<script src="{% static 'js/buyer/product-message.js' %}" defer></script>
 {% endblock %}

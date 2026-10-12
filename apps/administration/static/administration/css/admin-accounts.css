@@ -1,0 +1,286 @@
+/* ==========================================================================
+   partials/sections/accounts.html  (+ partials/accounts/dialogs.html)
+   Uses the colour and font variables from base.css.
+   ========================================================================== */
+
+/* The hidden attribute must always win over the display rules below. */
+#accounts-app [hidden] { display: none !important; }
+
+/* ---- Table layout (header and rows share the same columns) -------------- */
+
+.account-columns {
+    display: grid;
+    grid-template-columns: minmax(0, 2.2fr) 1fr 1fr 1fr 24px;
+    align-items: center;
+    column-gap: 1rem;
+}
+
+.accounts-panel .table-heading.account-columns {
+    padding-inline: 1rem;
+}
+
+/* ---- Buttons and inputs -------------------------------------------------- */
+
+.acct-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .4rem;
+    padding: .55rem .9rem;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-surface);
+    color: var(--color-text);
+    font-weight: 500;
+    cursor: pointer;
+}
+.acct-btn:hover:not(:disabled) { background: var(--color-surface-muted); }
+.acct-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+.acct-btn-primary { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+.acct-btn-primary:hover:not(:disabled) { background: var(--color-primary-dark); }
+
+.acct-btn-warning { color: var(--color-secondary-dark); border-color: var(--color-secondary); }
+.acct-btn-warning:hover:not(:disabled) { background: color-mix(in srgb, var(--color-secondary) 12%, white); }
+
+.acct-btn-danger { color: var(--color-danger); border-color: var(--color-danger); }
+.acct-btn-danger:hover:not(:disabled) { background: color-mix(in srgb, var(--color-danger) 8%, white); }
+.acct-btn-danger.is-solid { background: var(--color-danger); color: #fff; }
+.acct-btn-danger.is-solid:hover:not(:disabled) { background: var(--color-primary-dark); }
+
+.acct-icon-btn {
+    display: grid; place-items: center;
+    width: 2.2rem; height: 2.2rem;
+    border: 0; border-radius: 8px;
+    background: transparent; color: var(--color-text-secondary);
+    cursor: pointer;
+}
+.acct-icon-btn:hover { background: var(--color-surface-muted); }
+
+.acct-btn:focus-visible,
+.acct-icon-btn:focus-visible,
+.acct-row:focus-visible,
+.acct-tabs button:focus-visible,
+.acct-field input:focus-visible,
+.acct-field select:focus-visible,
+.acct-field textarea:focus-visible,
+.acct-search input:focus-visible,
+.acct-select:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+}
+
+/* ---- Toolbar ------------------------------------------------------------- */
+
+.acct-toolbar { display: flex; gap: .75rem; margin: 1rem 0 .75rem; flex-wrap: wrap; }
+
+.acct-search {
+    flex: 1 1 260px;
+    display: flex; align-items: center; gap: .6rem;
+    padding: 0 .8rem;
+    border: 1px solid var(--color-border); border-radius: 8px;
+    background: var(--color-surface);
+    color: var(--color-text-muted);
+}
+.acct-search input { flex: 1; border: 0; background: transparent; padding: .6rem 0; color: var(--color-text); }
+.acct-search input:focus-visible { outline: none; }
+.acct-search:focus-within { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+
+.acct-select {
+    padding: .55rem .8rem;
+    border: 1px solid var(--color-border); border-radius: 8px;
+    background: var(--color-surface); color: var(--color-text);
+}
+
+/* ---- Status tabs ---------------------------------------------------------- */
+
+.acct-tabs { display: flex; gap: .25rem; border-bottom: 1px solid var(--color-border); margin-bottom: .5rem; overflow-x: auto; }
+.acct-tabs button {
+    display: inline-flex; align-items: center; gap: .45rem;
+    padding: .6rem .9rem; border: 0; background: transparent;
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+    color: var(--color-text-secondary); font-weight: 500; cursor: pointer; white-space: nowrap;
+}
+.acct-tabs button:hover { color: var(--color-text); }
+.acct-tabs button[aria-selected="true"] { color: var(--color-primary); border-bottom-color: var(--color-primary); }
+
+.acct-count {
+    min-width: 1.5rem; padding: .05rem .45rem; border-radius: 999px;
+    background: var(--color-surface-muted); color: var(--color-text-secondary);
+    font-size: .8rem; text-align: center;
+}
+
+/* ---- Rows ------------------------------------------------------------------ */
+
+.acct-list { transition: opacity .15s; }
+.acct-list.is-loading { opacity: .5; }
+
+.acct-row {
+    width: 100%;
+    padding: .7rem 1rem;
+    border: 0; border-bottom: 1px solid var(--color-border);
+    background: transparent; color: inherit; font: inherit; text-align: left;
+    cursor: pointer;
+}
+.acct-row:hover { background: var(--color-surface-muted); }
+.acct-row > span { min-width: 0; }
+
+.acct-person { display: flex; align-items: center; gap: .75rem; }
+.acct-person-text { display: grid; min-width: 0; }
+.acct-person-text strong, .acct-person-text small {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.acct-person-text small { color: var(--color-text-muted); }
+
+.acct-avatar {
+    width: 2.4rem; height: 2.4rem; flex: none;
+    border-radius: 50%; object-fit: cover; background: var(--color-surface-muted);
+}
+.acct-avatar-lg { width: 3.4rem; height: 3.4rem; }
+
+.acct-date { color: var(--color-text-secondary); }
+.acct-row > i { color: var(--color-text-muted); }
+
+/* ---- Badges ---------------------------------------------------------------- */
+
+.acct-badges { display: flex; gap: .4rem; flex-wrap: wrap; margin-top: .25rem; }
+.acct-badge {
+    display: inline-block; padding: .15rem .6rem; border-radius: 999px;
+    font-size: .8rem; font-weight: 500;
+    background: var(--color-surface-muted); color: var(--color-text-secondary);
+}
+.acct-badge.status-active { background: color-mix(in srgb, var(--color-success) 14%, white); color: #166534; }
+.acct-badge.status-suspended { background: color-mix(in srgb, var(--color-warning) 18%, white); color: #92400E; }
+.acct-badge.status-deleted { background: color-mix(in srgb, var(--color-danger) 12%, white); color: #991B1B; }
+
+/* ---- Empty state and pager ------------------------------------------------ */
+
+.acct-empty { padding: 2.5rem 1rem; }
+.acct-pager {
+    display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+    padding: .9rem 1rem; color: var(--color-text-secondary); flex-wrap: wrap;
+}
+.acct-pager > div { display: flex; gap: .5rem; }
+
+/* ---- Dialogs (native <dialog>) -------------------------------------------- */
+
+.acct-dialog {
+    padding: 0; border: 0; color: var(--color-text);
+    background: var(--color-surface);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, .25);
+}
+.acct-dialog::backdrop { background: rgba(23, 23, 23, .45); }
+
+.acct-modal { width: min(640px, calc(100% - 2rem)); max-height: calc(100dvh - 2rem); border-radius: 12px; margin: auto; }
+.acct-modal-small { width: min(440px, calc(100% - 2rem)); }
+
+.acct-drawer {
+    width: min(460px, 100%); height: 100dvh; max-height: 100dvh;
+    margin: 0 0 0 auto; border-radius: 0;
+}
+.acct-drawer[open] { animation: acct-slide .18s ease-out; }
+@keyframes acct-slide { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+.acct-dialog-body { display: flex; flex-direction: column; max-height: inherit; height: 100%; }
+.acct-modal .acct-dialog-body { max-height: calc(100dvh - 2rem); }
+
+.acct-dialog-head {
+    display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem;
+    padding: 1.1rem 1.25rem; border-bottom: 1px solid var(--color-border);
+}
+.acct-dialog-scroll { flex: 1; overflow-y: auto; padding: 1.25rem; display: grid; gap: 1rem; align-content: start; }
+.acct-dialog-foot {
+    display: flex; justify-content: flex-end; flex-wrap: wrap; gap: .5rem;
+    padding: .9rem 1.25rem; border-top: 1px solid var(--color-border);
+    background: var(--color-surface-muted);
+}
+.acct-drawer .acct-dialog-foot { justify-content: flex-start; }
+
+.acct-drawer-person { display: flex; gap: .9rem; align-items: center; }
+
+.acct-note {
+    padding: .75rem .9rem; border-radius: 8px;
+    background: var(--color-surface-muted); color: var(--color-text-secondary); font-size: .95rem;
+}
+.acct-note.tone-warning { background: color-mix(in srgb, var(--color-warning) 14%, white); color: #92400E; }
+.acct-note.tone-danger { background: color-mix(in srgb, var(--color-danger) 10%, white); color: #991B1B; }
+
+.acct-details { display: grid; gap: .8rem; }
+.acct-details div { display: grid; grid-template-columns: 8.5rem 1fr; gap: .75rem; }
+.acct-details dt { color: var(--color-text-muted); }
+.acct-details dd { overflow-wrap: anywhere; }
+
+/* ---- Form ------------------------------------------------------------------- */
+
+.acct-type-switch { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+.acct-type-switch label { cursor: pointer; }
+.acct-type-switch input { position: absolute; opacity: 0; pointer-events: none; }
+.acct-type-switch span {
+    display: flex; align-items: center; justify-content: center; gap: .5rem;
+    padding: .7rem; border: 1px solid var(--color-border); border-radius: 8px; font-weight: 500;
+}
+.acct-type-switch input:checked + span {
+    border-color: var(--color-primary); color: var(--color-primary);
+    background: color-mix(in srgb, var(--color-primary) 6%, white);
+}
+.acct-type-switch input:focus-visible + span { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+
+.acct-fieldset { border: 0; display: grid; gap: .75rem; min-width: 0; }
+.acct-fieldset[disabled] { display: none; }
+.acct-fieldset legend { font-weight: 600; margin-bottom: .6rem; }
+
+.acct-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .9rem; }
+.acct-wide { grid-column: 1 / -1; }
+
+.acct-field { display: grid; gap: .3rem; align-content: start; }
+.acct-field label { font-weight: 500; font-size: .92rem; }
+.acct-field label small { font-weight: 400; color: var(--color-text-muted); }
+.acct-field input, .acct-field select, .acct-field textarea {
+    width: 100%; padding: .55rem .7rem;
+    border: 1px solid var(--color-border); border-radius: 8px;
+    background: var(--color-surface); color: var(--color-text);
+}
+.acct-field.has-error input, .acct-field.has-error select, .acct-field.has-error textarea { border-color: var(--color-danger); }
+.acct-error { color: var(--color-danger); font-size: .85rem; }
+.acct-error:empty { display: none; }
+
+.acct-hint { color: var(--color-text-muted); font-size: .9rem; }
+.acct-hint:empty { display: none; }
+.acct-form-error {
+    padding: .7rem .9rem; border-radius: 8px;
+    background: color-mix(in srgb, var(--color-danger) 10%, white); color: #991B1B;
+}
+
+/* ---- Temporary password ---------------------------------------------------- */
+
+.acct-password { display: flex; gap: .6rem; align-items: center; }
+.acct-password code {
+    flex: 1; padding: .7rem .9rem; border-radius: 8px;
+    background: var(--color-surface-muted); font-size: 1.25rem; letter-spacing: .08em;
+    user-select: all;
+}
+
+/* ---- Toasts ------------------------------------------------------------------ */
+
+.acct-toasts { position: fixed; right: 1rem; bottom: 1rem; display: grid; gap: .5rem; z-index: 1000; }
+.acct-toast {
+    padding: .7rem 1rem; border-radius: 8px; max-width: 360px;
+    background: var(--color-text); color: #fff; box-shadow: 0 8px 24px rgba(0, 0, 0, .25);
+}
+.acct-toast.is-error { background: var(--color-danger); }
+
+/* ---- Small screens ------------------------------------------------------------ */
+
+@media (max-width: 720px) {
+    .accounts-panel .table-heading { display: none; }
+    .account-columns { grid-template-columns: 1fr auto; row-gap: .4rem; }
+    .acct-row .acct-person { grid-column: 1 / -1; }
+    .acct-row .acct-date, .acct-row > i { display: none; }
+    .acct-grid { grid-template-columns: 1fr; }
+    .acct-details div { grid-template-columns: 1fr; gap: .1rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .acct-drawer[open] { animation: none; }
+    .acct-list { transition: none; }
+}

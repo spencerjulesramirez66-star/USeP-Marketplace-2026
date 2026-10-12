@@ -1,0 +1,45 @@
+<section class="metric-grid" aria-label="Marketplace summary preview">
+    <article class="metric-block metric-primary">
+        <div class="metric-top"><span>Registered accounts</span><i class="bi bi-people" aria-hidden="true"></i></div>
+        <strong>-</strong><small>PREVIEW</small>
+    </article>
+    <article class="metric-block metric-coral">
+        <div class="metric-top"><span>Active listings</span><i class="bi bi-bag" aria-hidden="true"></i></div>
+        <strong>-</strong><small>PREVIEW</small>
+    </article>
+    <article class="metric-block metric-gold">
+        <div class="metric-top"><span>Open reports</span><i class="bi bi-flag" aria-hidden="true"></i></div>
+        <strong>-</strong><small>PREVIEW</small>
+    </article>
+    <article class="metric-block metric-blue">
+        <div class="metric-top"><span>Pending review</span><i class="bi bi-hourglass-split" aria-hidden="true"></i></div>
+        <strong>-</strong><small>PREVIEW</small>
+    </article>
+</section>
+
+<section class="overview-grid" aria-label="Marketplace administration preview">
+    <article class="panel attention-panel" id="listings">
+        <div class="panel-heading">
+            <div><p class="eyebrow">Review queue</p><h2>Needs attention</h2></div>
+            <a class="text-link" href="{% url 'administration:reports' %}">View reports <i class="bi bi-arrow-up-right" aria-hidden="true"></i></a>
+        </div>
+        <a class="attention-row" href="{% url 'administration:listings' %}">
+            <span class="attention-icon icon-coral"><i class="bi bi-card-image" aria-hidden="true"></i></span>
+            <span class="attention-copy"><strong>Listing review</strong><small>Items awaiting moderation</small></span>
+            <span class="attention-value">-</span>
+            <i class="bi bi-chevron-right attention-chevron" aria-hidden="true"></i>
+        </a>
+        <a class="attention-row" href="{% url 'administration:reports' %}">
+            <span class="attention-icon icon-gold"><i class="bi bi-flag" aria-hidden="true"></i></span>
+            <span class="attention-copy"><strong>Reported content</strong><small>Reports submitted by members</small></span>
+            <span class="attention-value">-</span>
+            <i class="bi bi-chevron-right attention-chevron" aria-hidden="true"></i>
+        </a>
+        <a class="attention-row" href="{% url 'administration:accounts' %}">
+            <span class="attention-icon icon-blue"><i class="bi bi-person-check" aria-hidden="true"></i></span>
+            <span class="attention-copy"><strong>Account requests</strong><small>Accounts requiring a closer look</small></span>
+            <span class="attention-value">-</span>
+            <i class="bi bi-chevron-right attention-chevron" aria-hidden="true"></i>
+        </a>
+    </article>
+</section>

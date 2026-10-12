@@ -43,6 +43,19 @@
   display: none;
 }
 
+.messaging-reply-preview-thumb {
+  display: block;
+  width: 80px;
+  min-width: 80px;
+  max-width: 80px;
+  height: 80px;
+  min-height: 80px;
+  max-height: 80px;
+  flex: none;
+  object-fit: cover;
+  border-radius: 0.4rem;
+}
+
 .messaging-reply-state span {
   display: grid;
   min-width: 0;
@@ -409,4 +422,48 @@
 
 .messaging-attachment-preview-item [data-remove-attachment] .bi {
   pointer-events: none;
+}
+
+#messaging-attachment-preview .messaging-attachment-preview-item--image {
+  width: 80px;
+  min-width: 80px;
+  max-width: 80px;
+  height: 80px;
+  min-height: 80px;
+  max-height: 80px;
+  flex: none;
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface-muted);
+}
+
+#messaging-attachment-preview .messaging-pending-attachment-thumbnail {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 80px;
+  height: 100%;
+  min-height: 0;
+  max-height: 80px;
+  flex: none;
+  object-fit: cover;
+}
+
+.messaging-attachment-preview-item--image [data-remove-attachment] {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 26px;
+  height: 26px;
+  margin: 0;
+  color: var(--color-text);
+  background: var(--color-surface);
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--color-text) 30%, transparent);
+}
+
+.messaging-attachment-preview-item--image [data-remove-attachment]:hover {
+  color: var(--color-danger);
+  background: var(--color-surface);
 }
