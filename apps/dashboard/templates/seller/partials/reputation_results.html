@@ -1,0 +1,171 @@
+<section class="reputation-summary" aria-label="Reputation summary">
+    <article class="reputation-card reputation-average-card">
+        <span class="reputation-card-label">Overall rating</span>
+        <strong class="reputation-average">{{ average_rating|floatformat:1 }}</strong>
+        <div class="listing-review-stars reputation-average-stars" aria-label="{{ average_rating|floatformat:1 }} out of 5 stars">
+            {% for star in rating_stars %}<i class="bi {% if star <= average_rating %}bi-star-fill{% else %}bi-star{% endif %}" aria-hidden="true"></i>{% endfor %}
+        </div>
+        <span class="reputation-muted">Based on {{ review_count }} review{{ review_count|pluralize }}</span>
+    </article>
+
+    <article class="reputation-card reputation-distribution-card">
+        <h2>Rating breakdown</h2>
+        <div class="reputation-distribution">
+            {% for row in rating_distribution %}
+            <a class="reputation-rating-row{% if selected_rating == row.rating|stringformat:'s' %} is-active{% endif %}"
+               href="{{ row.url }}" data-filter-url aria-label="Filter by {{ row.rating }} stars: {{ row.count }} reviews">
+                <span class="reputation-rating-label">{{ row.rating }} <i class="bi bi-star-fill" aria-hidden="true"></i></span>
+                <span class="reputation-rating-track"><span style="--rating-fill: {{ row.percentage }}%"></span></span>
+                <span class="reputation-rating-count">{{ row.count }}</span>
+                <span class="reputation-rating-percent">{{ row.percentage }}%</span>
+            </a>
+            {% endfor %}
+        </div>
+    </article>
+
+    <article class="reputation-card reputation-stats-card">
+        <h2>Review activity</h2>
+        <div class="reputation-stat-grid">
+            <div class="reputation-stat-tile">
+                <span>Total reviews</span>
+                <strong>{{ review_count }}</strong>
+            </div>
+            <div class="reputation-stat-tile{% if needs_reply_count %} is-warning{% else %} is-calm{% endif %}">
+                <span>Needs reply</span>
+                <strong>{{ needs_reply_count }}</strong>
+            </div>
+            <div class="reputation-stat-tile is-replied">
+                <span>Replied</span>
+                <strong>{{ replied_count }}</strong>
+            </div>
+        </div>
+    </article>
+</section>
+
+<form class="reputation-filters panel" method="get" action="{% url 'dashboard:seller_reputation' %}" data-reputation-form>
+    <div class="reputation-filter-field">
+        <label for="reputation-listing"><i class="bi bi-tag" aria-hidden="true"></i> Listing</label>
+        <select id="reputation-listing" name="listing">
+            <option value="">All listings</option>
+            {% for listing in listings %}
+            <option value="{{ listing.pk }}"{% if selected_listing == listing.pk|stringformat:'s' %} selected{% endif %}>{{ listing.title }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="reputation-filter-field">
+        <label for="reputation-rating"><i class="bi bi-star" aria-hidden="true"></i> Rating</label>
+        <select id="reputation-rating" name="rating">
+            <option value="">All ratings</option>
+            {% for value, label in rating_choices %}
+            <option value="{{ value }}"{% if selected_rating == value|stringformat:'s' %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="reputation-filter-field">
+        <label for="reputation-reply-status"><i class="bi bi-chat-left-text" aria-hidden="true"></i> Reply status</label>
+        <select id="reputation-reply-status" name="reply_status">
+            <option value="">All statuses</option>
+            <option value="needs_reply"{% if reply_status == 'needs_reply' %} selected{% endif %}>Needs reply</option>
+            <option value="replied"{% if reply_status == 'replied' %} selected{% endif %}>Replied</option>
+            <option value="read_only"{% if reply_status == 'read_only' %} selected{% endif %}>Read-only</option>
+        </select>
+    </div>
+    {% if has_active_filters %}
+    <a class="btn btn-outline reputation-clear-button" href="{{ clear_filters_url }}" data-filter-url>
+        <i class="bi bi-x-circle" aria-hidden="true"></i> Clear filters
+    </a>
+    {% endif %}
+    <noscript><button class="btn btn-primary" type="submit">Apply filters</button></noscript>
+</form>
+
+{% if active_filters %}
+<div class="reputation-active-filters" aria-label="Active filters">
+    {% for filter in active_filters %}
+    <a class="reputation-filter-chip" href="{{ filter.url }}" data-filter-url>
+        {{ filter.label }} <span aria-hidden="true">&times;</span><span class="reputation-visually-hidden"> remove filter</span>
+    </a>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div class="reputation-results-heading">
+    <p aria-live="polite">Showing {{ filtered_review_count }} of {{ review_count }} review{{ review_count|pluralize }}</p>
+    {% if page_obj.paginator.num_pages > 1 %}
+    <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% endif %}
+</div>
+
+<div class="reputation-review-list">
+    {% for review in reviews %}
+    <article class="reputation-review-card{% if review.listing.lifecycle_state != 'NORMAL' %} is-read-only{% elif review.has_seller_reply %} is-replied{% else %} is-needs-reply{% endif %}" id="review-{{ review.pk }}">
+        <div class="reputation-review-topline">
+            <div class="reputation-review-person">
+                {% cycle 'tone-a' 'tone-b' 'tone-c' 'tone-d' 'tone-e' as avatar_tone silent %}
+                <span class="reputation-avatar {{ avatar_tone }}" aria-hidden="true">{{ review.reviewer.first_name|first|upper }}{{ review.reviewer.last_name|first|upper }}</span>
+                <div>
+                    <strong>{{ review.reviewer_name }}</strong>
+                    <time datetime="{{ review.updated_at|date:'c' }}" title="{{ review.updated_at|date:'M j, Y, g:i a' }}">{{ review.updated_at|timesince }} ago</time>
+                </div>
+            </div>
+            {% if review.listing.lifecycle_state != 'NORMAL' %}
+            <span class="reputation-status is-read-only" title="Read only — {{ review.listing.get_lifecycle_state_display }}"><i class="bi bi-lock" aria-hidden="true"></i> Read-only</span>
+            {% elif review.has_seller_reply %}
+            <span class="reputation-status is-replied"><i class="bi bi-check-circle" aria-hidden="true"></i> Replied</span>
+            {% else %}
+            <span class="reputation-status is-needs-reply"><i class="bi bi-reply" aria-hidden="true"></i> Needs reply</span>
+            {% endif %}
+        </div>
+
+        <a class="reputation-listing-chip" href="{{ review.listing.get_absolute_url }}">
+            {% if review.listing.image %}
+            <img src="{{ review.listing.image.url }}" alt="" loading="lazy">
+            {% else %}
+            <span class="reputation-listing-placeholder"><i class="bi bi-image" aria-hidden="true"></i></span>
+            {% endif %}
+            <span>{{ review.listing.title }}</span>
+            <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+        </a>
+
+        <div class="listing-review-stars reputation-review-stars" aria-label="{{ review.rating }} out of 5 stars">
+            {% for star in rating_stars %}<i class="bi {% if star <= review.rating %}bi-star-fill{% else %}bi-star{% endif %}" aria-hidden="true"></i>{% endfor %}
+        </div>
+        <p class="reputation-review-body">{{ review.body|linebreaksbr }}</p>
+
+        {% with photos=review.photos.all %}
+        {% if photos %}
+        <div class="listing-review-photos reputation-review-photos" aria-label="Photos shared with this review">
+            {% for photo in photos %}<a href="{{ photo.image.url }}" target="_blank" rel="noopener"><img src="{{ photo.image.url }}" alt="Photo shared by {{ review.reviewer_name }}" loading="lazy"></a>{% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        {% include 'buyer/partials/review_thread.html' with review=review reply_form=reply_form return_url=return_url %}
+    </article>
+    {% empty %}
+    <div class="reputation-empty-state">
+        <i class="bi {% if review_count %}bi-filter-circle{% else %}bi-chat-square-heart{% endif %}" aria-hidden="true"></i>
+        {% if review_count %}
+        <h2>No reviews match these filters</h2>
+        <p>Try adjusting your filters to see more reviews.</p>
+        <a class="btn btn-outline" href="{{ clear_filters_url }}" data-filter-url>Clear filters</a>
+        {% else %}
+        <h2>Your reviews will appear here</h2>
+        <p>Your listings do not have any reviews yet. Check back when buyers share their feedback.</p>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+
+{% if page_obj.paginator.num_pages > 1 %}
+<nav class="reputation-pagination" aria-label="Review pages">
+    {% if page_obj.has_previous %}<a class="btn btn-outline" href="{{ previous_page_url }}" data-filter-url><i class="bi bi-chevron-left" aria-hidden="true"></i> Previous</a>{% endif %}
+    <div class="reputation-page-links">
+        {% for page in page_links %}
+            {% if page.number == page_obj.number %}<span aria-current="page">{{ page.number }}</span>{% else %}<a href="{{ page.url }}" data-filter-url>{{ page.number }}</a>{% endif %}
+        {% endfor %}
+    </div>
+    {% if page_obj.has_next %}<a class="btn btn-outline" href="{{ next_page_url }}" data-filter-url>Next <i class="bi bi-chevron-right" aria-hidden="true"></i></a>{% endif %}
+</nav>
+{% endif %}
+
+<div class="reputation-loading" aria-hidden="true"><span class="reputation-spinner"></span><span>Updating reviews…</span></div>

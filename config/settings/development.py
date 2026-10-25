@@ -1,7 +1,7 @@
 from .base import *
 
 DEBUG = True
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 
 # Cookies — insecure is fine over local http://
 SESSION_COOKIE_SECURE = False

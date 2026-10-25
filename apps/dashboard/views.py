@@ -7,6 +7,7 @@ from django.core.paginator import Paginator
 from django.db.models import Avg, Count, Exists, OuterRef, Q
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.cache import patch_vary_headers
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
@@ -170,10 +171,17 @@ def seller_reputation_page(request):
         listing__lifecycle_state=Listing.Lifecycle.NORMAL,
         has_seller_reply=False,
     ).count()
-
+    replied_count = all_reviews.filter(
+        listing__lifecycle_state=Listing.Lifecycle.NORMAL,
+        has_seller_reply=True,
+    ).count()
     selected_listing = request.GET.get('listing', '')
     selected_rating = request.GET.get('rating', '')
-    needs_reply = request.GET.get('needs_reply') == '1'
+    reply_status = request.GET.get('reply_status', '')
+    if not reply_status and request.GET.get('needs_reply') == '1':
+        reply_status = 'needs_reply'
+    if reply_status not in {'needs_reply', 'replied', 'read_only'}:
+        reply_status = ''
     reviews = all_reviews.select_related('listing', 'reviewer').prefetch_related(
         'photos',
         'replies__author',
@@ -186,13 +194,34 @@ def seller_reputation_page(request):
         reviews = reviews.filter(rating=selected_rating)
     else:
         selected_rating = ''
-    if needs_reply:
+    if reply_status == 'needs_reply':
         reviews = reviews.filter(
             listing__lifecycle_state=Listing.Lifecycle.NORMAL,
             has_seller_reply=False,
         )
+    elif reply_status == 'replied':
+        reviews = reviews.filter(
+            listing__lifecycle_state=Listing.Lifecycle.NORMAL,
+            has_seller_reply=True,
+        )
+    elif reply_status == 'read_only':
+        reviews = reviews.exclude(listing__lifecycle_state=Listing.Lifecycle.NORMAL)
 
+    filtered_review_count = reviews.count()
     page_obj = Paginator(reviews, REPUTATION_PAGE_SIZE).get_page(request.GET.get('page'))
+
+    def url_with_params(updates=None, remove=()):
+        query = request.GET.copy()
+        for key in remove:
+            query.pop(key, None)
+        for key, value in (updates or {}).items():
+            if value:
+                query[key] = value
+            else:
+                query.pop(key, None)
+        query['page'] = '1'
+        return f'{request.path}?{query.urlencode()}'
+
     page_links = []
     for page_number in page_obj.paginator.page_range:
         query = request.GET.copy()
@@ -202,26 +231,75 @@ def seller_reputation_page(request):
             'url': f'{request.path}?{query.urlencode()}',
         })
     page_urls = {page['number']: page['url'] for page in page_links}
+    rating_distribution = []
+    for row in distribution:
+        rating_distribution.append({
+            **row,
+            'percentage': round(row['count'] * 100 / summary['total']) if summary['total'] else 0,
+            'url': url_with_params(
+                {'rating': str(row['rating'])},
+                remove=('needs_reply',),
+            ),
+        })
 
-    return render(request, 'seller/reputation.html', {
+    active_filters = []
+    if selected_listing:
+        listing_title = listings.get(pk=selected_listing).title
+        active_filters.append({
+            'label': f'Listing: {listing_title}',
+            'url': url_with_params({'listing': ''}),
+        })
+    if selected_rating:
+        active_filters.append({
+            'label': f'Rating: {selected_rating} stars',
+            'url': url_with_params({'rating': ''}),
+        })
+    if reply_status:
+        status_labels = {
+            'needs_reply': 'Needs reply',
+            'replied': 'Replied',
+            'read_only': 'Read-only',
+        }
+        active_filters.append({
+            'label': f'Reply status: {status_labels[reply_status]}',
+            'url': url_with_params(
+                {'reply_status': ''},
+                remove=('needs_reply',),
+            ),
+        })
+
+    context = {
         'listings': listings,
         'reviews': page_obj.object_list,
         'page_obj': page_obj,
         'page_links': page_links,
         'average_rating': round(summary['average'] or 0, 1),
         'review_count': summary['total'],
-        'rating_distribution': distribution,
+        'filtered_review_count': filtered_review_count,
+        'rating_distribution': rating_distribution,
         'rating_choices': ListingReview.Rating.choices,
         'needs_reply_count': needs_reply_count,
+        'replied_count': replied_count,
         'selected_listing': selected_listing,
         'selected_rating': selected_rating,
-        'needs_reply': needs_reply,
+        'reply_status': reply_status,
+        'active_filters': active_filters,
+        'has_active_filters': bool(active_filters),
+        'clear_filters_url': request.path,
         'reply_form': ListingReviewReplyForm(),
         'rating_stars': range(1, 6),
         'return_url': request.get_full_path(),
         'previous_page_url': page_urls.get(page_obj.previous_page_number()) if page_obj.has_previous() else '',
         'next_page_url': page_urls.get(page_obj.next_page_number()) if page_obj.has_next() else '',
-    })
+    }
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    response = render(
+        request,
+        'seller/partials/reputation_results.html' if is_ajax else 'seller/reputation.html',
+        context,
+    )
+    patch_vary_headers(response, ('X-Requested-With',))
+    return response
 
 
 @login_required

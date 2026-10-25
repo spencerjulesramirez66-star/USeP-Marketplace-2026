@@ -1385,6 +1385,78 @@ class SellerReputationAndReviewReplyTests(TestCase):
             [self.second_review.pk],
         )
 
+    def test_reputation_ajax_returns_fragment_and_normal_request_returns_full_page(self):
+        self.client.force_login(self.seller)
+        url = reverse('dashboard:seller_reputation')
+
+        full_response = self.client.get(url)
+        ajax_response = self.client.get(url, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+
+        self.assertContains(full_response, '<html', html=False)
+        self.assertContains(full_response, 'id="navbar"', html=False)
+        self.assertNotContains(ajax_response, '<html', html=False)
+        self.assertNotContains(ajax_response, 'id="navbar"', html=False)
+        self.assertContains(ajax_response, 'Showing 3 of 3 reviews', html=False)
+
+    def test_reputation_filters_match_for_ajax_and_full_page_requests(self):
+        ListingReviewReply.objects.create(
+            review=self.normal_review,
+            author=self.seller,
+            body='Thanks for your review.',
+        )
+        self.client.force_login(self.seller)
+        url = reverse('dashboard:seller_reputation')
+        filter_cases = (
+            {'listing': str(self.second_listing.pk)},
+            {'rating': '3'},
+            {'reply_status': 'needs_reply'},
+            {'reply_status': 'replied'},
+            {'reply_status': 'read_only'},
+        )
+
+        for filters in filter_cases:
+            with self.subTest(filters=filters):
+                full_response = self.client.get(url, filters)
+                ajax_response = self.client.get(
+                    url,
+                    filters,
+                    HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+                )
+                self.assertEqual(full_response.status_code, 200)
+                self.assertEqual(ajax_response.status_code, 200)
+                self.assertEqual(
+                    [review.pk for review in full_response.context['reviews']],
+                    [review.pk for review in ajax_response.context['reviews']],
+                )
+                self.assertContains(ajax_response, 'Showing ', html=False)
+
+    def test_reputation_ajax_is_scoped_to_authenticated_seller(self):
+        url = reverse('dashboard:seller_reputation')
+        self.client.force_login(self.other_seller)
+
+        other_seller_response = self.client.get(url, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+
+        self.assertEqual(other_seller_response.status_code, 200)
+        self.assertContains(other_seller_response, self.other_review.body)
+        self.assertNotContains(other_seller_response, self.normal_review.body)
+        self.assertNotContains(other_seller_response, self.second_review.body)
+
+        self.client.logout()
+        logged_out_response = self.client.get(url, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(logged_out_response.status_code, 302)
+        self.assertIn(reverse('login'), logged_out_response['Location'])
+        self.assertNotIn(self.normal_review.body.encode(), logged_out_response.content)
+
+    def test_reputation_full_and_ajax_responses_vary_on_requested_with(self):
+        self.client.force_login(self.seller)
+        url = reverse('dashboard:seller_reputation')
+
+        for response in (
+            self.client.get(url),
+            self.client.get(url, HTTP_X_REQUESTED_WITH='XMLHttpRequest'),
+        ):
+            self.assertIn('X-Requested-With', response.headers.get('Vary', ''))
+
     def test_non_participant_and_another_seller_cannot_reply_to_review(self):
         self.client.force_login(self.outsider)
         outsider_response = self.client.post(

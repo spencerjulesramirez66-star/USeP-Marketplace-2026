@@ -1,19 +1,58 @@
 .seller-reputation-main {
+    --reputation-radius-control: 0.5rem;
+    --reputation-radius-card: 0.85rem;
+    --reputation-shadow-card: 0 2px 8px rgb(15 23 42 / 4%);
+    --reputation-shadow-hover: 0 8px 20px rgb(15 23 42 / 9%);
     display: grid;
-    gap: 1.5rem;
-    padding: 3rem 1rem;
+    gap: 1.4rem;
+    padding-block: 2.5rem 3rem;
 }
 
-.seller-reputation-heading {
+.seller-reputation-heading,
+.reputation-review-topline,
+.reputation-review-person,
+.reputation-results-heading,
+.reputation-pagination,
+.listing-review-reply-heading {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
 }
 
+.seller-reputation-heading > div {
+    display: grid;
+    gap: 0.35rem;
+}
+
 .seller-reputation-heading h1,
-.seller-reputation-heading p {
-    margin: 0.3rem 0;
+.seller-reputation-heading p,
+.reputation-card h2,
+.reputation-results-heading p {
+    margin: 0;
+}
+
+.seller-reputation-heading h1 {
+    font-size: clamp(1.8rem, 4vw, 2.4rem);
+}
+
+.seller-reputation-heading > div > p:last-child,
+.reputation-muted,
+.reputation-review-person time,
+.reputation-results-heading > span {
+    color: var(--color-text-muted);
+}
+
+.seller-reputation-heading .btn {
+    gap: 0.5rem;
+    flex: 0 0 auto;
+}
+
+.reputation-results {
+    position: relative;
+    display: grid;
+    gap: 1.25rem;
+    min-width: 0;
 }
 
 .reputation-summary {
@@ -22,138 +61,740 @@
     gap: 1rem;
 }
 
-.reputation-stat,
-.reputation-distribution,
-.reputation-filters,
-.reputation-reviews > article {
+.reputation-card {
+    min-width: 0;
     padding: 1.25rem;
     border: 1px solid var(--color-border);
-    border-radius: 0.75rem;
+    border-radius: var(--reputation-radius-card);
     background: var(--color-surface);
+    box-shadow: var(--reputation-shadow-card);
 }
 
-.reputation-stat {
-    display: grid;
-    gap: 0.5rem;
+.reputation-average-card,
+.reputation-stats-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.45rem;
 }
 
-.reputation-stat strong {
-    font-size: 1.5rem;
+.reputation-card-label {
+    color: var(--color-text-secondary);
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+.reputation-average {
+    font-size: clamp(2.7rem, 5vw, 3.4rem);
+    line-height: 1;
+}
+
+.reputation-average-stars {
+    color: #d18a00;
+}
+
+.reputation-muted {
+    font-size: 0.88rem;
+}
+
+.reputation-card h2 {
+    margin-bottom: 0.85rem;
+    font-size: 1rem;
 }
 
 .reputation-distribution {
     display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 0.5rem 1rem;
+    gap: 0.32rem;
+}
+
+.reputation-rating-row {
+    display: grid;
+    grid-template-columns: 3.1rem minmax(2rem, 1fr) 2rem 2.7rem;
+    align-items: center;
+    gap: 0.55rem;
+    min-height: 1.65rem;
+    padding: 0 0.35rem;
+    border-radius: 0.4rem;
+    color: var(--color-text-secondary);
+    font-size: 0.82rem;
+    text-decoration: none;
+}
+
+.reputation-rating-row:hover,
+.reputation-rating-row:focus-visible,
+.reputation-rating-row.is-active {
+    outline: 0;
+    background: var(--color-surface-muted);
+    color: var(--color-primary);
+}
+
+.reputation-rating-label {
+    white-space: nowrap;
+}
+
+.reputation-rating-label i {
+    color: #d18a00;
+    font-size: 0.72rem;
+}
+
+.reputation-rating-track {
+    height: 0.45rem;
+    overflow: hidden;
+    border-radius: 99px;
+    background: var(--color-surface-muted);
+}
+
+.reputation-rating-track > span {
+    display: block;
+    width: var(--rating-fill);
+    height: 100%;
+    border-radius: inherit;
+    background: var(--color-secondary);
+}
+
+.reputation-rating-count,
+.reputation-rating-percent {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.reputation-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.6rem;
+    width: 100%;
+}
+
+.reputation-stat-tile {
+    display: grid;
+    align-content: start;
+    gap: 0.35rem;
+    min-width: 0;
+    padding: 0.75rem;
+    border: 1px solid var(--color-border);
+    border-radius: 0.65rem;
+}
+
+.reputation-stat-tile span {
+    color: var(--color-text-muted);
+    font-size: 0.78rem;
+    line-height: 1.25;
+}
+
+.reputation-stat-tile strong {
+    font-size: 1.55rem;
+    line-height: 1.1;
+}
+
+.reputation-stat-tile.is-warning {
+    border-color: rgb(245 158 11 / 40%);
+    background: rgb(245 158 11 / 8%);
+    color: #92400e;
+}
+
+.reputation-stat-tile.is-calm,
+.reputation-stat-tile.is-replied {
+    border-color: rgb(22 163 74 / 28%);
+    background: rgb(22 163 74 / 6%);
+    color: #166534;
 }
 
 .reputation-filters {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0.75rem;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+    align-items: end;
+    gap: 0.9rem;
+    margin: 0;
+    padding: 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--reputation-radius-card);
+    background: var(--color-surface);
 }
 
-.reputation-filters select {
-    min-height: 42px;
-    padding: 0.5rem;
+.reputation-filter-field {
+    display: grid;
+    gap: 0.4rem;
+    min-width: 0;
+}
+
+.reputation-filter-field label {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--color-text-secondary);
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+.reputation-filter-field label i {
+    color: var(--color-primary);
+}
+
+.reputation-filter-field select {
+    width: 100%;
+    min-height: 44px;
+    padding: 0.55rem 2rem 0.55rem 0.7rem;
     border: 1px solid var(--color-border);
-    border-radius: 0.5rem;
+    border-radius: var(--reputation-radius-control);
     background: var(--color-surface);
     color: var(--color-text);
 }
 
-.reputation-needs-reply {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
+.reputation-filter-field select:focus-visible {
+    outline: 2px solid var(--color-primary-light);
+    outline-offset: 2px;
 }
 
-.reputation-reviews {
+.reputation-clear-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: 44px;
+    white-space: nowrap;
+}
+
+.reputation-active-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: -0.65rem;
+}
+
+.reputation-filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.35rem 0.65rem;
+    border: 1px solid rgb(185 28 28 / 18%);
+    border-radius: 99px;
+    background: rgb(185 28 28 / 5%);
+    color: var(--color-primary-dark);
+    font-size: 0.82rem;
+    text-decoration: none;
+}
+
+.reputation-filter-chip > span:first-of-type {
+    font-size: 1.05rem;
+    font-weight: 700;
+}
+
+.reputation-results-heading {
+    min-height: 1.5rem;
+    color: var(--color-text-secondary);
+    font-size: 0.9rem;
+}
+
+.reputation-review-list {
     display: grid;
     gap: 1rem;
 }
 
-.reputation-review-listing {
-    display: flex;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-    margin-bottom: 1rem;
+.reputation-review-card {
+    display: grid;
+    gap: 0.9rem;
+    min-width: 0;
+    padding: 1.25rem;
+    border: 1px solid var(--color-border);
+    border-left: 4px solid var(--color-warning);
+    border-radius: var(--reputation-radius-card);
+    background: var(--color-surface);
+    box-shadow: var(--reputation-shadow-card);
+    transition: box-shadow 180ms ease, transform 180ms ease;
+}
+
+.reputation-review-card.is-replied { border-left-color: var(--color-success); }
+.reputation-review-card.is-read-only { border-left-color: var(--color-text-muted); }
+
+.reputation-review-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--reputation-shadow-hover);
+}
+
+.reputation-review-person {
+    justify-content: flex-start;
+    min-width: 0;
+}
+
+.reputation-avatar {
+    display: grid;
+    place-items: center;
+    flex: 0 0 2.7rem;
+    width: 2.7rem;
+    height: 2.7rem;
+    border-radius: 50%;
+    font-size: 0.9rem;
     font-weight: 700;
 }
 
-.reputation-read-only {
-    color: var(--color-text-muted);
-    font-size: 0.9rem;
+.reputation-avatar.tone-a { background: #fee2e2; color: #991b1b; }
+.reputation-avatar.tone-b { background: #dbeafe; color: #1e40af; }
+.reputation-avatar.tone-c { background: #dcfce7; color: #166534; }
+.reputation-avatar.tone-d { background: #fef3c7; color: #92400e; }
+.reputation-avatar.tone-e { background: #ede9fe; color: #5b21b6; }
+
+.reputation-review-person > div {
+    display: grid;
+    gap: 0.1rem;
+    min-width: 0;
 }
 
-.reputation-pagination {
-    display: flex;
-    justify-content: center;
+.reputation-review-person strong {
+    overflow-wrap: anywhere;
+}
+
+.reputation-review-person time {
+    font-size: 0.8rem;
+}
+
+.reputation-status {
+    display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.35rem;
+    flex: 0 0 auto;
+    padding: 0.28rem 0.6rem;
+    border-radius: 99px;
+    font-size: 0.78rem;
+    font-weight: 700;
 }
 
-.reputation-pagination > a:not(.btn),
-.reputation-pagination > span {
-    padding: 0.5rem 0.75rem;
-    border-radius: 0.4rem;
+.reputation-status.is-needs-reply {
+    background: rgb(245 158 11 / 12%);
+    color: #92400e;
 }
 
-.reputation-pagination > [aria-current="page"] {
-    background: var(--color-primary);
-    color: var(--color-surface);
+.reputation-status.is-replied {
+    background: rgb(22 163 74 / 9%);
+    color: #166534;
+}
+
+.reputation-status.is-read-only {
+    background: var(--color-surface-muted);
+    color: var(--color-text-secondary);
+}
+
+.reputation-listing-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    justify-self: start;
+    max-width: 100%;
+    min-height: 2.5rem;
+    padding: 0.25rem 0.55rem 0.25rem 0.25rem;
+    border: 1px solid var(--color-border);
+    border-radius: 0.55rem;
+    color: var(--color-text-secondary);
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.reputation-listing-chip:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
+
+.reputation-listing-chip > img,
+.reputation-listing-placeholder {
+    width: 2rem;
+    height: 2rem;
+    flex: 0 0 2rem;
+    border-radius: 0.35rem;
+    background: var(--color-surface-muted);
+    object-fit: cover;
+}
+
+.reputation-listing-placeholder {
+    display: grid;
+    place-items: center;
+    color: var(--color-text-muted);
+}
+
+.reputation-listing-chip > span:not(.reputation-listing-placeholder) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.reputation-listing-chip > i {
+    flex: 0 0 auto;
+    font-size: 0.75rem;
+}
+
+.reputation-review-stars {
+    color: #d18a00;
+}
+
+.reputation-review-stars i {
+    font-size: 0.95rem;
+}
+
+.reputation-review-body {
+    max-width: 72ch;
+    margin: 0;
+    color: var(--color-text-secondary);
+    line-height: 1.7;
+    overflow-wrap: anywhere;
+}
+
+.reputation-review-photos {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+}
+
+.reputation-review-photos img {
+    width: 5rem;
+    height: 5rem;
+    border-radius: 0.6rem;
+    object-fit: cover;
 }
 
 .listing-review-thread {
     display: grid;
-    gap: 0.75rem;
-    margin-top: 1rem;
-    padding-top: 1rem;
+    gap: 0.7rem;
+    margin-top: 0.2rem;
+    padding: 0.9rem 0 0 1rem;
     border-top: 1px solid var(--color-border);
+    border-left: 2px solid var(--color-border);
 }
 
-.listing-review-thread h4,
-.listing-review-reply p {
+.listing-review-thread h4 {
     margin: 0;
+    color: var(--color-text-secondary);
+    font-size: 0.9rem;
 }
 
 .listing-review-reply {
     display: grid;
     gap: 0.5rem;
-    padding: 0.75rem;
-    border-radius: 0.5rem;
+    max-width: 50rem;
+    padding: 0.75rem 0.9rem;
+    border: 1px solid var(--color-border);
+    border-radius: 0.7rem;
     background: var(--color-surface-muted);
+}
+
+.listing-review-reply.is-seller-reply {
+    border-color: rgb(185 28 28 / 20%);
+    background: rgb(185 28 28 / 5%);
+}
+
+.listing-review-reply-heading {
+    justify-content: flex-start;
+}
+
+.listing-review-reply .listing-review-author {
+    justify-content: flex-start;
+    gap: 0.65rem;
+}
+
+.listing-review-reply .listing-review-author strong {
+    font-size: 0.85rem;
+}
+
+.listing-review-reply .listing-review-author time {
+    color: var(--color-text-muted);
+    font-size: 0.75rem;
+}
+
+.listing-review-reply-badge {
+    padding: 0.15rem 0.45rem;
+    border-radius: 99px;
+    background: var(--color-primary);
+    color: var(--color-surface);
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+.listing-review-reply > p {
+    margin: 0;
+    color: var(--color-text-secondary);
+    line-height: 1.55;
+    overflow-wrap: anywhere;
+}
+
+.listing-review-reply-edit,
+.listing-review-reply-compose {
+    display: grid;
+    gap: 0.6rem;
+}
+
+.listing-review-reply-edit > summary,
+.listing-review-reply-compose > summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    width: fit-content;
+    color: var(--color-primary);
+    cursor: pointer;
+    font-size: 0.88rem;
+    font-weight: 700;
+    list-style: none;
+}
+
+.listing-review-reply-edit > summary::-webkit-details-marker,
+.listing-review-reply-compose > summary::-webkit-details-marker {
+    display: none;
 }
 
 .listing-review-reply-edit form,
 .listing-review-reply-form {
     display: grid;
     gap: 0.5rem;
+    max-width: 50rem;
 }
 
 .listing-review-reply-edit textarea,
 .listing-review-reply-form textarea {
     width: 100%;
     min-height: 5rem;
-    padding: 0.65rem;
+    padding: 0.7rem;
     border: 1px solid var(--color-border);
-    border-radius: 0.5rem;
+    border-radius: 0.55rem;
+    background: var(--color-surface);
+    color: var(--color-text);
     font: inherit;
+    resize: vertical;
 }
 
-.listing-review-reply-form {
-    margin-top: 0.5rem;
+.listing-review-reply-edit textarea:focus,
+.listing-review-reply-form textarea:focus {
+    outline: 2px solid var(--color-primary-light);
+    outline-offset: 1px;
 }
 
-@media (max-width: 700px) {
+.listing-review-reply-counter {
+    justify-self: end;
+    color: var(--color-text-muted);
+    font-size: 0.75rem;
+}
+
+.listing-review-reply-icon-button {
+    display: inline-grid;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+    border: 1px solid var(--color-border);
+    border-radius: 0.45rem;
+    background: transparent;
+    color: var(--color-text-muted);
+    cursor: pointer;
+}
+
+.listing-review-reply-icon-button:hover {
+    border-color: var(--color-danger);
+    color: var(--color-danger);
+}
+
+.reputation-empty-state {
+    display: grid;
+    justify-items: center;
+    gap: 0.6rem;
+    padding: 3rem 1.25rem;
+    border: 1px dashed var(--color-border);
+    border-radius: var(--reputation-radius-card);
+    background: var(--color-surface);
+    text-align: center;
+}
+
+.reputation-empty-state > i {
+    color: var(--color-primary);
+    font-size: 2rem;
+}
+
+.reputation-empty-state h2,
+.reputation-empty-state p {
+    margin: 0;
+}
+
+.reputation-empty-state h2 {
+    font-size: 1.1rem;
+}
+
+.reputation-empty-state p {
+    max-width: 44ch;
+    color: var(--color-text-muted);
+}
+
+.reputation-pagination {
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.reputation-pagination .btn {
+    gap: 0.35rem;
+    padding: 0.55rem 0.8rem;
+}
+
+.reputation-page-links {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.reputation-page-links > a,
+.reputation-page-links > span {
+    display: grid;
+    place-items: center;
+    min-width: 2.5rem;
+    min-height: 2.5rem;
+    padding: 0.35rem;
+    border-radius: 0.45rem;
+    color: var(--color-text-secondary);
+    text-decoration: none;
+}
+
+.reputation-page-links > a:hover {
+    background: var(--color-surface-muted);
+}
+
+.reputation-page-links > [aria-current="page"] {
+    background: var(--color-primary);
+    color: var(--color-surface);
+    font-weight: 700;
+}
+
+.reputation-loading {
+    position: absolute;
+    z-index: 2;
+    inset: 0;
+    display: none;
+    align-content: center;
+    justify-items: center;
+    gap: 0.6rem;
+    padding: 1rem;
+    border-radius: var(--reputation-radius-card);
+    background: rgb(248 250 252 / 72%);
+    color: var(--color-text-secondary);
+    font-size: 0.9rem;
+}
+
+.reputation-results.is-loading > :not(.reputation-loading) {
+    opacity: 0.45;
+}
+
+.reputation-results.is-loading .reputation-loading {
+    display: grid;
+}
+
+.reputation-spinner {
+    width: 1.7rem;
+    height: 1.7rem;
+    border: 3px solid var(--color-border);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: reputation-spin 700ms linear infinite;
+}
+
+.reputation-error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    padding: 0.8rem;
+    border: 1px solid rgb(220 38 38 / 25%);
+    border-radius: 0.65rem;
+    background: rgb(220 38 38 / 5%);
+    color: var(--color-danger);
+}
+
+.reputation-error .btn {
+    padding: 0.4rem 0.7rem;
+    color: var(--color-danger);
+}
+
+.reputation-visually-hidden,
+.reputation-announcer {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+@keyframes reputation-spin {
+    to { transform: rotate(360deg); }
+}
+
+@media (max-width: 900px) {
     .reputation-summary {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .reputation-stats-card {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 650px) {
+    .seller-reputation-main {
+        gap: 1rem;
+        padding-block: 1.5rem 2rem;
     }
 
     .seller-reputation-heading {
         align-items: flex-start;
         flex-direction: column;
+    }
+
+    .reputation-summary,
+    .reputation-filters {
+        grid-template-columns: 1fr;
+    }
+
+    .reputation-stats-card {
+        grid-column: auto;
+    }
+
+    .reputation-filters {
+        gap: 0.75rem;
+    }
+
+    .reputation-clear-button {
+        justify-self: start;
+    }
+
+    .reputation-review-card {
+        padding: 1rem;
+    }
+
+    .reputation-review-topline {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 0.65rem;
+    }
+
+    .reputation-rating-row {
+        grid-template-columns: 3.1rem minmax(2rem, 1fr) 1.6rem 2.5rem;
+    }
+
+    .reputation-stat-tile {
+        padding: 0.6rem;
+    }
+
+    .reputation-stat-tile span {
+        font-size: 0.72rem;
+    }
+
+    .listing-review-thread {
+        padding-left: 0.65rem;
+    }
+
+    .reputation-loading {
+        padding: 1rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .reputation-review-card,
+    .reputation-spinner {
+        transition: none;
+        animation-duration: 0.01ms;
+        animation-iteration-count: 1;
     }
 }

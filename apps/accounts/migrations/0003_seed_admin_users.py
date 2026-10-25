@@ -4,8 +4,8 @@ from django.contrib.auth.hashers import make_password
 from django.db.models import Q
 
 
-ADMIN_EMAIL = 'sjlramirez03202400076@usep.edu.ph'
-ADMIN_CONTACT_NUM = '09323456709'
+ADMIN_EMAIL = 'biratacador03202400139@usep.edu.ph'
+ADMIN_CONTACT_NUM = '09913341553'
 
 
 def seed_admin_user(apps, schema_editor):
