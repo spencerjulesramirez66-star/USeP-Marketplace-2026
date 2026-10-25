@@ -89,14 +89,13 @@ def account_create(request):
         return _error('Please fix the highlighted fields.', errors=_form_errors(form))
 
     try:
-        user, password = services.create_account(actor=request.user, data=form.cleaned_data)
+        user = services.create_account(actor=request.user, data=form.cleaned_data)
     except services.AccountActionError as exc:
         return _error(str(exc))
 
     return JsonResponse({
         'message': 'Account created.',
         'account': _detail(request, user.pk),
-        'temporary_password': password,
     }, status=201)
 
 
@@ -122,28 +121,23 @@ def account_update(request, user_id):
 @admin_json
 @require_POST
 def account_action(request, user_id, action):
-    """suspend / reactivate / delete / restore / reset-password"""
+    """suspend / reactivate / delete / restore"""
     user = _get_account(user_id)
     if not user:
         return _error('Account not found.', 404)
 
     reason = request.POST.get('reason', '').strip()[:500]
-    password = None
+
+    if action not in STATUS_ACTIONS:
+        return _error('Unknown action.', 404)
+
+    func, needs_reason = STATUS_ACTIONS[action]
+    if needs_reason and not reason:
+        return _error('Please give a short reason.', errors={'reason': ['Please give a short reason.']})
 
     try:
-        if action == 'reset-password':
-            message, password = services.reset_password(actor=request.user, user=user)
-        elif action in STATUS_ACTIONS:
-            func, needs_reason = STATUS_ACTIONS[action]
-            if needs_reason and not reason:
-                return _error('Please give a short reason.', errors={'reason': ['Please give a short reason.']})
-            message = func(actor=request.user, user=user, reason=reason)
-        else:
-            return _error('Unknown action.', 404)
+        message = func(actor=request.user, user=user, reason=reason)
     except services.AccountActionError as exc:
         return _error(str(exc), 409)
 
-    payload = {'message': message, 'account': _detail(request, user_id)}
-    if password:
-        payload['temporary_password'] = password
-    return JsonResponse(payload)
+    return JsonResponse({'message': message, 'account': _detail(request, user_id)})

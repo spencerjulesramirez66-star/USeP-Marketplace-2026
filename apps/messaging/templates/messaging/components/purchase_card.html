@@ -31,11 +31,20 @@
             {% if not pr.is_service %}<div><dt>Quantity</dt><dd>{{ pr.quantity }}</dd></div>{% endif %}
             <div><dt>Total</dt><dd>₱{{ pr.total_amount|floatformat:"-2" }}</dd></div>
             <div><dt>When</dt><dd>{{ pr.scheduled_start|date:"D, M j, g:i A" }} to {{ pr.scheduled_end|date:"g:i A" }}</dd></div>
-            <div><dt>Payment</dt><dd>{{ pr.get_payment_method_display }}{% if pr.payment_reference %} (ref {{ pr.payment_reference }}){% endif %}</dd></div>
+            <div><dt>Payment</dt><dd>{{ pr.get_payment_method_display }}</dd></div>
         </dl>
         {% if pr.buyer_note %}<p class="messaging-purchase-card__note">{{ pr.buyer_note }}</p>{% endif %}
 
-        {# Payment screenshot: visible to the two chat participants only (they're the only ones this partial renders for). #}
+        {# Payment screenshot + reference no.: visible to the two chat participants only. #}
+        {% if pr.payment_reference %}
+            <div class="messaging-purchase-card__ref">
+                <span class="messaging-purchase-card__ref-label">Ref no.</span>
+                <code class="messaging-purchase-card__ref-value">{{ pr.payment_reference }}</code>
+                <button type="button" class="messaging-purchase-card__copy" data-copy="{{ pr.payment_reference }}" aria-label="Copy reference number" title="Copy">
+                    <i class="bi bi-clipboard" aria-hidden="true"></i>
+                </button>
+            </div>
+        {% endif %}
         {% if pr.payment_proof %}
             <a class="messaging-purchase-card__proof" href="{{ pr.payment_proof.url }}" target="_blank" rel="noopener">
                 <i class="bi bi-image" aria-hidden="true"></i> View payment screenshot

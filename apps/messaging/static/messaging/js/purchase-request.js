@@ -4,6 +4,7 @@ import { on } from './dom.js';
 //   1. Seller: "Confirm purchase" item in the attachment menu -> posts a card.
 //   2. Either side: buttons on a card (cancel / confirm / decline) -> posts the
 //      action and swaps the card's HTML for the server's updated version.
+// Plus: the copy button next to the GCash reference number on a card.
 //
 // The server decides who may do what (listing owner / buyer). The composer
 // only renders the menu item for the listing owner, but that's cosmetic.
@@ -29,6 +30,22 @@ async function post(url, body) {
         throw new Error((data && data.error) || 'Something went wrong. Please try again.');
     }
     return data;
+}
+
+// navigator.clipboard only works on https/localhost, so fall back for plain http.
+async function copyText(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return;
+    }
+    const area = document.createElement('textarea');
+    area.value = text;
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    document.body.appendChild(area);
+    area.select();
+    document.execCommand('copy');
+    area.remove();
 }
 
 /**
@@ -73,5 +90,22 @@ export function initPurchaseRequests({ menu, toggleButton, appendMessage, showEr
             buttons.forEach((b) => { b.disabled = false; });
             showError(error.message);
         }
+    });
+
+    // 3. Copy the reference number
+    on(document, 'click', '[data-copy]', async (evt, target) => {
+        try {
+            await copyText(target.dataset.copy);
+        } catch (error) {
+            showError('Could not copy. Select the number and copy it manually.');
+            return;
+        }
+        const icon = target.querySelector('i');
+        icon.className = 'bi bi-clipboard-check';
+        target.classList.add('is-copied');
+        setTimeout(() => {
+            icon.className = 'bi bi-clipboard';
+            target.classList.remove('is-copied');
+        }, 1500);
     });
 }

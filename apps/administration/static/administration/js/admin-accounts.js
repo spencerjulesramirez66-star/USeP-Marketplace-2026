@@ -31,7 +31,7 @@
         pager: $('#acct-pager'), pagerInfo: $('#acct-pager-info'), prev: $('#acct-prev'), next: $('#acct-next'),
         search: $('#acct-search'), typeFilter: $('#acct-type-filter'), tabs: $('#acct-tabs'),
         drawer: $('#acct-drawer'), formDialog: $('#acct-form-dialog'), form: $('#acct-form'),
-        confirm: $('#acct-confirm-dialog'), password: $('#acct-password-dialog'), toasts: $('#acct-toasts'),
+        confirm: $('#acct-confirm-dialog'), toasts: $('#acct-toasts'),
     };
 
     /** Build an element without ever putting data into innerHTML. */
@@ -258,7 +258,6 @@
         if (account.status === 'suspended') {
             actions.append(button('Reactivate', 'play-circle', 'acct-btn-primary', () => runAction('reactivate')));
         } else {
-            actions.append(button('Reset password', 'key', '', () => runAction('reset-password')));
             actions.append(button('Suspend', 'pause-circle', 'acct-btn-warning', () => runAction('suspend')));
         }
         actions.append(button('Delete', 'trash', 'acct-btn-danger', () => runAction('delete')));
@@ -356,6 +355,7 @@
         $('#acct-form-submit').textContent = account ? 'Save changes' : 'Create account';
         $('#acct-type-switch').hidden = Boolean(account);
         $('#f-year-wrap').hidden = Boolean(account);
+        $('#acct-email-note').hidden = Boolean(account);       // only new accounts get a password email
 
         if (account) {
             for (const name of ['first_name', 'middle_name', 'last_name', 'email', 'contact_num']) field(name).value = account[name];
@@ -410,7 +410,6 @@
                 el.search.value = ''; state.q = '';
                 el.typeFilter.value = ''; state.type = '';
                 setStatusTab('active');
-                showPassword('Account created', `${data.account.full_name} (${data.account.identifier}) can sign in with this temporary password.`, data.temporary_password);
             }
             loadList();
         } catch (error) {
@@ -426,7 +425,7 @@
     // ------------------------------------------------------------------
     // 5. Actions
     // ------------------------------------------------------------------
-    // What each action says in the confirmation pop-up. Reset password and restore
+    // What each action says in the confirmation pop-up. Reactivate and restore
     // are low-risk, so the pop-up still appears but is short and needs no reason.
     const ACTIONS = {
         'suspend': {
@@ -448,11 +447,6 @@
             title: (a) => `Restore ${a.full_name}?`,
             text: () => 'The account comes back as suspended. Reactivate it afterwards so they can sign in.',
             ok: 'Restore account', style: 'acct-btn-primary', reason: false,
-        },
-        'reset-password': {
-            title: (a) => `Reset password for ${a.full_name}?`,
-            text: () => 'A new temporary password will be created and their current password stops working.',
-            ok: 'Reset password', style: 'acct-btn-primary', reason: false,
         },
     };
 
@@ -494,9 +488,6 @@
 
             toast(data.message);
             renderDrawer(data.account);
-            if (data.temporary_password) {
-                showPassword('Temporary password', `${data.account.full_name} can sign in with this new password.`, data.temporary_password);
-            }
             // The account may now belong on another tab, so follow it there.
             if (data.account.status !== state.status) setStatusTab(data.account.status);
             loadList();
@@ -505,27 +496,6 @@
             buttons.forEach((b) => { b.disabled = false; });
         }
     }
-
-    function showPassword(title, text, password) {
-        $('#acct-password-title').textContent = title;
-        $('#acct-password-text').textContent = text;
-        $('#acct-password-value').textContent = password;
-        const copy = $('#acct-password-copy');
-        copy.replaceChildren(icon('clipboard'), 'Copy');
-        el.password.showModal();
-    }
-
-    $('#acct-password-copy').addEventListener('click', async (event) => {
-        const button = event.currentTarget;
-        try {
-            await navigator.clipboard.writeText($('#acct-password-value').textContent);
-            button.replaceChildren(icon('check2'), 'Copied');
-        } catch (_) {
-            // Clipboard blocked: select the text so Ctrl+C works.
-            window.getSelection().selectAllChildren($('#acct-password-value'));
-            toast('Press Ctrl+C to copy the password.');
-        }
-    });
 
     // ------------------------------------------------------------------
     // 6. Start-up
