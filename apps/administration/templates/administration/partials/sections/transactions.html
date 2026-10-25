@@ -1,0 +1,21 @@
+{% load static %}
+<section class="transactions-shell">
+    <nav class="transactions-tabs" aria-label="Transaction sections">
+        <a href="{% url 'administration:transactions_monitoring' %}"{% if transaction_tab == 'monitoring' %} aria-current="page"{% endif %}>
+            <i class="bi bi-activity" aria-hidden="true"></i>Monitoring
+        </a>
+        <a href="{% url 'administration:transactions_history' %}"{% if transaction_tab == 'history' %} aria-current="page"{% endif %}>
+            <i class="bi bi-clock-history" aria-hidden="true"></i>History
+        </a>
+    </nav>
+
+    {% if transaction_tab == 'history' %}
+        {% include 'administration/partials/sections/transactions_history.html' %}
+    {% else %}
+        {% include 'administration/partials/sections/transactions_monitoring.html' %}
+    {% endif %}
+</section>
+
+<script src="{% static 'administration/js/admin-transaction-history.js' %}" defer></script>
+<script src="{% static 'administration/js/admin-transactions-monitoring.js' %}" defer></script>
+<script src="{% static 'administration/js/admin-drawer.js' %}" defer></script>

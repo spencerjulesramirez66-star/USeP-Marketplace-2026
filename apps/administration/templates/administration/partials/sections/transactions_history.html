@@ -1,0 +1,139 @@
+{% load administration_tags %}
+<section class="transaction-history" id="transaction-history"
+         data-data-url="{% url 'administration:transactions_data' %}"
+         data-detail-base="{% url 'administration:transaction_detail' 0 %}"
+         data-export-url="{% url 'administration:transactions_export' %}">
+    <div class="transaction-history-heading">
+        <div>
+            <p class="eyebrow">Records</p>
+            <h2>Transaction history</h2>
+            <p>Search and review marketplace purchase requests.</p>
+        </div>
+        <a class="transaction-button transaction-button-primary" href="{% url 'administration:transactions_export' %}?{{ request.GET.urlencode }}" data-export-link>
+            <i class="bi bi-download" aria-hidden="true"></i>Export CSV
+        </a>
+    </div>
+
+    <form class="transaction-filters" id="transaction-filters" method="get" action="{% url 'administration:transactions_history' %}">
+        <label class="transaction-search">
+            <span><i class="bi bi-search" aria-hidden="true"></i>Search</span>
+            <input type="search" name="q" value="{{ transaction_filters.q }}" placeholder="ID, listing, buyer or seller">
+        </label>
+        <label>
+            <span><i class="bi bi-check2-circle" aria-hidden="true"></i>Status group</span>
+            <select name="status">
+                <option value="">All statuses</option>
+                {% for key, bucket in transaction_options.status_buckets.items %}
+                    <option value="{{ key }}"{% if transaction_filters.status == key %} selected{% endif %}>{{ bucket.label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            <span><i class="bi bi-box-seam" aria-hidden="true"></i>Type</span>
+            <select name="type">
+                <option value="">All types</option>
+                {% for value, label in transaction_options.types %}
+                    <option value="{{ value }}"{% if transaction_filters.type == value %} selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            <span><i class="bi bi-person" aria-hidden="true"></i>Seller</span>
+            <select name="seller">
+                <option value="">All sellers</option>
+                {% for seller in transaction_options.sellers %}
+                    <option value="{{ seller.id }}"{% if transaction_filters.seller == seller.id|stringformat:'s' %} selected{% endif %}>{{ seller.name }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            <span><i class="bi bi-tags" aria-hidden="true"></i>Category</span>
+            <select name="category">
+                <option value="">All categories</option>
+                {% for category in transaction_options.categories %}
+                    <option value="{{ category.id }}"{% if transaction_filters.category == category.id|stringformat:'s' %} selected{% endif %}>{{ category.name }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            <span><i class="bi bi-credit-card" aria-hidden="true"></i>Payment</span>
+            <select name="payment_method">
+                <option value="">All methods</option>
+                {% for value, label in transaction_options.payment_methods %}
+                    <option value="{{ value }}"{% if transaction_filters.payment_method == value %} selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            <span><i class="bi bi-calendar-event" aria-hidden="true"></i>From (PHT)</span>
+            <input type="date" name="date_from" value="{{ transaction_filters.date_from }}">
+        </label>
+        <label>
+            <span><i class="bi bi-calendar-event" aria-hidden="true"></i>To (PHT)</span>
+            <input type="date" name="date_to" value="{{ transaction_filters.date_to }}">
+        </label>
+        <label>
+            <span><i class="bi bi-cash" aria-hidden="true"></i>Minimum total</span>
+            <input type="number" name="amount_min" min="0" step="0.01" value="{{ transaction_filters.amount_min }}">
+        </label>
+        <label>
+            <span><i class="bi bi-cash-stack" aria-hidden="true"></i>Maximum total</span>
+            <input type="number" name="amount_max" min="0" step="0.01" value="{{ transaction_filters.amount_max }}">
+        </label>
+        <label>
+            <span><i class="bi bi-sort-down" aria-hidden="true"></i>Sort by</span>
+            <select name="sort">
+                {% for value, label in transaction_options.sort_options %}
+                    <option value="{{ value }}"{% if transaction_filters.sort == value %} selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <div class="transaction-filter-actions">
+            <button class="transaction-button transaction-button-primary" type="submit">Apply filters</button>
+            <a class="transaction-button" href="{% url 'administration:transactions_history' %}" data-clear-filters>Clear</a>
+        </div>
+    </form>
+
+    <div class="transaction-result-bar">
+        <p id="transaction-result-count">Showing {{ transaction_data.start }}–{{ transaction_data.end }} of {{ transaction_data.total }} transactions</p>
+        <p class="transaction-stock-note">Stock decreases when product delivery is confirmed as complete; it does not decrease when a request is created or accepted.</p>
+    </div>
+
+    <div class="transaction-table-wrap" id="transaction-results" aria-live="polite" aria-busy="false">
+        <table class="transaction-table">
+            <thead><tr><th>Transaction</th><th>Listing</th><th>Buyer / seller</th><th>Status</th><th>Total</th><th>Created (PHT)</th><th></th></tr></thead>
+            <tbody id="transaction-rows">
+                {% for item in transaction_data.results %}
+                    <tr>
+                        <td><strong>{{ item.display_id }}</strong><small>{{ item.type }}</small></td>
+                        <td>{% if item.listing_url %}<a href="{{ item.listing_url }}">{{ item.listing_title }}</a>{% else %}{{ item.listing_title }}{% endif %}<small>{{ item.category }}</small></td>
+                        <td>
+                            {{ item.buyer_name }}<small>Buyer · {{ item.buyer_account_status }}</small>
+                            {{ item.seller_name }}<small>Seller · {{ item.seller_account_status }}</small>
+                        </td>
+                        <td><span class="transaction-status transaction-status-{{ item.status_bucket }}">{{ item.status_bucket_label }}</span></td>
+                        <td><strong>{{ item.total|money }}</strong></td>
+                        <td>{{ item.created_display }}</td>
+                        <td><button type="button" class="transaction-icon-button" data-transaction-id="{{ item.id }}" aria-label="View transaction {{ item.display_id }}"><i class="bi bi-chevron-right" aria-hidden="true"></i></button></td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="7" class="transaction-empty">No transactions match these filters.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="transaction-pagination" id="transaction-pagination">
+        <span>Showing {{ transaction_data.start }}–{{ transaction_data.end }} of {{ transaction_data.total }}</span>
+        <div>
+            {% if transaction_data.page > 1 %}
+                <a href="?{% for key, value in transaction_filters.items %}{% if key != 'page' and value %}{{ key }}={{ value|urlencode }}&amp;{% endif %}{% endfor %}page={{ transaction_data.page|add:'-1' }}" data-page="{{ transaction_data.page|add:'-1' }}">Previous</a>
+            {% endif %}
+            <span>Page {{ transaction_data.page }} of {{ transaction_data.num_pages|default:1 }}</span>
+            {% if transaction_data.page < transaction_data.num_pages %}
+                <a href="?{% for key, value in transaction_filters.items %}{% if key != 'page' and value %}{{ key }}={{ value|urlencode }}&amp;{% endif %}{% endfor %}page={{ transaction_data.page|add:'1' }}" data-page="{{ transaction_data.page|add:'1' }}">Next</a>
+            {% endif %}
+        </div>
+    </div>
+</section>
+{% include 'administration/partials/transactions/detail_drawer.html' %}

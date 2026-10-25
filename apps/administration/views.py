@@ -12,6 +12,7 @@ ADMIN_SECTIONS = {
     'categories': ('Categories', 'MARKETPLACE SETUP'),
     'reports': ('Reports', 'TRUST & SAFETY'),
     'activity': ('Activity log', 'AUDIT'),
+    'transactions': ('Transactions', 'OPERATIONS'),
 }
 
 
@@ -19,6 +20,8 @@ def extra_context(section):
     """Data a section's partial needs. Sections without an entry get nothing extra."""
     if section == 'accounts':
         return {'account_options': form_options()}
+    if section == 'transactions':
+        return {'transaction_tab': 'monitoring'}
     return {}
 
 

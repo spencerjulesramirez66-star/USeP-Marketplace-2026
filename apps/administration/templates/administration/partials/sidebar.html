@@ -19,6 +19,10 @@
         <a class="admin-nav-link{% if active_section == 'listings' %} active{% endif %}" href="{% url 'administration:listings' %}"{% if active_section == 'listings' %} aria-current="page"{% endif %}><i class="bi bi-bag" aria-hidden="true"></i>Listings</a>
         <a class="admin-nav-link{% if active_section == 'categories' %} active{% endif %}" href="{% url 'administration:categories' %}"{% if active_section == 'categories' %} aria-current="page"{% endif %}><i class="bi bi-tags" aria-hidden="true"></i>Categories</a>
 
+        <span class="nav-caption nav-caption-spaced">TRANSACTIONS</span>
+        <a class="admin-nav-link{% if request.resolver_match.url_name == 'transactions_monitoring' %} active{% endif %}" href="{% url 'administration:transactions_monitoring' %}"{% if request.resolver_match.url_name == 'transactions_monitoring' %} aria-current="page"{% endif %}><i class="bi bi-activity" aria-hidden="true"></i>Monitoring</a>
+        <a class="admin-nav-link{% if request.resolver_match.url_name == 'transactions_history' %} active{% endif %}" href="{% url 'administration:transactions_history' %}"{% if request.resolver_match.url_name == 'transactions_history' %} aria-current="page"{% endif %}><i class="bi bi-clock-history" aria-hidden="true"></i>History</a>
+
         <span class="nav-caption nav-caption-spaced">TRUST &amp; SAFETY</span>
         <a class="admin-nav-link{% if active_section == 'reports' %} active{% endif %}" href="{% url 'administration:reports' %}"{% if active_section == 'reports' %} aria-current="page"{% endif %}><i class="bi bi-flag" aria-hidden="true"></i>Reports</a>
         <a class="admin-nav-link{% if active_section == 'activity' %} active{% endif %}" href="{% url 'administration:activity' %}"{% if active_section == 'activity' %} aria-current="page"{% endif %}><i class="bi bi-clock-history" aria-hidden="true"></i>Activity log</a>

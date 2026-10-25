@@ -1,0 +1,89 @@
+<section class="transaction-monitoring" id="transaction-monitoring"
+         data-data-url="{% url 'administration:transactions_monitoring_data' %}"
+         data-detail-base="{% url 'administration:transaction_detail' 0 %}"
+         data-history-url="{% url 'administration:transactions_history' %}">
+    <div class="monitoring-toolbar">
+        <div class="monitoring-range" role="group" aria-label="Monitoring date range">
+            <button type="button" data-range="today">Today</button>
+            <button type="button" data-range="7d" aria-pressed="true">7 days</button>
+            <button type="button" data-range="30d">30 days</button>
+            <button type="button" data-range="this_month">This month</button>
+            <button type="button" data-range="custom">Custom</button>
+        </div>
+        <div class="monitoring-controls">
+            <label class="monitoring-custom-date" hidden>
+                <span>From (PHT)</span><input type="date" data-date-from>
+            </label>
+            <label class="monitoring-custom-date" hidden>
+                <span>To (PHT)</span><input type="date" data-date-to>
+            </label>
+            <span class="monitoring-updated" data-last-updated aria-live="polite">Loading latest data…</span>
+            <button type="button" class="transaction-button" data-refresh><i class="bi bi-arrow-clockwise" aria-hidden="true"></i>Refresh</button>
+            <button type="button" class="transaction-button" data-pause>Pause</button>
+        </div>
+    </div>
+
+    <div class="monitoring-error" data-error role="alert" hidden>
+        <span>Couldn't refresh.</span>
+        <button type="button" class="transaction-button" data-retry>Retry</button>
+    </div>
+
+    <div class="monitoring-content" data-monitoring-content aria-busy="true">
+        <div class="monitoring-skeleton" data-skeleton aria-hidden="true">
+            <div></div><div></div><div></div><div></div><div><div></div><div></div></div>
+        </div>
+        <div class="monitoring-dashboard" data-dashboard hidden>
+            <section class="monitoring-kpis" aria-label="Transaction summary">
+                <article class="monitoring-kpi"><span>Total transactions</span><strong data-kpi="total">—</strong><small data-kpi-sub="completion_rate">— completion rate</small><small data-delta="total"></small><small data-delta="completion_rate"></small></article>
+                <article class="monitoring-kpi"><span>Pending</span><strong data-kpi="pending">—</strong><small data-delta="pending"></small></article>
+                <article class="monitoring-kpi"><span>In progress</span><strong data-kpi="in_progress">—</strong><small data-delta="in_progress"></small></article>
+                <article class="monitoring-kpi"><span>Completed in period</span><strong data-kpi="completed_count">—</strong><small data-kpi-sub="completed_value">—</small><small data-delta="completed_count"></small><small data-delta="completed_value"></small></article>
+                <article class="monitoring-kpi"><span>Closed / failed</span><strong data-kpi="closed_failed">—</strong><small data-delta="closed_failed"></small></article>
+                <article class="monitoring-kpi"><span>Average value</span><strong data-kpi="average_value">—</strong><small data-delta="average_value"></small></article>
+            </section>
+
+            <section class="monitoring-card monitoring-chart-card" aria-labelledby="monitoring-chart-title">
+                <div class="monitoring-section-heading">
+                    <div><h2 id="monitoring-chart-title">Transactions by day</h2><p data-period-label></p></div>
+                    <div class="monitoring-legend" aria-label="Chart legend">
+                        <span data-legend="pending">Pending</span><span data-legend="in_progress">In progress</span>
+                        <span data-legend="completed">Completed</span><span data-legend="closed_failed">Closed / failed</span>
+                    </div>
+                </div>
+                <div class="monitoring-chart" data-chart aria-hidden="true"></div>
+                <div class="visually-hidden" data-chart-table></div>
+            </section>
+
+            <div class="monitoring-insights">
+                <section class="monitoring-card" aria-labelledby="monitoring-breakdown-title">
+                    <h2 id="monitoring-breakdown-title">Status breakdown</h2>
+                    <div class="monitoring-donut-wrap">
+                        <div class="monitoring-donut" data-donut role="img" aria-label="Transaction status breakdown"></div>
+                        <ul data-status-legend></ul>
+                    </div>
+                </section>
+                <section class="monitoring-card">
+                    <h2>Top sellers</h2><p class="monitoring-muted">By completed value</p>
+                    <ol class="monitoring-ranked-list" data-top-sellers></ol>
+                </section>
+                <section class="monitoring-card">
+                    <h2>Top categories</h2><p class="monitoring-muted">By transaction count</p>
+                    <ol class="monitoring-ranked-list" data-top-categories></ol>
+                </section>
+            </div>
+
+            <section class="monitoring-card monitoring-attention">
+                <div class="monitoring-section-heading"><div><h2>Needs attention</h2><p>Items matching operational rules.</p></div><a href="{% url 'administration:transactions_history' %}" data-attention-history>View all in History</a></div>
+                <p class="monitoring-cancellation-note">Cancellation party is not recorded.</p>
+                <div class="monitoring-rule-counts" data-rule-counts></div>
+                <div class="monitoring-attention-list" data-attention-items></div>
+            </section>
+
+            <section class="monitoring-card monitoring-recent">
+                <div class="monitoring-section-heading"><h2>Recent activity</h2><a href="{% url 'administration:transactions_history' %}">View History</a></div>
+                <div class="monitoring-recent-list" data-latest></div>
+            </section>
+        </div>
+    </div>
+</section>
+{% include 'administration/partials/transactions/detail_drawer.html' %}
