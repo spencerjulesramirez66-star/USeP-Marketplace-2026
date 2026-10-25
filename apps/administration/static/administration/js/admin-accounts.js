@@ -31,7 +31,7 @@
         pager: $('#acct-pager'), pagerInfo: $('#acct-pager-info'), prev: $('#acct-prev'), next: $('#acct-next'),
         search: $('#acct-search'), typeFilter: $('#acct-type-filter'), tabs: $('#acct-tabs'),
         drawer: $('#acct-drawer'), formDialog: $('#acct-form-dialog'), form: $('#acct-form'),
-        confirm: $('#acct-confirm-dialog'), toasts: $('#acct-toasts'),
+        confirm: $('#acct-confirm-dialog'),
     };
 
     /** Build an element without ever putting data into innerHTML. */
@@ -52,10 +52,42 @@
         return iso ? new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '';
     }
 
+    // Alerts reuse the markup of templates/.../messages.html, so the site's existing alert styles apply.
+    // If your MESSAGE_TAGS differ (for example error -> "danger"), change them here.
+    const ALERT_TAGS = { success: 'success', error: 'error' };
+    const ALERT_SECONDS = 6;
+
+    function alertContainer() {
+        // An open modal <dialog> sits above the rest of the page, so the alert has to live inside it
+        // or it would be hidden behind the dark backdrop.
+        const dialog = [el.confirm, el.formDialog, el.drawer].find((d) => d.open);
+        const parent = dialog || document.body;
+        let container = dialog
+            ? parent.querySelector(':scope > .messages-container')
+            : document.querySelector('.messages-container');
+        if (!container) {
+            container = make('div', 'messages-container');
+            parent.appendChild(container);
+        }
+        return container;
+    }
+
     function toast(message, isError = false) {
-        const node = make('div', `acct-toast${isError ? ' is-error' : ''}`, message);
-        el.toasts.appendChild(node);
-        setTimeout(() => node.remove(), 4500);
+        const alert = make('div', `alert alert-${isError ? ALERT_TAGS.error : ALERT_TAGS.success}`);
+        alert.setAttribute('role', 'alert');
+
+        const dismiss = make('button', 'alert-dismiss', 'Dismiss');
+        dismiss.type = 'button';
+        const content = make('div', 'alert-content');
+        content.append(make('span', 'alert-message', message), dismiss);
+        const progress = make('div', 'alert-progress');
+        alert.append(content, progress);
+
+        const remove = () => { clearTimeout(timer); alert.remove(); };
+        const timer = setTimeout(remove, ALERT_SECONDS * 1000);     // fallback if the CSS has no progress animation
+        dismiss.addEventListener('click', remove);
+        progress.addEventListener('animationend', remove);
+        alertContainer().appendChild(alert);
     }
 
     async function api(path, { method = 'GET', body } = {}) {
