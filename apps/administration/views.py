@@ -3,7 +3,7 @@ from django.http import Http404
 from django.shortcuts import render
 
 from .account_queries import form_options
-from .permissions import is_marketplace_admin
+from .permissions import can_create_admin, is_marketplace_admin
 
 ADMIN_SECTIONS = {
     'overview': ('Overview', 'CAMPUS MARKETPLACE'),
@@ -15,10 +15,10 @@ ADMIN_SECTIONS = {
 }
 
 
-def extra_context(section):
+def extra_context(section, user):
     """Data a section's partial needs. Sections without an entry get nothing extra."""
     if section == 'accounts':
-        return {'account_options': form_options()}
+        return {'account_options': {**form_options(), 'can_create_admin': can_create_admin(user)}}
     return {}
 
 
@@ -32,5 +32,5 @@ def administrator_page(request, section='overview'):
         'active_section': section,
         'section_title': section_title,
         'section_eyebrow': section_eyebrow,
-        **extra_context(section),
+        **extra_context(section, request.user),
     })

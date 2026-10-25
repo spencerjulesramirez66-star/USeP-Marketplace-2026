@@ -90,6 +90,8 @@ def account_create(request):
 
     try:
         user = services.create_account(actor=request.user, data=form.cleaned_data)
+    except services.AccountPermissionError as exc:
+        return _error(str(exc), 403)
     except services.AccountActionError as exc:
         return _error(str(exc))
 

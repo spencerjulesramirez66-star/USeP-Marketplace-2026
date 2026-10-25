@@ -3,10 +3,11 @@
 {# ---------- Details drawer ---------- #}
 <dialog class="acct-dialog acct-drawer" id="acct-drawer" aria-labelledby="acct-drawer-name">
     <div class="acct-dialog-body">
-        <header class="acct-dialog-head">
+        <header class="acct-dialog-head acct-drawer-head">
             <div class="acct-drawer-person">
                 <img class="acct-avatar acct-avatar-lg" id="acct-drawer-avatar" alt="">
                 <div>
+                    <p class="acct-drawer-eyebrow">Account details</p>
                     <h3 id="acct-drawer-name"></h3>
                     <div class="acct-badges" id="acct-drawer-badges"></div>
                 </div>
@@ -14,10 +15,11 @@
             <button type="button" class="acct-icon-btn" data-close aria-label="Close"><i class="bi bi-x-lg"></i></button>
         </header>
         <div class="acct-dialog-scroll">
+            <div class="acct-stats" id="acct-drawer-stats"></div>
             <p class="acct-note" id="acct-drawer-note" hidden></p>
-            <dl class="acct-details" id="acct-drawer-details"></dl>
+            <div class="acct-detail-sections" id="acct-drawer-details"></div>
             {# Later: purchase / listing records can render into this slot. #}
-            <div id="acct-drawer-records" data-slot="records" hidden></div>
+            <div class="acct-records" id="acct-drawer-records" data-slot="records" hidden></div>
         </div>
         <footer class="acct-dialog-foot" id="acct-drawer-actions"></footer>
     </div>
@@ -34,15 +36,42 @@
         <div class="acct-dialog-scroll">
             <p class="acct-form-error" id="acct-form-error" role="alert" hidden></p>
 
+            {# Fits two or three options automatically (admin option is permission-gated). #}
             <div class="acct-type-switch" id="acct-type-switch" role="radiogroup" aria-label="Account type">
-                <label><input type="radio" name="account_type" value="student" checked><span><i class="bi bi-mortarboard" aria-hidden="true"></i>Student</span></label>
-                <label><input type="radio" name="account_type" value="staff"><span><i class="bi bi-briefcase" aria-hidden="true"></i>Staff</span></label>
+                <label>
+                    <input type="radio" name="account_type" value="student" checked>
+                    <span class="acct-type-opt"><i class="bi bi-mortarboard" aria-hidden="true"></i><b>Student</b><small>Enrolled learner</small></span>
+                </label>
+                <label>
+                    <input type="radio" name="account_type" value="staff">
+                    <span class="acct-type-opt"><i class="bi bi-briefcase" aria-hidden="true"></i><b>Staff</b><small>Campus employee</small></span>
+                </label>
+                {% if account_options.can_create_admin %}
+                <label>
+                    <input type="radio" name="account_type" value="admin">
+                    <span class="acct-type-opt"><i class="bi bi-shield-lock" aria-hidden="true"></i><b>Admin</b><small>Full access</small></span>
+                </label>
+                {% endif %}
             </div>
-            <p class="acct-hint" id="acct-id-note"></p>
-            <p class="acct-hint" id="acct-email-note">A temporary password will be emailed to the address below. You will not see it.</p>
+
+            {# Instruction callouts. Text for the ID note is still set by admin-accounts.js; the box hides itself when empty. #}
+            <div class="acct-callout" data-tone="info">
+                <i class="bi bi-person-badge" aria-hidden="true"></i>
+                <div>
+                    <strong>Account ID</strong>
+                    <p class="acct-hint" id="acct-id-note"></p>
+                </div>
+            </div>
+            <div class="acct-callout" data-tone="warning">
+                <i class="bi bi-envelope-check" aria-hidden="true"></i>
+                <div>
+                    <strong>Temporary password</strong>
+                    <p class="acct-hint" id="acct-email-note">A temporary password will be emailed to the address below. You will not see it. The member must change it on first sign-in.</p>
+                </div>
+            </div>
 
             <fieldset class="acct-fieldset">
-                <legend>Personal details</legend>
+                <legend><i class="bi bi-person" aria-hidden="true"></i>Personal details</legend>
                 <div class="acct-grid">
                     <div class="acct-field" data-field="first_name"><label for="f-first">First name</label><input id="f-first" name="first_name" maxlength="100" required><span class="acct-error"></span></div>
                     <div class="acct-field" data-field="middle_name"><label for="f-middle">Middle name <small>(optional)</small></label><input id="f-middle" name="middle_name" maxlength="100"><span class="acct-error"></span></div>
@@ -53,7 +82,7 @@
             </fieldset>
 
             <fieldset class="acct-fieldset" data-type-section="student">
-                <legend>Student details</legend>
+                <legend><i class="bi bi-mortarboard" aria-hidden="true"></i>Student details</legend>
                 <div class="acct-grid">
                     <div class="acct-field" data-field="enrollment_year" id="f-year-wrap"><label for="f-year">Year enrolled</label><input id="f-year" name="enrollment_year" type="number" min="2000"><span class="acct-error"></span></div>
                     <div class="acct-field" data-field="year_level"><label for="f-level">Year level <small>(optional)</small></label><select id="f-level" name="year_level"></select><span class="acct-error"></span></div>
@@ -64,7 +93,7 @@
             </fieldset>
 
             <fieldset class="acct-fieldset" data-type-section="staff" disabled>
-                <legend>Staff details</legend>
+                <legend><i class="bi bi-briefcase" aria-hidden="true"></i>Staff details</legend>
                 <div class="acct-grid">
                     <div class="acct-field" data-field="campus"><label for="f-campus">Campus</label><select id="f-campus" name="campus" required></select><span class="acct-error"></span></div>
                     <div class="acct-field" data-field="staff_type"><label for="f-stafftype">Staff type</label><select id="f-stafftype" name="staff_type" required></select><span class="acct-error"></span></div>

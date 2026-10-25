@@ -111,6 +111,31 @@
         return make('span', `acct-badge ${extraClass}`.trim(), text);
     }
 
+    const ROLE_ICONS = { student: 'mortarboard', staff: 'briefcase', admin: 'shield-lock' };
+
+    /** Role pill with an icon, coloured by account type. */
+    function roleBadge(account) {
+        const node = make('span', `acct-badge role-${account.type}`);
+        node.append(icon(ROLE_ICONS[account.type] || 'person'), account.type_label);
+        return node;
+    }
+
+    /** Status pill with a coloured dot (the dot is drawn by CSS). */
+    function statusBadge(account) {
+        return badge(account.status_label, `status-${account.status}`);
+    }
+
+    /** "3 months ago" style text for the joined date. */
+    function timeAgo(iso) {
+        if (!iso) return '';
+        const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+        if (days < 1) return 'Today';
+        if (days < 30) return `${days} day${days === 1 ? '' : 's'} ago`;
+        if (days < 365) { const m = Math.floor(days / 30); return `${m} month${m === 1 ? '' : 's'} ago`; }
+        const y = Math.floor(days / 365);
+        return `${y} year${y === 1 ? '' : 's'} ago`;
+    }
+
     // Every dialog closes with its X / Cancel buttons, Esc, or a click on the dark backdrop.
     root.querySelectorAll('dialog').forEach((dialog) => {
         dialog.addEventListener('click', (event) => {
@@ -167,7 +192,7 @@
         row.type = 'button';
 
         const person = make('span', 'acct-person');
-        const avatar = make('img', 'acct-avatar');
+        const avatar = make('img', `acct-avatar is-${account.status}`);
         avatar.src = account.avatar_url;
         avatar.alt = '';
         const text = make('span', 'acct-person-text');
@@ -176,11 +201,14 @@
         person.append(avatar, text);
 
         const role = make('span');
-        role.append(badge(account.type_label));
+        role.append(roleBadge(account));
         const status = make('span');
-        status.append(badge(account.status_label, `status-${account.status}`));
+        status.append(statusBadge(account));
 
-        row.append(person, role, status, make('span', 'acct-date', formatDate(account.date_joined)), icon('chevron-right'));
+        const joined = make('span', 'acct-date');
+        joined.append(make('strong', '', formatDate(account.date_joined)), make('small', '', timeAgo(account.date_joined)));
+
+        row.append(person, role, status, joined, icon('chevron-right'));
         row.addEventListener('click', () => openDrawer(account.id));
         return row;
     }
@@ -223,49 +251,91 @@
         }
     }
 
-    function detailRows(account) {
-        const rows = [
-            ['Email', account.email + (account.email_verified ? '' : '  (not verified yet)')],
-            ['Mobile', account.contact_num],
-            ['Joined', formatDate(account.date_joined)],
+    /** Details grouped into titled sections so the drawer reads like a profile. */
+    function detailSections(account) {
+        const contact = [
+            ['Email', account.email, 'envelope'],
+            ['Mobile', account.contact_num || '\u2014', 'phone'],
         ];
+        const sections = [{ title: 'Contact', icon: 'telephone', rows: contact }];
+
         if (account.student) {
             const s = account.student;
-            rows.unshift(['Student ID', s.student_id]);
-            rows.push(['College', s.college || '\u2014'], ['Program', s.program || '\u2014'],
-                      ['Major', s.major || '\u2014'], ['Year level', s.year_level_label || '\u2014']);
+            sections.push({
+                title: 'Academic', icon: 'mortarboard',
+                rows: [['College', s.college || '\u2014', 'building'], ['Program', s.program || '\u2014', 'journal-bookmark'],
+                       ['Major', s.major || '\u2014', 'bookmark-star'], ['Year level', s.year_level_label || '\u2014', 'layers']],
+            });
         }
         if (account.staff) {
             const s = account.staff;
-            rows.unshift(['Staff ID', s.staff_id]);
-            rows.push(['Staff type', s.staff_type_label], ['Campus', s.campus]);
+            sections.push({
+                title: 'Assignment', icon: 'briefcase',
+                rows: [['Staff type', s.staff_type_label, 'person-vcard'], ['Campus', s.campus, 'geo-alt']],
+            });
         }
-        return rows;
+        sections.push({
+            title: 'Account', icon: 'person-gear',
+            rows: [['Role', account.type_label, 'person-badge'], ['Status', account.status_label, 'activity'], ['Joined', formatDate(account.date_joined), 'calendar-check']],
+        });
+        return sections;
+    }
+
+    /** Three quick facts shown at the top of the drawer. */
+    function summaryStats(account) {
+        const id = account.student ? account.student.student_id : account.staff ? account.staff.staff_id : '\u2014';
+        const idLabel = account.student ? 'Student ID' : account.staff ? 'Staff ID' : 'ID';
+        const verified = account.email_verified;
+        return [
+            { label: idLabel, value: id, icon: 'person-badge' },
+            { label: 'Member for', value: timeAgo(account.date_joined).replace(' ago', '') || '\u2014', icon: 'calendar3' },
+            { label: 'Email', value: verified ? 'Verified' : 'Not verified', icon: verified ? 'patch-check' : 'exclamation-circle', tone: verified ? 'success' : 'warning' },
+        ];
     }
 
     function statusNote(account) {
-        if (account.type === 'admin') return ['Admin accounts are managed outside this page.', ''];
-        if (account.protected) return ["This is your own account, so it can't be changed here.", ''];
-        if (account.status === 'suspended') return ["Suspended: this person can't sign in. Their data is kept, and you can reactivate them any time.", 'tone-warning'];
-        if (account.status === 'deleted') return [`Deleted on ${formatDate(account.deleted_at)}: hidden and unable to sign in, but nothing is erased. Restoring brings it back as suspended.`, 'tone-danger'];
-        return ['', ''];
+        if (account.type === 'admin') return ['Admin accounts are managed outside this page.', '', 'shield-lock'];
+        if (account.protected) return ["This is your own account, so it can't be changed here.", '', 'person-lock'];
+        if (account.status === 'suspended') return ["Suspended: this person can't sign in. Their data is kept, and you can reactivate them any time.", 'tone-warning', 'pause-circle'];
+        if (account.status === 'deleted') return [`Deleted on ${formatDate(account.deleted_at)}: hidden and unable to sign in, but nothing is erased. Restoring brings it back as suspended.`, 'tone-danger', 'trash3'];
+        return ['', '', ''];
     }
 
     function renderDrawer(account) {
         state.current = account;
-        $('#acct-drawer-avatar').src = account.avatar_url;
+        const avatar = $('#acct-drawer-avatar');
+        avatar.src = account.avatar_url;
+        avatar.className = `acct-avatar acct-avatar-lg is-${account.status}`;
         $('#acct-drawer-name').textContent = account.full_name;
-        $('#acct-drawer-badges').replaceChildren(badge(account.type_label), badge(account.status_label, `status-${account.status}`));
+        $('#acct-drawer-badges').replaceChildren(roleBadge(account), statusBadge(account));
 
-        const [noteText, noteTone] = statusNote(account);
+        $('#acct-drawer-stats').replaceChildren(...summaryStats(account).map((stat) => {
+            const card = make('div', `acct-stat ${stat.tone ? `tone-${stat.tone}` : ''}`.trim());
+            const text = make('div');
+            text.append(make('small', '', stat.label), make('strong', '', stat.value));
+            card.append(icon(stat.icon), text);
+            return card;
+        }));
+
+        const [noteText, noteTone, noteIcon] = statusNote(account);
         const note = $('#acct-drawer-note');
         note.hidden = !noteText;
-        note.textContent = noteText;
         note.className = `acct-note ${noteTone}`.trim();
+        note.replaceChildren(icon(noteIcon || 'info-circle'), make('span', '', noteText));
 
-        $('#acct-drawer-details').replaceChildren(...detailRows(account).map(([label, value]) => {
-            const group = make('div');
-            group.append(make('dt', '', label), make('dd', '', value));
+        $('#acct-drawer-details').replaceChildren(...detailSections(account).map((section) => {
+            const group = make('section', 'acct-detail-group');
+            const heading = make('h4');
+            heading.append(icon(section.icon), section.title);
+            const list = make('dl', 'acct-details');
+            section.rows.forEach(([label, value, rowIcon]) => {
+                const pair = make('div');
+                const term = make('dt');
+                term.append(icon(rowIcon), label);
+                pair.append(term, make('dd', '', value));
+                list.append(pair);
+            });
+            group.append(heading, list);
             return group;
         }));
 
@@ -274,9 +344,17 @@
         actions.hidden = account.protected;
         if (account.protected) return;
 
+        const HELP = {
+            Edit: 'Change name, contact and academic or staff details',
+            Suspend: 'Block sign-in without deleting anything',
+            Reactivate: 'Allow this person to sign in again',
+            Delete: 'Hide the account. It can be restored later',
+            'Restore account': 'Bring the account back as suspended',
+        };
         const button = (label, iconName, className, handler) => {
             const node = make('button', `acct-btn ${className}`.trim());
             node.type = 'button';
+            node.title = HELP[label] || '';
             node.append(icon(iconName), label);
             node.addEventListener('click', handler);
             return node;
@@ -334,10 +412,13 @@
         });
         const radio = el.form.querySelector(`input[name="account_type"][value="${type}"]`);
         if (radio) radio.checked = true;
-        $('#acct-id-note').textContent = state.editing ? '' :
-            type === 'student'
-                ? `The student ID is assigned automatically, like ${field('enrollment_year').value || options.current_year}-00001.`
-                : 'The staff ID is assigned automatically, like 4821-' + (options.campuses[0] ? options.campuses[0].name.slice(0, 2) : 'AA') + '.';
+        $('#acct-id-note').textContent = state.editing ? '' : idNote(type);
+    }
+
+    function idNote(type) {
+        if (type === 'admin') return 'Admins get full access to this administration area. They have no student or staff ID.';
+        if (type === 'student') return `The student ID is assigned automatically, like ${field('enrollment_year').value || options.current_year}-00001.`;
+        return 'The staff ID is assigned automatically, like 4821-' + (options.campuses[0] ? options.campuses[0].name.slice(0, 2) : 'AA') + '.';
     }
 
     function clearErrors() {

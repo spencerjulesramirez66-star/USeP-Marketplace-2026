@@ -1,12 +1,14 @@
 /* ==========================================================================
    partials/sections/accounts.html  (+ partials/accounts/dialogs.html)
    Uses the colour and font variables from base.css.
+   Sections: 1 Layout · 2 Buttons · 3 Guide · 4 Toolbar & tabs · 5 Rows
+             6 Badges · 7 Empty/pager · 8 Dialogs · 9 Drawer · 10 Form · 11 Small screens
    ========================================================================== */
 
 /* The hidden attribute must always win over the display rules below. */
 #accounts-app [hidden] { display: none !important; }
 
-/* ---- Table layout (header and rows share the same columns) -------------- */
+/* ---- 1. Table layout (header and rows share the same columns) ----------- */
 
 .account-columns {
     display: grid;
@@ -15,11 +17,9 @@
     column-gap: 1rem;
 }
 
-.accounts-panel .table-heading.account-columns {
-    padding-inline: 1rem;
-}
+.accounts-panel .table-heading.account-columns { padding-inline: 1rem; }
 
-/* ---- Buttons and inputs -------------------------------------------------- */
+/* ---- 2. Buttons and inputs ----------------------------------------------- */
 
 .acct-btn {
     display: inline-flex;
@@ -70,7 +70,14 @@
     outline-offset: 2px;
 }
 
-/* ---- Toolbar ------------------------------------------------------------- */
+/* ---- 3. Tone colours (used by the form callouts) ---------------------------- */
+
+[data-tone="info"]    { --tone: var(--color-info); }
+[data-tone="success"] { --tone: var(--color-success); }
+[data-tone="warning"] { --tone: var(--color-secondary-dark); }
+[data-tone="danger"]  { --tone: var(--color-danger); }
+
+/* ---- 4. Toolbar and status tabs ------------------------------------------ */
 
 .acct-toolbar { display: flex; gap: .75rem; margin: 1rem 0 .75rem; flex-wrap: wrap; }
 
@@ -92,8 +99,6 @@
     background: var(--color-surface); color: var(--color-text);
 }
 
-/* ---- Status tabs ---------------------------------------------------------- */
-
 .acct-tabs { display: flex; gap: .25rem; border-bottom: 1px solid var(--color-border); margin-bottom: .5rem; overflow-x: auto; }
 .acct-tabs button {
     display: inline-flex; align-items: center; gap: .45rem;
@@ -103,6 +108,7 @@
 }
 .acct-tabs button:hover { color: var(--color-text); }
 .acct-tabs button[aria-selected="true"] { color: var(--color-primary); border-bottom-color: var(--color-primary); }
+.acct-tabs button[aria-selected="true"] .acct-count { background: color-mix(in srgb, var(--color-primary) 12%, white); color: var(--color-primary-dark); }
 
 .acct-count {
     min-width: 1.5rem; padding: .05rem .45rem; border-radius: 999px;
@@ -110,19 +116,21 @@
     font-size: .8rem; text-align: center;
 }
 
-/* ---- Rows ------------------------------------------------------------------ */
+/* ---- 5. Rows --------------------------------------------------------------- */
 
 .acct-list { transition: opacity .15s; }
 .acct-list.is-loading { opacity: .5; }
 
 .acct-row {
     width: 100%;
-    padding: .7rem 1rem;
+    padding: .75rem 1rem;
     border: 0; border-bottom: 1px solid var(--color-border);
+    border-left: 3px solid transparent;
     background: transparent; color: inherit; font: inherit; text-align: left;
     cursor: pointer;
+    transition: background .12s, border-color .12s;
 }
-.acct-row:hover { background: var(--color-surface-muted); }
+.acct-row:hover { background: var(--color-surface-muted); border-left-color: var(--color-primary); }
 .acct-row > span { min-width: 0; }
 
 .acct-person { display: flex; align-items: center; gap: .75rem; }
@@ -135,25 +143,39 @@
 .acct-avatar {
     width: 2.4rem; height: 2.4rem; flex: none;
     border-radius: 50%; object-fit: cover; background: var(--color-surface-muted);
+    box-shadow: 0 0 0 2px var(--color-surface), 0 0 0 4px var(--ring, var(--color-border));
 }
-.acct-avatar-lg { width: 3.4rem; height: 3.4rem; }
+.acct-avatar.is-active    { --ring: color-mix(in srgb, var(--color-success) 55%, white); }
+.acct-avatar.is-suspended { --ring: color-mix(in srgb, var(--color-warning) 65%, white); }
+.acct-avatar.is-deleted   { --ring: color-mix(in srgb, var(--color-danger) 45%, white); filter: grayscale(1); }
+.acct-avatar-lg { width: 3.6rem; height: 3.6rem; }
 
-.acct-date { color: var(--color-text-secondary); }
-.acct-row > i { color: var(--color-text-muted); }
+.acct-date { display: grid; color: var(--color-text-secondary); }
+.acct-date small { color: var(--color-text-muted); }
+.acct-row > i { color: var(--color-text-muted); transition: transform .12s; }
+.acct-row:hover > i { transform: translateX(2px); color: var(--color-primary); }
 
-/* ---- Badges ---------------------------------------------------------------- */
+/* ---- 6. Badges --------------------------------------------------------------- */
 
-.acct-badges { display: flex; gap: .4rem; flex-wrap: wrap; margin-top: .25rem; }
+.acct-badges { display: flex; gap: .4rem; flex-wrap: wrap; margin-top: .35rem; }
 .acct-badge {
-    display: inline-block; padding: .15rem .6rem; border-radius: 999px;
-    font-size: .8rem; font-weight: 500;
+    display: inline-flex; align-items: center; gap: .35rem;
+    padding: .2rem .65rem; border-radius: 999px;
+    font-size: .8rem; font-weight: 500; white-space: nowrap;
     background: var(--color-surface-muted); color: var(--color-text-secondary);
+}
+.acct-badge.role-student { background: color-mix(in srgb, var(--color-accent) 12%, white); color: #1E40AF; }
+.acct-badge.role-staff   { background: color-mix(in srgb, var(--color-secondary) 18%, white); color: #92400E; }
+.acct-badge.role-admin   { background: color-mix(in srgb, var(--color-primary) 12%, white); color: var(--color-primary-dark); }
+
+.acct-badge[class*="status-"]::before {
+    content: ""; width: .45rem; height: .45rem; border-radius: 50%; background: currentColor;
 }
 .acct-badge.status-active { background: color-mix(in srgb, var(--color-success) 14%, white); color: #166534; }
 .acct-badge.status-suspended { background: color-mix(in srgb, var(--color-warning) 18%, white); color: #92400E; }
 .acct-badge.status-deleted { background: color-mix(in srgb, var(--color-danger) 12%, white); color: #991B1B; }
 
-/* ---- Empty state and pager ------------------------------------------------ */
+/* ---- 7. Empty state and pager ---------------------------------------------- */
 
 .acct-empty { padding: 2.5rem 1rem; }
 .acct-pager {
@@ -162,7 +184,7 @@
 }
 .acct-pager > div { display: flex; gap: .5rem; }
 
-/* ---- Dialogs (native <dialog>) -------------------------------------------- */
+/* ---- 8. Dialogs (native <dialog>) ---------------------------------------- */
 
 .acct-dialog {
     padding: 0; border: 0; color: var(--color-text);
@@ -175,7 +197,7 @@
 .acct-modal-small { width: min(440px, calc(100% - 2rem)); }
 
 .acct-drawer {
-    width: min(460px, 100%); height: 100dvh; max-height: 100dvh;
+    width: min(480px, 100%); height: 100dvh; max-height: 100dvh;
     margin: 0 0 0 auto; border-radius: 0;
 }
 .acct-drawer[open] { animation: acct-slide .18s ease-out; }
@@ -196,38 +218,103 @@
 }
 .acct-drawer .acct-dialog-foot { justify-content: flex-start; }
 
-.acct-drawer-person { display: flex; gap: .9rem; align-items: center; }
+/* ---- 9. Details drawer ----------------------------------------------------- */
+
+.acct-drawer-head {
+    background: linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 9%, white), var(--color-surface) 70%);
+}
+.acct-drawer-person { display: flex; gap: .9rem; align-items: center; min-width: 0; }
+.acct-drawer-eyebrow { font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--color-text-muted); }
+
+.acct-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .6rem; }
+.acct-stat {
+    display: flex; align-items: center; gap: .6rem; min-width: 0;
+    padding: .65rem .75rem; border: 1px solid var(--color-border); border-radius: 10px;
+    background: var(--color-surface);
+}
+.acct-stat > i { color: var(--color-text-muted); font-size: 1.1rem; }
+.acct-stat > div { display: grid; min-width: 0; }
+.acct-stat small { color: var(--color-text-muted); font-size: .75rem; }
+.acct-stat strong { font-size: .9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acct-stat.tone-success > i, .acct-stat.tone-success strong { color: var(--color-success); }
+.acct-stat.tone-warning > i, .acct-stat.tone-warning strong { color: var(--color-secondary-dark); }
 
 .acct-note {
+    display: flex; gap: .65rem; align-items: flex-start;
     padding: .75rem .9rem; border-radius: 8px;
-    background: var(--color-surface-muted); color: var(--color-text-secondary); font-size: .95rem;
+    background: var(--color-surface-muted); color: var(--color-text-secondary); font-size: .92rem;
 }
+.acct-note > i { margin-top: .15rem; flex: none; }
 .acct-note.tone-warning { background: color-mix(in srgb, var(--color-warning) 14%, white); color: #92400E; }
 .acct-note.tone-danger { background: color-mix(in srgb, var(--color-danger) 10%, white); color: #991B1B; }
 
-.acct-details { display: grid; gap: .8rem; }
-.acct-details div { display: grid; grid-template-columns: 8.5rem 1fr; gap: .75rem; }
-.acct-details dt { color: var(--color-text-muted); }
-.acct-details dd { overflow-wrap: anywhere; }
-
-/* ---- Form ------------------------------------------------------------------- */
-
-.acct-type-switch { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
-.acct-type-switch label { cursor: pointer; }
-.acct-type-switch input { position: absolute; opacity: 0; pointer-events: none; }
-.acct-type-switch span {
-    display: flex; align-items: center; justify-content: center; gap: .5rem;
-    padding: .7rem; border: 1px solid var(--color-border); border-radius: 8px; font-weight: 500;
+.acct-detail-sections { display: grid; gap: .9rem; }
+.acct-detail-group { border: 1px solid var(--color-border); border-radius: 10px; overflow: hidden; }
+.acct-detail-group h4 {
+    display: flex; align-items: center; gap: .5rem;
+    padding: .5rem .9rem; background: var(--color-surface-muted);
+    font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--color-text-secondary);
 }
-.acct-type-switch input:checked + span {
+.acct-details { display: grid; }
+.acct-details div {
+    display: grid; grid-template-columns: 7.5rem 1fr; gap: .75rem;
+    padding: .6rem .9rem; border-top: 1px solid var(--color-border);
+}
+.acct-details div:first-child { border-top: 0; }
+.acct-details dt { display: flex; align-items: center; gap: .5rem; color: var(--color-text-muted); }
+.acct-details dt > i { color: var(--color-primary); }
+.acct-details dd { overflow-wrap: anywhere; font-weight: 500; }
+
+.acct-records:not([hidden]) { border: 1px dashed var(--color-border); border-radius: 10px; padding: 1rem; }
+
+/* ---- 10. Create / edit form --------------------------------------------- */
+
+/* Two or three options share the row equally. */
+.acct-type-switch { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: .5rem; }
+.acct-type-switch label { cursor: pointer; min-width: 0; }
+.acct-type-switch input { position: absolute; opacity: 0; pointer-events: none; }
+.acct-type-opt {
+    display: grid; justify-items: center; gap: .1rem; text-align: center;
+    height: 100%; padding: .75rem .5rem;
+    border: 1px solid var(--color-border); border-radius: 10px;
+    transition: border-color .12s, background .12s;
+}
+.acct-type-opt > i { font-size: 1.3rem; color: var(--color-text-muted); }
+.acct-type-opt b { font-weight: 600; }
+.acct-type-opt small { color: var(--color-text-muted); font-size: .78rem; }
+.acct-type-switch label:hover .acct-type-opt { background: var(--color-surface-muted); }
+.acct-type-switch input:checked + .acct-type-opt {
     border-color: var(--color-primary); color: var(--color-primary);
     background: color-mix(in srgb, var(--color-primary) 6%, white);
 }
-.acct-type-switch input:focus-visible + span { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.acct-type-switch input:checked + .acct-type-opt > i,
+.acct-type-switch input:checked + .acct-type-opt small { color: var(--color-primary); }
+.acct-type-switch input:focus-visible + .acct-type-opt { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+
+/* Instruction callouts (account ID rule, temporary password). */
+.acct-callout {
+    display: flex; gap: .75rem; align-items: flex-start;
+    padding: .7rem .9rem;
+    border: 1px solid color-mix(in srgb, var(--tone, var(--color-info)) 25%, white);
+    border-left: 4px solid var(--tone, var(--color-info));
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--tone, var(--color-info)) 7%, white);
+}
+.acct-callout > i { color: var(--tone, var(--color-info)); font-size: 1.15rem; margin-top: .1rem; flex: none; }
+.acct-callout strong { display: block; font-size: .9rem; }
+.acct-callout .acct-hint { color: var(--color-text-secondary); font-size: .88rem; }
+/* The scripts fill or hide the text; hide the whole box with it. */
+.acct-callout:has(.acct-hint:empty),
+.acct-callout:has(.acct-hint[hidden]) { display: none; }
 
 .acct-fieldset { border: 0; display: grid; gap: .75rem; min-width: 0; }
 .acct-fieldset[disabled] { display: none; }
-.acct-fieldset legend { font-weight: 600; margin-bottom: .6rem; }
+.acct-fieldset legend {
+    display: flex; align-items: center; gap: .5rem; width: 100%;
+    font-weight: 600; margin-bottom: .6rem; padding-bottom: .5rem;
+    border-bottom: 1px solid var(--color-border);
+}
+.acct-fieldset legend > i { color: var(--color-primary); }
 
 .acct-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .9rem; }
 .acct-wide { grid-column: 1 / -1; }
@@ -244,14 +331,13 @@
 .acct-error { color: var(--color-danger); font-size: .85rem; }
 .acct-error:empty { display: none; }
 
-.acct-hint { color: var(--color-text-muted); font-size: .9rem; }
 .acct-hint:empty { display: none; }
 .acct-form-error {
     padding: .7rem .9rem; border-radius: 8px;
     background: color-mix(in srgb, var(--color-danger) 10%, white); color: #991B1B;
 }
 
-/* ---- Small screens ------------------------------------------------------------ */
+/* ---- 11. Small screens ---------------------------------------------------- */
 
 @media (max-width: 720px) {
     .accounts-panel .table-heading { display: none; }
@@ -260,9 +346,11 @@
     .acct-row .acct-date, .acct-row > i { display: none; }
     .acct-grid { grid-template-columns: 1fr; }
     .acct-details div { grid-template-columns: 1fr; gap: .1rem; }
+    .acct-stats { grid-template-columns: 1fr; }
+    .acct-type-opt small { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
     .acct-drawer[open] { animation: none; }
-    .acct-list { transition: none; }
+    .acct-list, .acct-row, .acct-row > i { transition: none; }
 }

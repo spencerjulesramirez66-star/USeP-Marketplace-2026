@@ -20,7 +20,7 @@ FIRST_ENROLLMENT_YEAR = 2000
 
 class AccountForm(forms.Form):
     account_type = forms.ChoiceField(
-        choices=[('student', 'Student'), ('staff', 'Staff')],
+        choices=[('student', 'Student'), ('staff', 'Staff'), ('admin', 'Admin')],
         required=False,                       # when editing, the type comes from the account itself
     )
 
@@ -76,21 +76,25 @@ class AccountForm(forms.Form):
 
     def _account_type(self):
         if self.instance:
+            if self.instance.is_admin:
+                return 'admin'
             return 'staff' if getattr(self.instance, 'staff_profile', None) else 'student'
         return self.cleaned_data.get('account_type')
 
     def clean(self):
         data = super().clean()
         kind = self._account_type()
-        if kind not in ('student', 'staff'):
-            self.add_error('account_type', 'Choose Student or Staff.')
+        if kind not in ('student', 'staff', 'admin'):
+            self.add_error('account_type', 'Choose Student, Staff or Admin.')
             return data
         data['account_type'] = kind
 
         if kind == 'student':
             self._clean_student(data)
-        else:
+        elif kind == 'staff':
             self._clean_staff(data)
+        else:
+            self._clean_admin(data)
         return data
 
     def _clean_student(self, data):
@@ -116,4 +120,9 @@ class AccountForm(forms.Form):
             self.add_error('staff_type', 'Choose a staff type.')
 
         for name in ('enrollment_year', 'program', 'major', 'year_level'):
+            data.pop(name, None)
+
+    def _clean_admin(self, data):
+        # Admins have no student or staff profile, so none of those fields apply.
+        for name in ('enrollment_year', 'program', 'major', 'year_level', 'campus', 'staff_type'):
             data.pop(name, None)

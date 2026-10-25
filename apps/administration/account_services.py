@@ -16,6 +16,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.db import IntegrityError, transaction
 
 from .account_emails import send_account_created_email
+from .permissions import can_create_admin
 # Change "accounts" to the app label that holds your models.py.
 from apps.accounts.models import Roles, StaffProfile, StudentProfile
 
@@ -28,6 +29,10 @@ ID_RETRIES = 5                 # tries again if two admins create accounts at th
 
 class AccountActionError(Exception):
     """A rule was broken. The message is safe to show to the admin."""
+
+
+class AccountPermissionError(AccountActionError):
+    """The admin is not allowed to do this. Views answer these with 403."""
 
 
 # --------------------------------------------------------------------------
@@ -101,13 +106,17 @@ def ensure_manageable(actor, user):
 # --------------------------------------------------------------------------
 
 def create_account(*, actor, data):
-    """Create a student or staff account from validated form data.
+    """Create a student, staff or admin account from validated form data.
 
     The temporary password is emailed straight to the new user. The admin never
     sees it. If the email can't be sent, nothing is saved, so no one is left with
     an account they can't sign in to.
     """
     account_type = data['account_type']
+    if account_type == 'admin' and not can_create_admin(actor):
+        raise AccountPermissionError('Only super admins can create admin accounts.')
+
+    role = Roles.ADMIN if account_type == 'admin' else Roles.USER
     password = generate_temporary_password()
 
     for attempt in range(ID_RETRIES):
@@ -120,7 +129,7 @@ def create_account(*, actor, data):
                     middle_name=data.get('middle_name', ''),
                     last_name=data['last_name'],
                     contact_num=data['contact_num'],
-                    role=Roles.USER,
+                    role=role,                      # User.save() turns on is_staff for ADMIN
                 )
                 if account_type == 'student':
                     StudentProfile.objects.create(
@@ -130,13 +139,14 @@ def create_account(*, actor, data):
                         major=data.get('major'),
                         year_level=data.get('year_level') or None,
                     )
-                else:
+                elif account_type == 'staff':
                     StaffProfile.objects.create(
                         user=user,
                         staff_id=new_staff_id(data['campus']),
                         staff_type=data['staff_type'],
                         campus=data['campus'],
                     )
+                # Admins get no student/staff profile, only the account itself.
                 _email_login_details(user, password)      # inside the transaction: a failure rolls everything back
             break
         except IntegrityError:
@@ -145,7 +155,8 @@ def create_account(*, actor, data):
                 raise
 
     identifier = account_identifier(user)
-    log_action(actor, user, ADDITION, f'Created {account_type} account {identifier}. Login details emailed.')
+    label = f'{account_type} account' + (f' {identifier}' if identifier else '')
+    log_action(actor, user, ADDITION, f'Created {label}. Login details emailed.')
     return user
 
 
