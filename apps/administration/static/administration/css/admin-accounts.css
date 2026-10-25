@@ -251,24 +251,6 @@
     background: color-mix(in srgb, var(--color-danger) 10%, white); color: #991B1B;
 }
 
-/* ---- Temporary password ---------------------------------------------------- */
-
-.acct-password { display: flex; gap: .6rem; align-items: center; }
-.acct-password code {
-    flex: 1; padding: .7rem .9rem; border-radius: 8px;
-    background: var(--color-surface-muted); font-size: 1.25rem; letter-spacing: .08em;
-    user-select: all;
-}
-
-/* ---- Toasts ------------------------------------------------------------------ */
-
-.acct-toasts { position: fixed; right: 1rem; bottom: 1rem; display: grid; gap: .5rem; z-index: 1000; }
-.acct-toast {
-    padding: .7rem 1rem; border-radius: 8px; max-width: 360px;
-    background: var(--color-text); color: #fff; box-shadow: 0 8px 24px rgba(0, 0, 0, .25);
-}
-.acct-toast.is-error { background: var(--color-danger); }
-
 /* ---- Small screens ------------------------------------------------------------ */
 
 @media (max-width: 720px) {

@@ -1,4 +1,4 @@
-{# Pop-ups used by the Accounts page: details drawer, create/edit form, confirmation, temporary password. #}
+{# Pop-ups used by the Accounts page: details drawer, create/edit form, confirmation. #}
 
 {# ---------- Details drawer ---------- #}
 <dialog class="acct-dialog acct-drawer" id="acct-drawer" aria-labelledby="acct-drawer-name">
@@ -39,6 +39,7 @@
                 <label><input type="radio" name="account_type" value="staff"><span><i class="bi bi-briefcase" aria-hidden="true"></i>Staff</span></label>
             </div>
             <p class="acct-hint" id="acct-id-note"></p>
+            <p class="acct-hint" id="acct-email-note">A temporary password will be emailed to the address below. You will not see it.</p>
 
             <fieldset class="acct-fieldset">
                 <legend>Personal details</legend>
@@ -95,21 +96,3 @@
         </footer>
     </form>
 </dialog>
-
-{# ---------- Temporary password (shown once) ---------- #}
-<dialog class="acct-dialog acct-modal acct-modal-small" id="acct-password-dialog" aria-labelledby="acct-password-title">
-    <div class="acct-dialog-body">
-        <header class="acct-dialog-head"><h3 id="acct-password-title"></h3></header>
-        <div class="acct-dialog-scroll">
-            <p id="acct-password-text"></p>
-            <div class="acct-password">
-                <code id="acct-password-value"></code>
-                <button type="button" class="acct-btn" id="acct-password-copy"><i class="bi bi-clipboard" aria-hidden="true"></i>Copy</button>
-            </div>
-            <p class="acct-hint">This is shown only once. Share it privately. The person will be asked to choose their own password when they first sign in.</p>
-        </div>
-        <footer class="acct-dialog-foot"><button type="button" class="acct-btn acct-btn-primary" data-close>Done</button></footer>
-    </div>
-</dialog>
-
-<div class="acct-toasts" id="acct-toasts" aria-live="polite"></div>

@@ -15,6 +15,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.db import IntegrityError, transaction
 
+from .account_emails import send_account_created_email
 # Change "accounts" to the app label that holds your models.py.
 from apps.accounts.models import Roles, StaffProfile, StudentProfile
 
@@ -102,8 +103,9 @@ def ensure_manageable(actor, user):
 def create_account(*, actor, data):
     """Create a student or staff account from validated form data.
 
-    Returns (user, temporary_password). The password is only known here, so the
-    caller must show it to the admin right away.
+    The temporary password is emailed straight to the new user. The admin never
+    sees it. If the email can't be sent, nothing is saved, so no one is left with
+    an account they can't sign in to.
     """
     account_type = data['account_type']
     password = generate_temporary_password()
@@ -135,6 +137,7 @@ def create_account(*, actor, data):
                         staff_type=data['staff_type'],
                         campus=data['campus'],
                     )
+                _email_login_details(user, password)      # inside the transaction: a failure rolls everything back
             break
         except IntegrityError:
             # Most likely another admin took the same ID a moment ago. Try again.
@@ -142,8 +145,18 @@ def create_account(*, actor, data):
                 raise
 
     identifier = account_identifier(user)
-    log_action(actor, user, ADDITION, f'Created {account_type} account {identifier}.')
-    return user, password
+    log_action(actor, user, ADDITION, f'Created {account_type} account {identifier}. Login details emailed.')
+    return user
+
+
+def _email_login_details(user, password):
+    try:
+        send_account_created_email(user, password)
+    except Exception as exc:
+        raise AccountActionError(
+            f"The account was not created because the email to {user.email} couldn't be sent. "
+            'Check the address and try again.'
+        ) from exc
 
 
 @transaction.atomic
@@ -199,7 +212,7 @@ def account_identifier(user):
 
 
 # --------------------------------------------------------------------------
-# Status changes
+# Status changes (there is no admin password reset: people use "Forgot password")
 # --------------------------------------------------------------------------
 
 def suspend_account(*, actor, user, reason=''):
@@ -241,16 +254,3 @@ def restore_account(*, actor, user, reason=''):
     user.restore()                          # comes back suspended, see User.restore()
     log_action(actor, user, CHANGE, 'Restored deleted account (returned as suspended).')
     return 'Account restored. It is suspended until you reactivate it.'
-
-
-def reset_password(*, actor, user, reason=''):
-    """Give the person a new temporary password. Returns (message, password)."""
-    ensure_manageable(actor, user)
-    if user.is_deleted or not user.is_active:
-        raise AccountActionError('Only active accounts can have their password reset.')
-    password = generate_temporary_password()
-    user.set_password(password)
-    user.is_first_login = True              # they must choose their own password on next sign-in
-    user.save(update_fields=['password', 'is_first_login'])
-    log_action(actor, user, CHANGE, 'Reset password (temporary password issued).')
-    return 'Password reset.', password
