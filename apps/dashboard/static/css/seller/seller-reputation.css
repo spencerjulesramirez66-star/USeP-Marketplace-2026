@@ -1,0 +1,159 @@
+.seller-reputation-main {
+    display: grid;
+    gap: 1.5rem;
+    padding: 3rem 1rem;
+}
+
+.seller-reputation-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.seller-reputation-heading h1,
+.seller-reputation-heading p {
+    margin: 0.3rem 0;
+}
+
+.reputation-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.reputation-stat,
+.reputation-distribution,
+.reputation-filters,
+.reputation-reviews > article {
+    padding: 1.25rem;
+    border: 1px solid var(--color-border);
+    border-radius: 0.75rem;
+    background: var(--color-surface);
+}
+
+.reputation-stat {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.reputation-stat strong {
+    font-size: 1.5rem;
+}
+
+.reputation-distribution {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.5rem 1rem;
+}
+
+.reputation-filters {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.reputation-filters select {
+    min-height: 42px;
+    padding: 0.5rem;
+    border: 1px solid var(--color-border);
+    border-radius: 0.5rem;
+    background: var(--color-surface);
+    color: var(--color-text);
+}
+
+.reputation-needs-reply {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.reputation-reviews {
+    display: grid;
+    gap: 1rem;
+}
+
+.reputation-review-listing {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    font-weight: 700;
+}
+
+.reputation-read-only {
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+}
+
+.reputation-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.reputation-pagination > a:not(.btn),
+.reputation-pagination > span {
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.4rem;
+}
+
+.reputation-pagination > [aria-current="page"] {
+    background: var(--color-primary);
+    color: var(--color-surface);
+}
+
+.listing-review-thread {
+    display: grid;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--color-border);
+}
+
+.listing-review-thread h4,
+.listing-review-reply p {
+    margin: 0;
+}
+
+.listing-review-reply {
+    display: grid;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    background: var(--color-surface-muted);
+}
+
+.listing-review-reply-edit form,
+.listing-review-reply-form {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.listing-review-reply-edit textarea,
+.listing-review-reply-form textarea {
+    width: 100%;
+    min-height: 5rem;
+    padding: 0.65rem;
+    border: 1px solid var(--color-border);
+    border-radius: 0.5rem;
+    font: inherit;
+}
+
+.listing-review-reply-form {
+    margin-top: 0.5rem;
+}
+
+@media (max-width: 700px) {
+    .reputation-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .seller-reputation-heading {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}

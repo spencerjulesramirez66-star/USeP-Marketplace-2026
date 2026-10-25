@@ -31,7 +31,7 @@
         <div class="listing-review-list">
             <h3>Product and service reviews</h3>
             {% for review in listing_reviews %}
-            <article class="listing-review">
+            <article class="listing-review" id="review-{{ review.pk }}">
                 <div class="listing-review-author">
                     <strong>{{ review.reviewer_name }}</strong>
                     <time datetime="{{ review.updated_at|date:'c' }}">{{ review.updated_at|date:'M j, Y' }}</time>
@@ -47,6 +47,7 @@
                 </div>
                 {% endif %}
                 {% endwith %}
+                {% include 'buyer/partials/review_thread.html' with review=review reply_form=reply_form %}
             </article>
             {% empty %}
             <p class="listing-reviews-empty">No ratings yet for this listing. Be the first to share your experience.</p>

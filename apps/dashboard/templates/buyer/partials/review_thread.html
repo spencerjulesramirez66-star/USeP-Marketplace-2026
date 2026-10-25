@@ -1,0 +1,44 @@
+<div class="listing-review-thread">
+    <h4>Reply thread</h4>
+    {% for reply in review.replies.all %}
+    <article class="listing-review-reply">
+        <div class="listing-review-author">
+            <strong>{{ reply.author_name }}</strong>
+            <time datetime="{{ reply.created_at|date:'c' }}">{{ reply.created_at|date:'M j, Y' }}</time>
+        </div>
+        <p>{{ reply.body|linebreaksbr }}</p>
+        {% if request.user.is_authenticated and request.user.id == reply.author_id and review.listing.lifecycle_state == 'NORMAL' %}
+        <details class="listing-review-reply-edit">
+            <summary>Edit reply</summary>
+            <form method="post" action="{% url 'dashboard:edit_listing_review_reply' reply.pk %}">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ return_url|default:request.get_full_path }}">
+                <textarea name="body" maxlength="2000" required>{{ reply.body }}</textarea>
+                <button class="btn btn-outline" type="submit">Save reply</button>
+            </form>
+        </details>
+        <form method="post" action="{% url 'dashboard:delete_listing_review_reply' reply.pk %}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ return_url|default:request.get_full_path }}">
+            <button class="btn btn-outline" type="submit">Delete reply</button>
+        </form>
+        {% endif %}
+    </article>
+    {% empty %}
+    <p>No replies yet.</p>
+    {% endfor %}
+
+    {% if request.user.is_authenticated and review.listing.lifecycle_state == 'NORMAL' %}
+        {% if request.user.id == review.listing.seller_id or request.user.id == review.reviewer_id %}
+        <form class="listing-review-reply-form" method="post" action="{% url 'dashboard:add_listing_review_reply' review.pk %}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ return_url|default:request.get_full_path }}">
+            <label for="reply-body-{{ review.pk }}">Write a reply</label>
+            <textarea id="reply-body-{{ review.pk }}" name="body" maxlength="2000" required></textarea>
+            <button class="btn btn-primary" type="submit">Post reply</button>
+        </form>
+        {% endif %}
+    {% elif review.listing.lifecycle_state != 'NORMAL' %}
+    <span class="reputation-read-only">Replies are unavailable for this listing.</span>
+    {% endif %}
+</div>

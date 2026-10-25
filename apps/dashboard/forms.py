@@ -3,7 +3,7 @@ from decimal import Decimal, InvalidOperation
 
 from django import forms
 
-from .models import Category, Listing, ListingReview
+from .models import Category, Listing, ListingReview, ListingReviewReply
 
 MAX_REVIEW_PHOTOS = 5
 MAX_REVIEW_PHOTO_SIZE_BYTES = 10 * 1024 * 1024
@@ -203,6 +203,25 @@ class ListingReviewForm(forms.ModelForm):
         if rating not in ListingReview.Rating.values:
             raise forms.ValidationError('Select a whole-star rating from 1 to 5.')
         return rating
+
+
+class ListingReviewReplyForm(forms.ModelForm):
+    class Meta:
+        model = ListingReviewReply
+        fields = ['body']
+        widgets = {
+            'body': forms.Textarea(attrs={
+                'rows': 3,
+                'maxlength': 2000,
+                'placeholder': 'Write a reply...',
+            }),
+        }
+
+    def clean_body(self):
+        body = self.cleaned_data.get('body', '').strip()
+        if not body:
+            raise forms.ValidationError('Write a reply before submitting.')
+        return body
 
 
 # MessageForm has moved to apps.messaging.forms.

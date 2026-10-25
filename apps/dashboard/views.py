@@ -1,10 +1,14 @@
+import logging
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.paginator import Paginator
 from django.db.models import Avg, Count, Exists, OuterRef, Q
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from apps.accounts.models import User
@@ -16,9 +20,19 @@ from .forms import (
     SERVICE_CONDITIONS,
     ListingForm,
     ListingReviewForm,
+    ListingReviewReplyForm,
     validate_listing_images,
 )
-from .models import Category, Listing, ListingImage, ListingReview, ListingReviewPhoto, SavedItem
+from .models import (
+    Category,
+    Listing,
+    ListingImage,
+    ListingReview,
+    ListingReviewPhoto,
+    ListingReviewReply,
+    ReviewNotification,
+    SavedItem,
+)
 from .services.listing_images import remove_listing_images, save_listing_images
 from .services.listing_lifecycle import (
     EXPIRED,
@@ -35,6 +49,8 @@ RECOMMENDATION_WEIGHTS = {
     'affinity': 0.3,
 }
 REVIEW_DISPLAY_LIMIT = 10
+REPUTATION_PAGE_SIZE = 10
+logger = logging.getLogger(__name__)
 
 
 def _condition_options():
@@ -129,6 +145,83 @@ def setup_seller_dashboard(request):
         ).count(),
     }
     return render(request, 'seller/dashboard.html', context)
+
+
+@login_required
+def seller_reputation_page(request):
+    listings = Listing.objects.filter(seller=request.user).select_related('category')
+    seller_reply = ListingReviewReply.objects.filter(
+        review_id=OuterRef('pk'),
+        author_id=OuterRef('listing__seller_id'),
+    )
+    all_reviews = ListingReview.objects.filter(
+        listing__seller=request.user,
+    ).annotate(has_seller_reply=Exists(seller_reply))
+    summary = all_reviews.aggregate(average=Avg('rating'), total=Count('pk'))
+    rating_counts = {
+        row['rating']: row['count']
+        for row in all_reviews.values('rating').annotate(count=Count('pk'))
+    }
+    distribution = [
+        {'rating': rating, 'count': rating_counts.get(rating, 0)}
+        for rating in range(5, 0, -1)
+    ]
+    needs_reply_count = all_reviews.filter(
+        listing__lifecycle_state=Listing.Lifecycle.NORMAL,
+        has_seller_reply=False,
+    ).count()
+
+    selected_listing = request.GET.get('listing', '')
+    selected_rating = request.GET.get('rating', '')
+    needs_reply = request.GET.get('needs_reply') == '1'
+    reviews = all_reviews.select_related('listing', 'reviewer').prefetch_related(
+        'photos',
+        'replies__author',
+    ).order_by('-created_at', '-pk')
+    if selected_listing.isdigit() and listings.filter(pk=selected_listing).exists():
+        reviews = reviews.filter(listing_id=selected_listing)
+    else:
+        selected_listing = ''
+    if selected_rating in {str(value) for value, _ in ListingReview.Rating.choices}:
+        reviews = reviews.filter(rating=selected_rating)
+    else:
+        selected_rating = ''
+    if needs_reply:
+        reviews = reviews.filter(
+            listing__lifecycle_state=Listing.Lifecycle.NORMAL,
+            has_seller_reply=False,
+        )
+
+    page_obj = Paginator(reviews, REPUTATION_PAGE_SIZE).get_page(request.GET.get('page'))
+    page_links = []
+    for page_number in page_obj.paginator.page_range:
+        query = request.GET.copy()
+        query['page'] = page_number
+        page_links.append({
+            'number': page_number,
+            'url': f'{request.path}?{query.urlencode()}',
+        })
+    page_urls = {page['number']: page['url'] for page in page_links}
+
+    return render(request, 'seller/reputation.html', {
+        'listings': listings,
+        'reviews': page_obj.object_list,
+        'page_obj': page_obj,
+        'page_links': page_links,
+        'average_rating': round(summary['average'] or 0, 1),
+        'review_count': summary['total'],
+        'rating_distribution': distribution,
+        'rating_choices': ListingReview.Rating.choices,
+        'needs_reply_count': needs_reply_count,
+        'selected_listing': selected_listing,
+        'selected_rating': selected_rating,
+        'needs_reply': needs_reply,
+        'reply_form': ListingReviewReplyForm(),
+        'rating_stars': range(1, 6),
+        'return_url': request.get_full_path(),
+        'previous_page_url': page_urls.get(page_obj.previous_page_number()) if page_obj.has_previous() else '',
+        'next_page_url': page_urls.get(page_obj.next_page_number()) if page_obj.has_next() else '',
+    })
 
 
 @login_required
@@ -423,7 +516,7 @@ def setup_buyer_item_detail(request, item_slug, review_form=None, increment_view
     listing_reviews = (
         ListingReview.objects.filter(listing=listing)
         .select_related('reviewer')
-        .prefetch_related('photos')
+        .prefetch_related('photos', 'replies__author')
     )
     review_summary = listing_reviews.aggregate(average=Avg('rating'), total=Count('id'))
     review_count = review_summary['total']
@@ -513,6 +606,7 @@ def setup_buyer_item_detail(request, item_slug, review_form=None, increment_view
             'remaining_review_photos': MAX_REVIEW_PHOTOS - user_review_photo_count,
             'review_photo_limit': MAX_REVIEW_PHOTOS,
             'review_form': review_form,
+            'reply_form': ListingReviewReplyForm(),
         },
     )
 
@@ -557,6 +651,124 @@ def submit_listing_review(request, item_slug):
         ListingReviewPhoto.objects.create(review=review, image=photo)
     messages.success(request, 'Your review has been updated.' if existing_review else 'Your review has been posted.')
     return redirect(f'{listing.get_absolute_url()}#listing-reviews')
+
+
+def _review_redirect(request, review):
+    destination = request.POST.get('next', '')
+    if destination and url_has_allowed_host_and_scheme(
+        url=destination,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return redirect(destination)
+    return redirect(f'{review.listing.get_absolute_url()}#review-{review.pk}')
+
+
+def _review_participant(review, user):
+    return user.pk in (review.reviewer_id, review.listing.seller_id)
+
+
+def _notify_review_reply(reply):
+    try:
+        review = reply.review
+        recipient = review.reviewer if reply.author_id == review.listing.seller_id else review.listing.seller
+        ReviewNotification.objects.create(recipient=recipient, reply=reply)
+    except Exception:
+        logger.exception('Review reply notification failed for reply=%s', reply.pk)
+
+
+@login_required
+@require_POST
+def add_listing_review_reply(request, review_id):
+    review = get_object_or_404(
+        ListingReview.objects.select_related('listing__seller', 'reviewer'),
+        pk=review_id,
+    )
+    if not _review_participant(review, request.user):
+        raise PermissionDenied
+    if review.listing.lifecycle_state != Listing.Lifecycle.NORMAL:
+        raise Http404('Listing not found.')
+
+    form = ListingReviewReplyForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, form.errors.as_text())
+        return _review_redirect(request, review)
+
+    reply = form.save(commit=False)
+    reply.review = review
+    reply.author = request.user
+    reply.save()
+    _notify_review_reply(reply)
+    messages.success(request, 'Your reply has been posted.')
+    return _review_redirect(request, review)
+
+
+@login_required
+@require_POST
+def edit_listing_review_reply(request, reply_id):
+    reply = get_object_or_404(
+        ListingReviewReply.objects.select_related('review__listing__seller', 'review__reviewer'),
+        Q(review__listing__seller=request.user) | Q(review__reviewer=request.user),
+        pk=reply_id,
+    )
+    if reply.author_id != request.user.id:
+        raise PermissionDenied
+    if reply.review.listing.lifecycle_state != Listing.Lifecycle.NORMAL:
+        raise Http404('Listing not found.')
+
+    form = ListingReviewReplyForm(request.POST, instance=reply)
+    if not form.is_valid():
+        messages.error(request, form.errors.as_text())
+        return _review_redirect(request, reply.review)
+    form.save()
+    messages.success(request, 'Your reply has been updated.')
+    return _review_redirect(request, reply.review)
+
+
+@login_required
+@require_POST
+def delete_listing_review_reply(request, reply_id):
+    reply = get_object_or_404(
+        ListingReviewReply.objects.select_related('review__listing__seller', 'review__reviewer'),
+        Q(review__listing__seller=request.user) | Q(review__reviewer=request.user),
+        pk=reply_id,
+    )
+    if reply.author_id != request.user.id:
+        raise PermissionDenied
+    if reply.review.listing.lifecycle_state != Listing.Lifecycle.NORMAL:
+        raise Http404('Listing not found.')
+
+    review = reply.review
+    reply.delete()
+    messages.success(request, 'Your reply has been deleted.')
+    return _review_redirect(request, review)
+
+
+@login_required
+@require_POST
+def open_review_notification(request, notification_id):
+    notification = get_object_or_404(
+        ReviewNotification.objects.select_related('reply__review__listing'),
+        pk=notification_id,
+        recipient=request.user,
+    )
+    notification.is_read = True
+    notification.save(update_fields=['is_read'])
+    return redirect(notification.link)
+
+
+@login_required
+@require_POST
+def mark_review_notifications_read(request):
+    request.user.review_notifications.filter(is_read=False).update(is_read=True)
+    destination = request.POST.get('next', '')
+    if destination and url_has_allowed_host_and_scheme(
+        url=destination,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return redirect(destination)
+    return redirect('dashboard:buyer')
 
 
 @login_required

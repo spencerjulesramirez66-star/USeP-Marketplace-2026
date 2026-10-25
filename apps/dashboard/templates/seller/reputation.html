@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Reputation | USeP Marketplace{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/seller/seller-reputation.css' %}">
+<link rel="stylesheet" href="{% static 'css/buyer/detail.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="seller-shell dashboard-shell">
+    {% include 'components/navbar.html' %}
+    <main class="seller-reputation-main dashboard-main container">
+        <header class="seller-reputation-heading">
+            <div>
+                <p class="eyebrow">Seller workspace</p>
+                <h1>My Reputation</h1>
+                <p>Reviews across your listings.</p>
+            </div>
+            <a class="btn btn-outline" href="{% url 'dashboard:seller' %}">Back to dashboard</a>
+        </header>
+
+        <section class="reputation-summary" aria-label="Reputation summary">
+            <article class="reputation-stat"><span>Overall average</span><strong>{{ average_rating|floatformat:1 }} / 5</strong></article>
+            <article class="reputation-stat"><span>Total reviews</span><strong>{{ review_count }}</strong></article>
+            <article class="reputation-stat"><span>Needs seller reply</span><strong>{{ needs_reply_count }}</strong></article>
+            <div class="reputation-distribution" aria-label="Ratings distribution">
+                {% for row in rating_distribution %}
+                <span>{{ row.rating }} stars</span><strong>{{ row.count }}</strong>
+                {% endfor %}
+            </div>
+        </section>
+
+        <form class="reputation-filters panel" method="get">
+            <label for="reputation-listing">Listing</label>
+            <select id="reputation-listing" name="listing">
+                <option value="">All listings</option>
+                {% for listing in listings %}
+                <option value="{{ listing.pk }}"{% if selected_listing == listing.pk|stringformat:'s' %} selected{% endif %}>{{ listing.title }}</option>
+                {% endfor %}
+            </select>
+            <label for="reputation-rating">Rating</label>
+            <select id="reputation-rating" name="rating">
+                <option value="">All ratings</option>
+                {% for value, label in rating_choices %}
+                <option value="{{ value }}"{% if selected_rating == value|stringformat:'s' %} selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <label class="reputation-needs-reply">
+                <input type="checkbox" name="needs_reply" value="1"{% if needs_reply %} checked{% endif %}>
+                Needs seller reply
+            </label>
+            <button class="btn btn-primary" type="submit">Apply filters</button>
+            <a class="btn btn-outline" href="{% url 'dashboard:seller_reputation' %}">Clear</a>
+        </form>
+
+        <section class="reputation-reviews" aria-label="Reviews">
+            {% for review in reviews %}
+            <article class="listing-review panel" id="review-{{ review.pk }}">
+                <header class="reputation-review-listing">
+                    <a href="{{ review.listing.get_absolute_url }}">{{ review.listing.title }}</a>
+                    {% if review.listing.lifecycle_state != 'NORMAL' %}
+                    <span class="reputation-read-only">Read only — {{ review.listing.get_lifecycle_state_display }}</span>
+                    {% endif %}
+                </header>
+                <div class="listing-review-author">
+                    <strong>{{ review.reviewer_name }}</strong>
+                    <time datetime="{{ review.updated_at|date:'c' }}">{{ review.updated_at|date:'M j, Y' }}</time>
+                </div>
+                <div class="listing-review-stars" aria-label="{{ review.rating }} out of 5 stars">
+                    {% for star in rating_stars %}<i class="bi {% if star <= review.rating %}bi-star-fill{% else %}bi-star{% endif %}" aria-hidden="true"></i>{% endfor %}
+                </div>
+                <p>{{ review.body|linebreaksbr }}</p>
+                {% with photos=review.photos.all %}
+                {% if photos %}
+                <div class="listing-review-photos" aria-label="Photos shared with this review">
+                    {% for photo in photos %}<a href="{{ photo.image.url }}" target="_blank" rel="noopener"><img src="{{ photo.image.url }}" alt="Photo shared by {{ review.reviewer_name }}" loading="lazy"></a>{% endfor %}
+                </div>
+                {% endif %}
+                {% endwith %}
+                {% include 'buyer/partials/review_thread.html' with review=review reply_form=reply_form return_url=return_url %}
+            </article>
+            {% empty %}
+            <p class="empty-state">{% if review_count %}No reviews match these filters.{% else %}Your listings do not have any reviews yet.{% endif %}</p>
+            {% endfor %}
+        </section>
+
+        {% if page_obj.paginator.num_pages > 1 %}
+        <nav class="reputation-pagination" aria-label="Review pages">
+            {% if page_obj.has_previous %}<a class="btn btn-outline" href="{{ previous_page_url }}">Previous</a>{% endif %}
+            {% for page in page_links %}
+                {% if page.number == page_obj.number %}<span aria-current="page">{{ page.number }}</span>{% else %}<a href="{{ page.url }}">{{ page.number }}</a>{% endif %}
+            {% endfor %}
+            {% if page_obj.has_next %}<a class="btn btn-outline" href="{{ next_page_url }}">Next</a>{% endif %}
+        </nav>
+        {% endif %}
+    </main>
+</div>
+{% endblock %}

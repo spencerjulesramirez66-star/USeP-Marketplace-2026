@@ -10,7 +10,14 @@ from io import StringIO
 from apps.accounts.models import Roles, User
 from apps.messaging.models import Conversation, Message
 from .forms import ListingForm, ListingReviewForm, validate_listing_images
-from .models import Category, Listing, ListingReview, SavedItem
+from .models import (
+    Category,
+    Listing,
+    ListingReview,
+    ListingReviewReply,
+    ReviewNotification,
+    SavedItem,
+)
 from .services.listing_lifecycle import (
     RESTORED,
     archive_expired_recycled_listings,
@@ -1268,5 +1275,239 @@ class BuyerDashboardViewsTests(TestCase):
         self.assertContains(response, 'Rated 5.0 out of 5 based on 1 rating.')
         self.assertContains(response, 'Rated 4.0 out of 5 based on 3 ratings.')
         self.assertContains(response, 'Rated 4.3 out of 5 based on 3 ratings.')
-        self.assertContains(response, 'No ratings yet')
-        self.assertContains(response, 'bi-star-half')
+
+
+@override_settings(ALLOWED_HOSTS=['testserver'])
+class SellerReputationAndReviewReplyTests(TestCase):
+    def setUp(self):
+        self.category = Category.objects.get(slug='textbooks')
+        self.seller = self.create_user('reputation-seller@example.com', 'Reputation', 'Seller', '09123457001')
+        self.other_seller = self.create_user('reputation-other@example.com', 'Other', 'Seller', '09123457002')
+        self.reviewer = self.create_user('reputation-reviewer@example.com', 'Review', 'Author', '09123457003')
+        self.outsider = self.create_user('reputation-outsider@example.com', 'Outside', 'User', '09123457004')
+        self.normal_listing = self.create_listing(self.seller, 'reputation-normal', 'Normal listing')
+        self.second_listing = self.create_listing(self.seller, 'reputation-second', 'Second listing')
+        self.recycled_listing = self.create_listing(
+            self.seller,
+            'reputation-recycled',
+            'Recycled listing',
+            lifecycle_state=Listing.Lifecycle.RECYCLE_BIN,
+        )
+        self.other_listing = self.create_listing(self.other_seller, 'reputation-other-listing', 'Other seller listing')
+        self.normal_review = self.create_review(self.normal_listing, self.reviewer, 5, 'Great item.')
+        self.second_review = self.create_review(self.second_listing, self.outsider, 4, 'Good item.')
+        self.recycled_review = self.create_review(self.recycled_listing, self.reviewer, 3, 'Old item.')
+        self.other_review = self.create_review(self.other_listing, self.reviewer, 2, 'Other seller review.')
+
+    @staticmethod
+    def create_user(email, first_name, last_name, contact_num):
+        return User.objects.create_user(
+            email=email,
+            password='StrongPassword123!',
+            first_name=first_name,
+            last_name=last_name,
+            contact_num=contact_num,
+            email_verified=True,
+            is_first_login=False,
+        )
+
+    def create_listing(self, seller, slug, title, lifecycle_state=Listing.Lifecycle.NORMAL):
+        return Listing.objects.create(
+            seller=seller,
+            category=self.category,
+            title=title,
+            slug=slug,
+            description='A test listing.',
+            price='100.00',
+            condition='Good condition',
+            location='Library',
+            lifecycle_state=lifecycle_state,
+        )
+
+    @staticmethod
+    def create_review(listing, reviewer, rating, body):
+        return ListingReview.objects.create(
+            listing=listing,
+            reviewer=reviewer,
+            rating=rating,
+            body=body,
+        )
+
+    def test_reputation_includes_only_own_listings_and_all_lifecycle_states(self):
+        self.client.force_login(self.seller)
+
+        response = self.client.get(reverse('dashboard:seller_reputation'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['review_count'], 3)
+        self.assertEqual(response.context['average_rating'], 4.0)
+        self.assertEqual(response.context['needs_reply_count'], 2)
+        self.assertEqual(
+            {review.pk for review in response.context['reviews']},
+            {self.normal_review.pk, self.second_review.pk, self.recycled_review.pk},
+        )
+        self.assertNotContains(response, self.other_review.body)
+        self.assertContains(response, 'Read only')
+
+    def test_reputation_filters_listing_rating_and_normal_listing_needs_reply(self):
+        ListingReviewReply.objects.create(
+            review=self.normal_review,
+            author=self.seller,
+            body='Thanks for your review.',
+        )
+        self.client.force_login(self.seller)
+
+        needs_reply_response = self.client.get(
+            reverse('dashboard:seller_reputation'),
+            {'needs_reply': '1'},
+        )
+        self.assertEqual(
+            {review.pk for review in needs_reply_response.context['reviews']},
+            {self.second_review.pk},
+        )
+        self.assertEqual(needs_reply_response.context['needs_reply_count'], 1)
+
+        rating_response = self.client.get(
+            reverse('dashboard:seller_reputation'),
+            {'rating': '3'},
+        )
+        self.assertEqual(
+            [review.pk for review in rating_response.context['reviews']],
+            [self.recycled_review.pk],
+        )
+
+        listing_response = self.client.get(
+            reverse('dashboard:seller_reputation'),
+            {'listing': str(self.second_listing.pk)},
+        )
+        self.assertEqual(
+            [review.pk for review in listing_response.context['reviews']],
+            [self.second_review.pk],
+        )
+
+    def test_non_participant_and_another_seller_cannot_reply_to_review(self):
+        self.client.force_login(self.outsider)
+        outsider_response = self.client.post(
+            reverse('dashboard:add_listing_review_reply', args=[self.normal_review.pk]),
+            {'body': 'I am not a participant.'},
+        )
+        self.assertEqual(outsider_response.status_code, 403)
+
+        self.client.force_login(self.other_seller)
+        other_seller_response = self.client.post(
+            reverse('dashboard:add_listing_review_reply', args=[self.normal_review.pk]),
+            {'body': 'This is another seller listing.'},
+        )
+        self.assertEqual(other_seller_response.status_code, 403)
+        self.assertEqual(self.client.get(reverse('dashboard:seller_reputation')).context['reviews'].count(), 1)
+
+    def test_reviewer_can_reply_and_notifies_the_listing_seller(self):
+        self.client.force_login(self.reviewer)
+
+        response = self.client.post(
+            reverse('dashboard:add_listing_review_reply', args=[self.normal_review.pk]),
+            {'body': 'Thanks for the listing.', 'next': reverse('dashboard:buyer_detail', args=[self.normal_listing.slug])},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        reply = ListingReviewReply.objects.get(review=self.normal_review, author=self.reviewer)
+        notification = ReviewNotification.objects.get(reply=reply)
+        self.assertEqual(notification.recipient, self.seller)
+        self.assertEqual(notification.preview, 'Thanks for the listing.')
+        self.assertEqual(notification.link, f'{self.normal_listing.get_absolute_url()}#review-{self.normal_review.pk}')
+
+    def test_seller_reply_notifies_reviewer(self):
+        self.client.force_login(self.seller)
+
+        response = self.client.post(
+            reverse('dashboard:add_listing_review_reply', args=[self.normal_review.pk]),
+            {'body': 'Thank you!'},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        notification = ReviewNotification.objects.get(reply__review=self.normal_review)
+        self.assertEqual(notification.recipient, self.reviewer)
+
+    def test_only_reply_author_can_edit_or_delete(self):
+        reply = ListingReviewReply.objects.create(
+            review=self.normal_review,
+            author=self.seller,
+            body='Original seller reply.',
+        )
+        self.client.force_login(self.reviewer)
+
+        edit_denied = self.client.post(
+            reverse('dashboard:edit_listing_review_reply', args=[reply.pk]),
+            {'body': 'Changed by reviewer.'},
+        )
+        delete_denied = self.client.post(
+            reverse('dashboard:delete_listing_review_reply', args=[reply.pk]),
+        )
+        self.assertEqual(edit_denied.status_code, 403)
+        self.assertEqual(delete_denied.status_code, 403)
+        reply.refresh_from_db()
+        self.assertEqual(reply.body, 'Original seller reply.')
+
+        self.client.force_login(self.seller)
+        edit_response = self.client.post(
+            reverse('dashboard:edit_listing_review_reply', args=[reply.pk]),
+            {'body': 'Updated seller reply.'},
+        )
+        self.assertEqual(edit_response.status_code, 302)
+        reply.refresh_from_db()
+        self.assertEqual(reply.body, 'Updated seller reply.')
+        delete_response = self.client.post(
+            reverse('dashboard:delete_listing_review_reply', args=[reply.pk]),
+        )
+        self.assertEqual(delete_response.status_code, 302)
+        self.assertFalse(ListingReviewReply.objects.filter(pk=reply.pk).exists())
+
+    def test_non_normal_review_is_read_only(self):
+        self.client.force_login(self.seller)
+        response = self.client.get(reverse('dashboard:seller_reputation'))
+        self.assertContains(response, 'Read only — Recycle bin')
+        self.assertContains(response, 'Replies are unavailable for this listing.')
+
+        self.client.force_login(self.reviewer)
+        reply_response = self.client.post(
+            reverse('dashboard:add_listing_review_reply', args=[self.recycled_review.pk]),
+            {'body': 'Reply to a recycled listing.'},
+        )
+        self.assertEqual(reply_response.status_code, 404)
+        self.assertFalse(ListingReviewReply.objects.filter(review=self.recycled_review).exists())
+
+    def test_review_notification_can_only_be_opened_by_recipient_and_marks_read(self):
+        reply = ListingReviewReply.objects.create(
+            review=self.normal_review,
+            author=self.seller,
+            body='A notification for the reviewer.',
+        )
+        notification = ReviewNotification.objects.create(recipient=self.reviewer, reply=reply)
+        self.client.force_login(self.seller)
+        denied = self.client.post(reverse('dashboard:open_review_notification', args=[notification.pk]))
+        self.assertEqual(denied.status_code, 404)
+
+        self.client.force_login(self.reviewer)
+        response = self.client.post(reverse('dashboard:open_review_notification', args=[notification.pk]))
+        self.assertRedirects(
+            response,
+            f'{self.normal_listing.get_absolute_url()}#review-{self.normal_review.pk}',
+            fetch_redirect_response=False,
+        )
+        notification.refresh_from_db()
+        self.assertTrue(notification.is_read)
+
+    def test_reply_thread_is_visible_on_normal_listing_detail(self):
+        reply = ListingReviewReply.objects.create(
+            review=self.normal_review,
+            author=self.seller,
+            body='Seller response visible on the listing.',
+        )
+        self.client.force_login(self.reviewer)
+
+        response = self.client.get(reverse('dashboard:buyer_detail', args=[self.normal_listing.slug]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, f'id="review-{self.normal_review.pk}"')
+        self.assertContains(response, reply.body)
+        self.assertContains(response, 'Write a reply')

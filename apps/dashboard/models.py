@@ -281,6 +281,54 @@ class ListingReviewPhoto(models.Model):
 		super().save(*args, **kwargs)
 
 
+class ListingReviewReply(models.Model):
+	review = models.ForeignKey(ListingReview, on_delete=models.CASCADE, related_name='replies')
+	author = models.ForeignKey(
+		settings.AUTH_USER_MODEL,
+		on_delete=models.CASCADE,
+		related_name='listing_review_replies',
+	)
+	body = models.TextField(max_length=2000)
+	created_at = models.DateTimeField(auto_now_add=True)
+	updated_at = models.DateTimeField(auto_now=True)
+
+	class Meta:
+		ordering = ['created_at']
+
+	@property
+	def author_name(self):
+		return f'{self.author.first_name} {self.author.last_name}'.strip() or self.author.email
+
+
+class ReviewNotification(models.Model):
+	recipient = models.ForeignKey(
+		settings.AUTH_USER_MODEL,
+		on_delete=models.CASCADE,
+		related_name='review_notifications',
+	)
+	reply = models.ForeignKey(ListingReviewReply, on_delete=models.CASCADE, related_name='notifications')
+	is_read = models.BooleanField(default=False)
+	created_at = models.DateTimeField(auto_now_add=True)
+
+	class Meta:
+		ordering = ['-created_at']
+		indexes = [
+			models.Index(fields=['recipient', 'is_read']),
+		]
+
+	@property
+	def listing(self):
+		return self.reply.review.listing
+
+	@property
+	def preview(self):
+		return self.reply.body.strip()[:100]
+
+	@property
+	def link(self):
+		return f'{self.listing.get_absolute_url()}#review-{self.reply.review_id}'
+
+
 # Conversation, Message, MessageAttachment, MessageRevision,
 # ConversationUserState, ConversationReadState and ConversationTypingState
 # have moved to apps.messaging.models. Listing.conversations (the reverse

@@ -55,6 +55,36 @@
             <i class="bi bi-chat-dots"></i>
             <span class="navbar-badge navbar-message-badge" data-message-unread-badge{% if not unread_message_count %} hidden{% endif %}>{% if unread_message_count > 99 %}99+{% else %}{{ unread_message_count }}{% endif %}</span>
         </a>
+        <details class="navbar-review-notifications">
+            <summary class="navbar-icon-btn" aria-label="Review notifications">
+                <i class="bi bi-bell"></i>
+                <span class="navbar-badge"{% if not review_notification_count %} hidden{% endif %}>{{ review_notification_count }}</span>
+            </summary>
+            <div class="navbar-review-notification-menu">
+                <div class="navbar-review-notification-heading">
+                    <strong>Review notifications</strong>
+                    {% if review_notification_count %}
+                    <form method="post" action="{% url 'dashboard:mark_review_notifications_read' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                        <button type="submit">Mark all read</button>
+                    </form>
+                    {% endif %}
+                </div>
+                {% for notification in review_notifications %}
+                <form method="post" action="{% url 'dashboard:open_review_notification' notification.pk %}">
+                    {% csrf_token %}
+                    <button class="navbar-review-notification{% if not notification.is_read %} is-unread{% endif %}" type="submit">
+                        <strong>{{ notification.listing.title }}</strong>
+                        <span>{{ notification.preview }}</span>
+                        <time datetime="{{ notification.created_at|date:'c' }}">{{ notification.created_at|date:'M j, Y' }}</time>
+                    </button>
+                </form>
+                {% empty %}
+                <p class="navbar-review-notifications-empty">No review notifications.</p>
+                {% endfor %}
+            </div>
+        </details>
         {% endif %}
 
         {% if request.user.is_authenticated %}
