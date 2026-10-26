@@ -14,6 +14,7 @@
 <main id="pv-root" class="pv"
       data-open-hour="{{ open_hour }}"
       data-close-hour="{{ close_hour }}"
+      data-time-zone="{{ schedule_timezone }}"
       data-is-service="{{ is_service|yesno:'true,false' }}"
       data-unit-price="{{ purchase.unit_price|unlocalize }}"
       data-max-quantity="{{ max_quantity|default_if_none:'' }}"
@@ -54,7 +55,7 @@
 
             <section class="pv-section" aria-labelledby="pv-when-h">
                 <h2 class="pv-section__title" id="pv-when-h">{% if is_service %}When do you want the service?{% else %}When can you receive it?{% endif %}</h2>
-                <p class="pv-section__hint">Drag across the calendar to pick a time, then drag the block to move it or pull its edge to resize it. Hatched areas are already taken. Available {{ open_label }} to {{ close_label }}.</p>
+                <p class="pv-section__hint">Drag across the calendar to pick a time, then drag the block to move it or pull its edge to resize it. Hatched areas are already taken. All times are PHT. Available {{ open_label }} to {{ close_label }}.</p>
 
                 <div class="pv-cal-toolbar">
                     <button type="button" class="pv-btn-ghost" data-cal="today">Today</button>

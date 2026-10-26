@@ -9,7 +9,8 @@
 
 {% block content %}
 <div class="sched" id="sched"
-     data-open="{{ open_hour }}" data-close="{{ close_hour }}" data-focus="{{ focus_order }}"
+     data-open="{{ open_hour }}" data-close="{{ close_hour }}" data-time-zone="{{ schedule_timezone }}"
+     data-window-message="{{ schedule_window_message }}" data-focus="{{ focus_order }}"
      data-events-url="{% url 'messaging:schedule_events' %}" data-base="{% url 'messaging:schedule' %}">
 
     <header class="sched-bar">

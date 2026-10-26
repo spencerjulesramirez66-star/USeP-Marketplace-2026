@@ -2,6 +2,7 @@
   Purchase card. Included from message.html when message.kind is purchase_request.
   Needs: message, request.
 {% endcomment %}
+{% load schedule_time %}
 {% with pr=message.purchase_request %}
 {% if pr %}
 <div class="messaging-purchase-card" data-purchase-id="{{ pr.id }}" data-status="{{ pr.status }}">
@@ -26,11 +27,31 @@
             </div>
         {% endif %}
 
+    {% elif pr.status == 'proposed' %}
+        <dl class="messaging-purchase-card__details">
+            <div>
+                <dt>Proposed time</dt>
+                <dd>{{ pr.proposed_start|pht_datetime:"%a, %b %d, %I:%M %p" }} - {{ pr.proposed_end|pht_datetime:"%I:%M %p" }}</dd>
+            </div>
+            <div>
+                <dt>Proposed by</dt>
+                <dd>{% if pr.proposed_by.first_name or pr.proposed_by.last_name %}{{ pr.proposed_by.first_name }} {{ pr.proposed_by.last_name }}{% else %}{{ pr.proposed_by.email }}{% endif %}</dd>
+            </div>
+        </dl>
+        {% if pr.proposal_note %}<p class="messaging-purchase-card__note">{{ pr.proposal_note }}</p>{% endif %}
+        {% if pr.proposed_by_id == request.user.id %}
+            <p>Waiting for the other party to respond.</p>
+        {% else %}
+            <div class="messaging-purchase-card__actions">
+                <button type="button" class="is-primary" data-purchase-action="accept" data-url="{% url 'messaging:schedule_accept' pr.id %}">Confirm</button>
+            </div>
+        {% endif %}
+
     {% elif pr.status == 'submitted' or pr.status == 'confirmed' or pr.status == 'declined' %}
         <dl class="messaging-purchase-card__details">
             {% if not pr.is_service %}<div><dt>Quantity</dt><dd>{{ pr.quantity }}</dd></div>{% endif %}
             <div><dt>Total</dt><dd>₱{{ pr.total_amount|floatformat:"-2" }}</dd></div>
-            <div><dt>When</dt><dd>{{ pr.scheduled_start|date:"D, M j, g:i A" }} to {{ pr.scheduled_end|date:"g:i A" }}</dd></div>
+            <div><dt>When</dt><dd>{{ pr.scheduled_start|pht_datetime:"%a, %b %d, %I:%M %p" }} - {{ pr.scheduled_end|pht_datetime:"%I:%M %p" }}</dd></div>
             <div><dt>Payment</dt><dd>{{ pr.get_payment_method_display }}{% if pr.payment_reference %} (ref {{ pr.payment_reference }}){% endif %}</dd></div>
         </dl>
         {% if pr.buyer_note %}<p class="messaging-purchase-card__note">{{ pr.buyer_note }}</p>{% endif %}

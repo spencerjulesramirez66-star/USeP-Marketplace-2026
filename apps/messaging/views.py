@@ -15,8 +15,14 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 from apps.dashboard.models import Listing
 
 from . import link_previews, selectors, services
-from .forms import MessageForm, PurchaseVerificationForm, schedule_hours,MAX_ATTACHMENT_SIZE_BYTES
+from .forms import (
+    MAX_ATTACHMENT_SIZE_BYTES,
+    MessageForm,
+    PurchaseVerificationForm,
+    schedule_hours,
+)
 from .models import PurchaseRequest
+from .schedule_config import SCHEDULE_TIMEZONE
 
 logger = logging.getLogger(__name__)
 
@@ -423,6 +429,7 @@ def _render_purchase_page(request, purchase, error='', status=200):
         'seller_name': _display_name(listing.seller),
         'listing_image_url': listing.conversation_image_url,
         'is_service': purchase.is_service,
+        'schedule_timezone': SCHEDULE_TIMEZONE.key,
         'unit_price_label': _price_label(purchase.unit_price),
         'max_quantity': None,  # TODO(stock): pass listing.stock_quantity once stock rules are settled
         'open_hour': open_hour,

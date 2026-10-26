@@ -16,6 +16,7 @@ from .models import (
     MessageRevision,
     PurchaseRequest
 )
+from .schedule_config import SCHEDULE_TIMEZONE
 
 MAX_BODY_LENGTH = 2000
 
@@ -186,8 +187,8 @@ def busy_slots(seller_id, exclude_pk=None):
         qs = qs.exclude(pk=exclude_pk)
     return [
         {
-            'start': timezone.localtime(p.scheduled_start).isoformat(),
-            'end': timezone.localtime(p.scheduled_end).isoformat(),
+            'start': timezone.localtime(p.scheduled_start, SCHEDULE_TIMEZONE).replace(tzinfo=None).isoformat(),
+            'end': timezone.localtime(p.scheduled_end, SCHEDULE_TIMEZONE).replace(tzinfo=None).isoformat(),
         }
         for p in qs
     ]

@@ -44,7 +44,11 @@
         <section class="seller-listings">
             <nav class="seller-listing-views" aria-label="Listing management views">
                 <a href="{% url 'dashboard:seller' %}"{% if listing_view == 'listings' %} aria-current="page"{% endif %}>Listings</a>
-                <a href="{% url 'dashboard:seller' %}?view=recycle"{% if listing_view == 'recycle' %} aria-current="page"{% endif %}>Recycle Bin{% if recycle_bin_count %} ({{ recycle_bin_count }}){% endif %}</a>
+                <a class="btn btn-outline seller-recycle-button" href="{% url 'dashboard:seller' %}?view=recycle"{% if listing_view == 'recycle' %} aria-current="page"{% endif %} aria-label="Recycle Bin{% if recycle_bin_count %}, {{ recycle_bin_count }} item{{ recycle_bin_count|pluralize }}{% endif %}" title="Recycle Bin">
+                    <i class="bi bi-trash3" aria-hidden="true"></i>
+                    <span class="seller-recycle-visually-hidden">Recycle Bin{% if recycle_bin_count %} ({{ recycle_bin_count }}){% endif %}</span>
+                    {% if recycle_bin_count %}<span class="seller-recycle-count" aria-hidden="true">{{ recycle_bin_count }}</span>{% endif %}
+                </a>
             </nav>
             {% if listing_view == 'listings' %}
            <form class="listing-filters" id="listing-filters">

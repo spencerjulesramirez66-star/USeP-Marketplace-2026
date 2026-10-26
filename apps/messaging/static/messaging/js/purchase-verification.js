@@ -23,6 +23,7 @@
     const cfg = {
         openHour: toInt(root.dataset.openHour, 7),
         closeHour: toInt(root.dataset.closeHour, 18),
+        timeZone: root.dataset.timeZone,
         isService: root.dataset.isService === 'true',
         unitPrice: parseFloat(root.dataset.unitPrice) || 0,
         maxQty: root.dataset.maxQuantity ? toInt(root.dataset.maxQuantity, null) : null,
@@ -60,13 +61,31 @@
     const dateOnly = (d) => toLocalString(d).slice(0, 10);
     const minutesOfDay = (d) => d.getHours() * 60 + d.getMinutes();
     const sameDay = (a, b) => dateOnly(a) === dateOnly(b);
-    const startOfToday = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
+    function manilaNow() {
+        const now = new Date();
+        const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
+            timeZone: cfg.timeZone,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hourCycle: 'h23',
+        }).formatToParts(now).map((part) => [part.type, part.value]));
+        return new Date(
+            Number(parts.year), Number(parts.month) - 1, Number(parts.day),
+            Number(parts.hour), Number(parts.minute), Number(parts.second), now.getMilliseconds(),
+        );
+    }
+
+    const startOfToday = () => { const d = manilaNow(); d.setHours(0, 0, 0, 0); return d; };
 
     const hourLabel = (hour) => {
         const h = hour % 12 === 0 ? 12 : hour % 12;
         return `${h} ${hour < 12 ? 'AM' : 'PM'}`;
     };
-    const timeLabel = (d) => d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    const timeLabel = (d) => `${d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })} PHT`;
     const dayLabel = (d) => d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 
     const durationLabel = (minutes) => {
@@ -121,7 +140,7 @@
         if (minutesOfDay(start) < cfg.openHour * 60 || minutesOfDay(end) > cfg.closeHour * 60) {
             return `Choose a time between ${hourLabel(cfg.openHour)} and ${hourLabel(cfg.closeHour)}.`;
         }
-        if (start < new Date()) return 'That time has already passed.';
+        if (start < manilaNow()) return 'That time has already passed.';
         if (busy.some((b) => start < b.end && end > b.start)) return 'The seller already has something booked then.';
         return '';
     }
@@ -308,7 +327,7 @@
 
     // ----------------------------------------------------- manual picker
     function initManualPicker() {
-        manualDate.min = dateOnly(new Date());
+        manualDate.min = dateOnly(manilaNow());
 
         for (let m = cfg.openHour * 60; m < cfg.closeHour * 60; m += 15) {
             const value = `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;

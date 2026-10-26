@@ -14,10 +14,11 @@
 
   const OPEN_HOUR = Number(root.dataset.open);
   const CLOSE_HOUR = Number(root.dataset.close);
-  const HOUR_PX = 56;            // height of one hour on the grid
+  const SCHEDULE_TIME_ZONE = root.dataset.timeZone;
   const SNAP_HOURS = 0.25;       // dragging snaps to 15 minutes
   const POLL_MS = 30000;
   const HIDDEN_KEY = 'sched-hidden-statuses';
+  let HOUR_PX = 56;
 
   const STATUS_LABELS = {
     submitted: 'Waiting for seller',
@@ -39,20 +40,19 @@
     },
   };
 
-  root.style.setProperty('--row-height', `${HOUR_PX}px`);
-
   // ----------------------------------------------------------------- state
 
   const state = {
     orders: [],
     fingerprint: '',
-    weekStart: startOfWeek(new Date()),
+    weekStart: startOfWeek(scheduleDate(new Date())),
     selectedId: null,
     hiddenStatuses: new Set(readJson(HIDDEN_KEY, [])),
     firstRender: true,
     focusId: root.dataset.focus,      // order to open from a chat link
     justDragged: false,
   };
+  let calendarOpenHour = OPEN_HOUR;
 
   const $ = (id) => document.getElementById(id);
   const el = {
@@ -86,6 +86,24 @@
     return next;
   }
 
+  function scheduleDate(value) {
+    const date = value instanceof Date ? value : new Date(value);
+    const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
+      timeZone: SCHEDULE_TIME_ZONE,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hourCycle: 'h23',
+    }).formatToParts(date).map((part) => [part.type, part.value]));
+    return new Date(
+      Number(parts.year), Number(parts.month) - 1, Number(parts.day),
+      Number(parts.hour), Number(parts.minute), Number(parts.second), date.getMilliseconds(),
+    );
+  }
+
   const isSameDay = (a, b) => a.toDateString() === b.toDateString();
   const hoursOf = (date) => date.getHours() + date.getMinutes() / 60;
   const formatTime = (date) => date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -110,8 +128,8 @@
   /** The window we are currently talking about: the proposal if there is one, else the booked slot. */
   function currentSlot(order) {
     return {
-      start: new Date(order.proposed_start || order.start),
-      end: new Date(order.proposed_end || order.end),
+      start: scheduleDate(order.proposed_start || order.start),
+      end: scheduleDate(order.proposed_end || order.end),
     };
   }
 
@@ -163,11 +181,34 @@
   /** Everything drawn on the grid: booked slots, plus a dashed block for each proposed slot. */
   function buildBlocks() {
     const blocks = [];
+    const addSegments = (order, startValue, endValue, ghost = false) => {
+      const start = scheduleDate(startValue);
+      const end = scheduleDate(endValue);
+      if (end <= start) return;
+
+      const firstDay = new Date(start);
+      firstDay.setHours(0, 0, 0, 0);
+      for (let day = firstDay; day < end; day = addDays(day, 1)) {
+        const nextDay = addDays(day, 1);
+        const segmentStart = start > day ? start : day;
+        const segmentEnd = end < nextDay ? end : nextDay;
+        if (segmentEnd <= segmentStart) continue;
+        blocks.push({
+          order,
+          start: segmentStart,
+          end: segmentEnd,
+          ghost,
+          continuesBefore: segmentStart > start,
+          continuesAfter: segmentEnd < end,
+        });
+      }
+    };
+
     for (const order of state.orders) {
       if (state.hiddenStatuses.has(order.status)) continue;
-      blocks.push({ order, start: new Date(order.start), end: new Date(order.end), ghost: false });
+      addSegments(order, order.start, order.end);
       if (order.status === 'proposed' && order.proposed_start) {
-        blocks.push({ order, start: new Date(order.proposed_start), end: new Date(order.proposed_end), ghost: true });
+        addSegments(order, order.proposed_start, order.proposed_end, true);
       }
     }
     return blocks;
@@ -185,10 +226,10 @@
     return Math.max(laneEnds.length, 1);
   }
 
-  function blockHtml(block, laneCount) {
-    const { order, start, end, ghost } = block;
-    const top = Math.max(hoursOf(start) - OPEN_HOUR, 0) * HOUR_PX;
-    const height = Math.max((hoursOf(end) - Math.max(hoursOf(start), OPEN_HOUR)) * HOUR_PX, 22);
+  function blockHtml(block, laneCount, visibleOpen) {
+    const { order, start, end, ghost, continuesBefore, continuesAfter } = block;
+    const top = (hoursOf(start) - visibleOpen) * HOUR_PX;
+    const height = Math.max((end - start) / 3600000 * HOUR_PX, 22);
     const classes = [
       'ev', `st-${order.status}`,
       ghost && 'ghost',
@@ -200,57 +241,88 @@
       <button type="button" class="${classes}" data-id="${order.id}"
               style="top:${top}px; height:${height}px; left:${(block.lane * 100) / laneCount}%; width:calc(${100 / laneCount}% - 4px)">
         <b>${escapeHtml(order.title)}</b>
-        ${formatTime(start)} - ${formatTime(end)}${ghost ? ' (proposed)' : ''}
+        ${continuesBefore ? '<small>Continued</small>' : ''}
+        ${formatTime(start)} - ${formatTime(end)} PHT${continuesAfter ? ' (continues)' : ''}${ghost ? ' (proposed)' : ''}
       </button>`;
   }
 
-  function columnHtml(day, blocks, now) {
+  function columnHtml(day, blocks, now, visibleOpen, visibleClose) {
     const dayBlocks = blocks.filter((block) => isSameDay(block.start, day)).sort((a, b) => a.start - b.start);
     const laneCount = assignLanes(dayBlocks);
     const isToday = isSameDay(day, now);
-    const showNow = isToday && hoursOf(now) >= OPEN_HOUR && hoursOf(now) <= CLOSE_HOUR;
+    const showNow = isToday && hoursOf(now) >= visibleOpen && hoursOf(now) <= visibleClose;
 
     return `
-      <div class="cal-col${isToday ? ' today' : ''}" style="height:${(CLOSE_HOUR - OPEN_HOUR) * HOUR_PX}px">
-        ${dayBlocks.map((block) => blockHtml(block, laneCount)).join('')}
-        ${showNow ? `<div class="cal-now" style="top:${(hoursOf(now) - OPEN_HOUR) * HOUR_PX}px"></div>` : ''}
+      <div class="cal-col${isToday ? ' today' : ''}" style="height:${(visibleClose - visibleOpen) * HOUR_PX}px">
+        ${dayBlocks.map((block) => blockHtml(block, laneCount, visibleOpen)).join('')}
+        ${showNow ? `<div class="cal-now" style="top:${(hoursOf(now) - visibleOpen) * HOUR_PX}px"></div>` : ''}
       </div>`;
   }
 
   function renderCalendar() {
     const days = weekDays();
-    const now = new Date();
+    const now = scheduleDate(new Date());
     const blocks = buildBlocks();
     const scrollTop = el.calendar.scrollTop;
+    const weekEnd = addDays(state.weekStart, 7);
+    let visibleOpen = OPEN_HOUR;
+    let visibleClose = CLOSE_HOUR;
+
+    blocks.forEach((block) => {
+      if (block.start < days[0] || block.start >= weekEnd) return;
+      visibleOpen = Math.min(visibleOpen, Math.floor(hoursOf(block.start)));
+      const endHour = isSameDay(block.start, block.end) ? hoursOf(block.end) : 24;
+      visibleClose = Math.max(visibleClose, Math.ceil(endHour));
+    });
+    calendarOpenHour = visibleOpen;
 
     const longDate = { month: 'long', day: 'numeric' };
-    el.range.textContent = `${days[0].toLocaleDateString([], longDate)} - ${days[6].toLocaleDateString([], { ...longDate, year: 'numeric' })}`;
+    el.range.textContent = `${days[0].toLocaleDateString([], longDate)} - ${days[6].toLocaleDateString([], { ...longDate, year: 'numeric' })} PHT`;
 
     const header = days.map((day) => `
       <div class="${isSameDay(day, now) ? 'today' : ''}">
         ${day.toLocaleDateString([], { weekday: 'short' })}<b>${day.getDate()}</b>
       </div>`).join('');
 
-    const hourLabels = Array.from({ length: CLOSE_HOUR - OPEN_HOUR }, (_, i) =>
-      `<div>${new Date(2000, 0, 1, OPEN_HOUR + i).toLocaleTimeString([], { hour: 'numeric' })}</div>`).join('');
-
-    const weekEnd = addDays(state.weekStart, 7);
     const hasOrdersThisWeek = blocks.some((block) => block.start >= state.weekStart && block.start < weekEnd);
 
-    el.calendar.innerHTML = `
-      <div class="cal-head"><div></div>${header}</div>
-      <div class="cal-grid">
-        <div class="cal-hours">${hourLabels}</div>
-        ${days.map((day) => columnHtml(day, blocks, now)).join('')}
-      </div>
-      ${hasOrdersThisWeek ? '' : '<p class="cal-empty">No orders this week.</p>'}`;
+    const renderGrid = () => {
+      const hourLabels = Array.from({ length: visibleClose - visibleOpen }, (_, i) =>
+        `<div>${new Date(2000, 0, 1, visibleOpen + i).toLocaleTimeString([], { hour: 'numeric' })}</div>`).join('');
+      el.calendar.innerHTML = `
+        <div class="cal-head"><div></div>${header}</div>
+        <div class="cal-grid">
+          <div class="cal-hours">${hourLabels}</div>
+          ${days.map((day) => columnHtml(day, blocks, now, visibleOpen, visibleClose)).join('')}
+        </div>
+        ${hasOrdersThisWeek ? '' : '<p class="cal-empty">No orders this week.</p>'}`;
+    };
 
-    // Keep the scroll position; on the very first draw, start near the current time.
-    el.calendar.scrollTop = state.firstRender
-      ? Math.max((Math.min(hoursOf(now), CLOSE_HOUR) - OPEN_HOUR - 1.5) * HOUR_PX, 0)
-      : scrollTop;
+    root.style.setProperty('--row-height', `${HOUR_PX}px`);
+    renderGrid();
+    const headerHeight = el.calendar.querySelector('.cal-head').offsetHeight;
+    const availableHeight = Math.max(el.calendar.clientHeight - headerHeight, 0);
+    HOUR_PX = Math.max(56, availableHeight / Math.max(visibleClose - visibleOpen, 1));
+    root.style.setProperty('--row-height', `${HOUR_PX}px`);
+    renderGrid();
+
+    if (state.firstRender) {
+      const firstWeekBlock = blocks.find((block) => block.start >= state.weekStart && block.start < weekEnd);
+      const anchorHour = hoursOf(now) >= visibleOpen && hoursOf(now) < visibleClose
+        ? hoursOf(now)
+        : firstWeekBlock ? hoursOf(firstWeekBlock.start) : visibleOpen;
+      el.calendar.scrollTop = headerHeight + Math.max(anchorHour - visibleOpen - 1.5, 0) * HOUR_PX;
+    } else {
+      el.calendar.scrollTop = scrollTop;
+    }
     state.firstRender = false;
   }
+
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(renderCalendar, 80);
+  });
 
   // ------------------------------------------------------------ needs action
 
@@ -279,15 +351,15 @@
 
   function detailsHtml(order) {
     const isSeller = order.role === 'seller';
-    const start = new Date(order.start);
-    const end = new Date(order.end);
+    const start = scheduleDate(order.start);
+    const end = scheduleDate(order.end);
 
     return `
       <h4>${escapeHtml(order.title)}</h4>
       <span class="pill st-${order.status}">${STATUS_LABELS[order.status]}</span>
       <dl>
         <dt>${isSeller ? 'Buyer' : 'Seller'}</dt><dd>${escapeHtml(order.with)}</dd>
-        <dt>When</dt><dd>${formatDate(start)}, ${formatTime(start)} - ${formatTime(end)}</dd>
+        <dt>When</dt><dd>${formatDate(start)}, ${formatTime(start)} - ${formatTime(end)} PHT</dd>
         ${order.is_service ? '' : `<dt>Quantity</dt><dd>${order.quantity}${isSeller ? ` (${order.stock} in stock)` : ''}</dd>`}
         <dt>Total</dt><dd>&#8369;${Number(order.total).toLocaleString()}${order.payment ? ` via ${escapeHtml(order.payment)}` : ''}</dd>
         ${order.buyer_note ? `<dt>Buyer note</dt><dd>${escapeHtml(order.buyer_note)}</dd>` : ''}
@@ -301,21 +373,33 @@
     return `
       <div class="callout">
         <b><i class="bi bi-calendar2-event"></i> ${title}</b><br>
-        ${formatDate(start)}, ${formatTime(start)} - ${formatTime(end)}
+        ${formatDate(start)}, ${formatTime(start)} - ${formatTime(end)} PHT<br>
+        Proposed by ${escapeHtml(order.proposed_by)}
         ${order.proposal_note ? `<br>Reason: ${escapeHtml(order.proposal_note)}` : ''}
       </div>`;
+  }
+
+  function proposalConstraints(day) {
+    const pad = (value) => String(value).padStart(2, '0');
+    const date = `${day.getFullYear()}-${pad(day.getMonth() + 1)}-${pad(day.getDate())}`;
+    return {
+      min: `${date}T${pad(OPEN_HOUR)}:00`,
+      max: `${date}T${pad(CLOSE_HOUR)}:00`,
+    };
   }
 
   function proposalFormHtml(order) {
     const isSeller = order.role === 'seller';
     const { start, end } = currentSlot(order);
+    const constraints = proposalConstraints(start);
     return `
-      <form id="s-form">
+      <form id="s-form" novalidate>
         <b>${order.can_accept ? 'Or suggest another time' : 'Change the time'}</b>
-        <label>Start <input type="datetime-local" name="start" value="${toInputValue(start)}" required></label>
-        <label>End <input type="datetime-local" name="end" value="${toInputValue(end)}" required></label>
+        <label>Start <input type="datetime-local" name="start" value="${toInputValue(start)}" min="${constraints.min}" max="${constraints.max}" required></label>
+        <label>End <input type="datetime-local" name="end" value="${toInputValue(end)}" min="${constraints.min}" max="${constraints.max}" required></label>
         <label>${isSeller ? 'Reason (sent to the buyer)' : 'Note'}
           <textarea name="note" rows="2" maxlength="500"></textarea></label>
+        <p class="sched-form-error" data-form-error role="alert" hidden></p>
         <button class="btn btn-outline" type="submit">
           <i class="bi bi-send"></i> ${isSeller ? 'Send new time to buyer' : 'Send counter-offer'}
         </button>
@@ -389,11 +473,11 @@
 
       const column = columns[index];
       const offsetPx = move.clientY - column.getBoundingClientRect().top - grabOffset;
-      const snapped = Math.round((offsetPx / HOUR_PX + OPEN_HOUR) / SNAP_HOURS) * SNAP_HOURS;
+      const snapped = Math.round((offsetPx / HOUR_PX + calendarOpenHour) / SNAP_HOURS) * SNAP_HOURS;
       const hour = Math.min(Math.max(snapped, OPEN_HOUR), CLOSE_HOUR - durationHours);
 
       if (block.parentNode !== column) column.appendChild(block);
-      Object.assign(block.style, { top: `${(hour - OPEN_HOUR) * HOUR_PX}px`, left: '0', width: 'calc(100% - 4px)' });
+      Object.assign(block.style, { top: `${(hour - calendarOpenHour) * HOUR_PX}px`, left: '0', width: 'calc(100% - 4px)' });
       drop = { dayIndex: index, hour };
     };
 
@@ -437,13 +521,13 @@
   }
 
   function goToWeekOf(order) {
-    state.weekStart = startOfWeek(new Date(order.start));
+    state.weekStart = startOfWeek(scheduleDate(order.start));
     renderAll();
     showPanel(order.id);
   }
 
   function shiftWeek(days) {
-    state.weekStart = days === 0 ? startOfWeek(new Date()) : addDays(state.weekStart, days);
+    state.weekStart = days === 0 ? startOfWeek(scheduleDate(new Date())) : addDays(state.weekStart, days);
     renderCalendar();
   }
 
@@ -473,12 +557,51 @@
     if (button && order) runAction(order, button.dataset.do);
   });
   el.detail.addEventListener('input', (event) => {
-    event.target.closest('form')?.setAttribute('data-dirty', '1');
+    const form = event.target.closest('#s-form');
+    if (!form) return;
+    form.setAttribute('data-dirty', '1');
+    const date = form.elements.start.value.slice(0, 10);
+    if (date) {
+      const constraints = proposalConstraints(new Date(`${date}T00:00`));
+      form.elements.start.min = constraints.min;
+      form.elements.start.max = constraints.max;
+      form.elements.end.min = constraints.min;
+      form.elements.end.max = constraints.max;
+    }
   });
   el.detail.addEventListener('submit', (event) => {
     event.preventDefault();
+    const form = event.target;
     const order = findOrder(state.selectedId);
-    if (order) runAction(order, 'propose', Object.fromEntries(new FormData(event.target)));
+    if (!order) return;
+    const start = form.elements.start.value;
+    const end = form.elements.end.value;
+    const error = form.querySelector('[data-form-error]');
+    const now = toInputValue(scheduleDate(new Date()));
+    let message = '';
+    if (!start || !end) {
+      message = 'Choose a start and end time.';
+    } else if (start.slice(0, 10) !== end.slice(0, 10)) {
+      message = 'A schedule must start and end on the same day.';
+    } else if (end <= start) {
+      message = 'The schedule end must be after the start.';
+    } else if (start.slice(11, 16) < `${String(OPEN_HOUR).padStart(2, '0')}:00`
+        || end.slice(11, 16) > `${String(CLOSE_HOUR).padStart(2, '0')}:00`) {
+      message = root.dataset.windowMessage;
+    } else if (start <= now.slice(0, 16)) {
+      message = 'That time has already passed.';
+    }
+    error.textContent = message;
+    error.hidden = !message;
+    if (message) {
+      form.elements.start.setAttribute('aria-invalid', 'true');
+      form.elements.end.setAttribute('aria-invalid', 'true');
+      form.elements.start.focus();
+      return;
+    }
+    form.elements.start.removeAttribute('aria-invalid');
+    form.elements.end.removeAttribute('aria-invalid');
+    runAction(order, 'propose', Object.fromEntries(new FormData(form)));
   });
 
   // Header controls.

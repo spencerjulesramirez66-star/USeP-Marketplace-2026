@@ -3,10 +3,10 @@ from django import forms
 from .models import Message
 from datetime import time
 
-from django.conf import settings
 from django.utils import timezone
 
 from .models import PurchaseRequest
+from .schedule_config import SCHEDULE_CLOSE_HOUR, SCHEDULE_OPEN_HOUR, SCHEDULE_TIMEZONE
 
 
 ALLOWED_ATTACHMENT_TYPES = {
@@ -26,6 +26,41 @@ MAX_ATTACHMENTS_PER_MESSAGE = 10
 PROOF_CONTENT_TYPES = {'image/jpeg', 'image/png', 'image/webp'}
 MIN_SLOT_MINUTES = 15
 MAX_SLOT_MINUTES = 240
+
+
+def schedule_window_message():
+    def label(hour):
+        return f'{hour % 12 or 12}:00 {"AM" if hour < 12 else "PM"}'
+
+    return (
+        f'Schedules must be between {label(SCHEDULE_OPEN_HOUR)} '
+        f'and {label(SCHEDULE_CLOSE_HOUR)}.'
+    )
+
+
+def validate_schedule_times(start, end):
+    if timezone.is_naive(start):
+        start = timezone.make_aware(start, SCHEDULE_TIMEZONE)
+    if timezone.is_naive(end):
+        end = timezone.make_aware(end, SCHEDULE_TIMEZONE)
+
+    local_start = timezone.localtime(start, SCHEDULE_TIMEZONE)
+    local_end = timezone.localtime(end, SCHEDULE_TIMEZONE)
+    minutes = (end - start).total_seconds() / 60
+
+    if local_start.date() != local_end.date():
+        raise forms.ValidationError('A schedule must start and end on the same day.')
+    if end <= start:
+        raise forms.ValidationError('The schedule end must be after the start.')
+    if minutes < MIN_SLOT_MINUTES:
+        raise forms.ValidationError(f'Pick at least {MIN_SLOT_MINUTES} minutes.')
+    if minutes > MAX_SLOT_MINUTES:
+        raise forms.ValidationError(f'Pick at most {MAX_SLOT_MINUTES // 60} hours.')
+    if local_start.time() < time(SCHEDULE_OPEN_HOUR) or local_end.time() > time(SCHEDULE_CLOSE_HOUR):
+        raise forms.ValidationError(schedule_window_message())
+    if start < timezone.now():
+        raise forms.ValidationError('That time has already passed.')
+
 
 class MessageForm(forms.ModelForm):
     """Validates the compose form. Multiple files ride under the
@@ -81,12 +116,8 @@ class MessageForm(forms.ModelForm):
 
 
 def schedule_hours():
-    """(open_hour, close_hour) for bookable slots. Override in settings.py with
-    PURCHASE_OPEN_HOUR / PURCHASE_CLOSE_HOUR (24h ints) when this becomes editable."""
-    return (
-        getattr(settings, 'PURCHASE_OPEN_HOUR', 7),
-        getattr(settings, 'PURCHASE_CLOSE_HOUR', 18),
-    )
+    """Return the shared bookable schedule window."""
+    return SCHEDULE_OPEN_HOUR, SCHEDULE_CLOSE_HOUR
 
 
 class PurchaseVerificationForm(forms.Form):
@@ -111,6 +142,10 @@ class PurchaseVerificationForm(forms.Form):
     def __init__(self, *args, purchase, **kwargs):
         super().__init__(*args, **kwargs)
         self.purchase = purchase
+
+    def full_clean(self):
+        with timezone.override(SCHEDULE_TIMEZONE):
+            super().full_clean()
 
     def clean_payment_proof(self):
         proof = self.cleaned_data.get('payment_proof')
@@ -151,20 +186,7 @@ class PurchaseVerificationForm(forms.Form):
         if not start or not end:
             return
 
-        local_start, local_end = timezone.localtime(start), timezone.localtime(end)
-        open_hour, close_hour = schedule_hours()
-        minutes = (end - start).total_seconds() / 60
-
-        if local_start.date() != local_end.date():
-            problem = 'A slot has to start and end on the same day.'
-        elif minutes < MIN_SLOT_MINUTES:
-            problem = f'Pick at least {MIN_SLOT_MINUTES} minutes.'
-        elif minutes > MAX_SLOT_MINUTES:
-            problem = f'Pick at most {MAX_SLOT_MINUTES // 60} hours.'
-        elif local_start.time() < time(open_hour) or local_end.time() > time(close_hour):
-            problem = f'Choose a time between {open_hour}:00 and {close_hour}:00.'
-        elif start < timezone.now():
-            problem = 'That time has already passed.'
-        else:
-            return
-        self.add_error('scheduled_start', problem)
+        try:
+            validate_schedule_times(start, end)
+        except forms.ValidationError as error:
+            self.add_error('scheduled_start', error)
